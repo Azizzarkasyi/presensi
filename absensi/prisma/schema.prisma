@@ -1,0 +1,193 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["public", "tenant"]
+}
+
+// ============================================
+// PUBLIC SCHEMA - Shared across all tenants
+// ============================================
+
+model Tenant {
+  id         Int      @id @default(autoincrement())
+  name       String   @unique
+  schemaName String   @unique // e.g., "tenant_1", "tenant_2"
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@schema("public")
+}
+
+model SuperAdmin {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@schema("public")
+}
+
+// ============================================
+// TENANT SCHEMA - Replicated per tenant
+// These models define the template for tenant schemas
+// ============================================
+
+model User {
+  id             Int      @id @default(autoincrement())
+  email          String   @unique
+  password       String
+  name           String
+  role           Role     @default(USER)
+  photo          String?
+  faceDescriptor String?  @db.Text
+  faceRegistered Boolean  @default(false)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  attends        Attendance[]
+  breaks         Break[]
+  
+  tasksAssigned Task[] @relation("AssignedTo")
+  tasksCreated  Task[] @relation("CreatedBy")
+
+  // Salary Info
+  salaryType    SalaryType @default(MONTHLY)
+  salary        Float      @default(0)
+  startWorkTime String     @default("09:00")
+  latePenalty   Float      @default(0)
+
+  payrolls      Payroll[]
+
+  @@schema("tenant")
+}
+
+model CompanyConfig {
+  id                     Int      @id @default(autoincrement())
+  companyName            String   @default("My Company")
+  maxBreakMinutesPerDay  Int      @default(60)
+  lateThresholdMinutes   Int      @default(15)
+  overtimeRateMultiplier Float    @default(1.5)
+  workStartTime          String   @default("09:00")
+  workEndTime            String   @default("17:00")
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  @@schema("tenant")
+}
+
+model Attendance {
+  id                Int              @id @default(autoincrement())
+  userId            Int
+  user              User             @relation(fields: [userId], references: [id])
+  date              DateTime         @default(now()) @db.Date
+  clockIn           DateTime?
+  clockOut          DateTime?
+  clockInPhoto      String?
+  clockOutPhoto     String?
+  status            AttendanceStatus @default(PRESENT)
+  latitude          Float?
+  longitude         Float?
+  totalBreakMinutes Int              @default(0)
+  breaks            Break[]
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  @@unique([userId, date])
+  @@schema("tenant")
+}
+
+model Break {
+  id           Int         @id @default(autoincrement())
+  userId       Int
+  user         User        @relation(fields: [userId], references: [id])
+  attendanceId Int?
+  attendance   Attendance? @relation(fields: [attendanceId], references: [id])
+  startTime    DateTime
+  endTime      DateTime?
+  duration     Int?
+  startPhoto   String?
+  endPhoto     String?
+  createdAt    DateTime    @default(now())
+
+  @@schema("tenant")
+}
+
+model Task {
+  id          Int        @id @default(autoincrement())
+  title       String
+  description String
+  assigneeId  Int
+  assignee    User       @relation("AssignedTo", fields: [assigneeId], references: [id])
+  creatorId   Int
+  creator     User       @relation("CreatedBy", fields: [creatorId], references: [id])
+  status      TaskStatus @default(PENDING)
+  dueDate     DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@schema("tenant")
+}
+
+model Payroll {
+  id              Int      @id @default(autoincrement())
+  userId          Int
+  user            User     @relation(fields: [userId], references: [id])
+  periodStart     DateTime
+  periodEnd       DateTime
+  baseSalary      Float
+  workingDays     Int      @default(0)
+  workingHours    Float    @default(0)
+  overtimeHours   Float    @default(0)
+  lateDeductions  Float    @default(0)
+  breakDeductions Float    @default(0)
+  overtimeBonus   Float    @default(0)
+  deductions      Float
+  netSalary       Float
+  createdAt       DateTime @default(now())
+
+  @@schema("tenant")
+}
+
+enum Role {
+  ADMIN
+  LEADER
+  USER
+
+  @@schema("tenant")
+}
+
+enum SalaryType {
+  HOURLY
+  DAILY
+  WEEKLY
+  MONTHLY
+
+  @@schema("tenant")
+}
+
+enum AttendanceStatus {
+  PRESENT
+  LATE
+  ABSENT
+  SICK
+  LEAVE
+  ALPHA
+
+  @@schema("tenant")
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  DONE
+
+  @@schema("tenant")
+}

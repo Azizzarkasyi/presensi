@@ -1,0 +1,11 @@
+import { Stack } from 'expo-router';
+
+export default function SuperAdminLayout() {
+  return (
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="index" />
+      <Stack.Screen name="add-company" />
+      <Stack.Screen name="company/[id]" />
+    </Stack>
+  );
+}
