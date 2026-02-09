@@ -1,12 +1,10 @@
 generator client {
   provider        = "prisma-client-js"
-  previewFeatures = ["multiSchema"]
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-  schemas  = ["public", "tenant"]
 }
 
 // ============================================
@@ -20,8 +18,6 @@ model Tenant {
   isActive   Boolean  @default(true)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
-
-  @@schema("public")
 }
 
 model SuperAdmin {
@@ -31,8 +27,6 @@ model SuperAdmin {
   name      String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  @@schema("public")
 }
 
 // ============================================
@@ -65,8 +59,6 @@ model User {
   latePenalty   Float      @default(0)
 
   payrolls      Payroll[]
-
-  @@schema("tenant")
 }
 
 model CompanyConfig {
@@ -79,8 +71,6 @@ model CompanyConfig {
   workEndTime            String   @default("17:00")
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
-
-  @@schema("tenant")
 }
 
 model Attendance {
@@ -101,7 +91,6 @@ model Attendance {
   updatedAt         DateTime         @updatedAt
 
   @@unique([userId, date])
-  @@schema("tenant")
 }
 
 model Break {
@@ -116,8 +105,6 @@ model Break {
   startPhoto   String?
   endPhoto     String?
   createdAt    DateTime    @default(now())
-
-  @@schema("tenant")
 }
 
 model Task {
@@ -132,8 +119,6 @@ model Task {
   dueDate     DateTime?
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
-
-  @@schema("tenant")
 }
 
 model Payroll {
@@ -152,16 +137,12 @@ model Payroll {
   deductions      Float
   netSalary       Float
   createdAt       DateTime @default(now())
-
-  @@schema("tenant")
 }
 
 enum Role {
   ADMIN
   LEADER
   USER
-
-  @@schema("tenant")
 }
 
 enum SalaryType {
@@ -169,8 +150,6 @@ enum SalaryType {
   DAILY
   WEEKLY
   MONTHLY
-
-  @@schema("tenant")
 }
 
 enum AttendanceStatus {
@@ -180,14 +159,10 @@ enum AttendanceStatus {
   SICK
   LEAVE
   ALPHA
-
-  @@schema("tenant")
 }
 
 enum TaskStatus {
   PENDING
   IN_PROGRESS
   DONE
-
-  @@schema("tenant")
 }

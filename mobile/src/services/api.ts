@@ -3,8 +3,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
 // Detect platform for correct API URL
-const getApiUrl = () =>{
-  return 'https://api-presensi.yexsx.my.id/api';
+const getApiUrl = () => {
+  // return 'https://api-presensi.yexsx.my.id/api';
+  return 'http://localhost:3000/api';
 }
 
 const api = axios.create({
@@ -20,13 +21,13 @@ api.interceptors.request.use(async (config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
-  
+
   // Add tenant ID header
   const tenantId = await AsyncStorage.getItem('tenantId');
   if (tenantId) {
     config.headers['X-Tenant-ID'] = tenantId;
   }
-  
+
   return config;
 });
 
@@ -69,18 +70,18 @@ export const getUserById = (id: number) => api.get(`/users/${id}`);
 
 export const createUser = (data: any) => api.post('/users', data);
 
-export const updateUser = (userId: number, data: any) => 
+export const updateUser = (userId: number, data: any) =>
   api.put(`/users/${userId}`, data);
 
 export const deleteUser = (userId: number) => api.delete(`/users/${userId}`);
 
 // Attendance
-export const clockIn = (data: FormData) => 
+export const clockIn = (data: FormData) =>
   api.post('/attendance/clock-in', data, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
 
-export const clockOut = (data: FormData) => 
+export const clockOut = (data: FormData) =>
   api.post('/attendance/clock-out', data, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });

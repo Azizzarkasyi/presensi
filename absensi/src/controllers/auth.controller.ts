@@ -75,18 +75,18 @@ export async function autoLogin(req: Request, res: Response) {
               email: superAdmin.email,
               name: superAdmin.name,
               role: 'SUPER_ADMIN',
-              photo: null, 
+              photo: null,
             },
             isSuperAdmin: true,
             // No tenant data for Super Admin
-            tenant: null, 
+            tenant: null,
           },
         });
       }
       // If password invalid for Super Admin, we could stop here or continue checking tenants.
       // For security/UX, usually unique email implies we stop, but if they have same email for standard user, 
       // we might want to allow that? For now, let's treat Super Admin as exclusive.
-       return res.status(401).json({
+      return res.status(401).json({
         success: false,
         message: 'Password salah (Super Admin)',
       });
@@ -97,7 +97,7 @@ export async function autoLogin(req: Request, res: Response) {
     const tenants = await publicPrisma.tenant.findMany({
       where: { isActive: true },
     });
-    
+
     // ... (rest of the existing logic)
 
     // Search for user in each tenant schema
@@ -106,7 +106,7 @@ export async function autoLogin(req: Request, res: Response) {
     for (const tenant of tenants) {
       try {
         const tenantPrisma = getTenantPrisma(tenant.schemaName);
-        
+
         const user = await tenantPrisma.user.findUnique({
           where: { email },
         });
