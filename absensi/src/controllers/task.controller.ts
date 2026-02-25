@@ -40,15 +40,15 @@ export const createTask = async (req: Request, res: Response) => {
       finalAssigneeIds = [Number(assigneeId)];
     } else {
       return res.status(400).json({
-         success: false,
-         message: 'At least one assignee is required',
+        success: false,
+        message: 'At least one assignee is required',
       });
     }
 
     // 3. Create Tasks (One per assignee to track individual progress)
     // We use a transaction to ensure all are created or none
     const createdTasks = await prisma.$transaction(
-      finalAssigneeIds.map((id) => 
+      finalAssigneeIds.map((id) =>
         prisma.task.create({
           data: {
             title,

@@ -4,8 +4,11 @@ import { Platform } from 'react-native';
 
 // Detect platform for correct API URL
 const getApiUrl = () => {
-  // return 'https://api-presensi.yexsx.my.id/api';
-  return 'http://localhost:3000/api';
+  // Production URL (Cloudflare Tunnel)
+  return 'https://api-presensi.yexsx.my.id/api';
+
+  // Development URL (uncomment untuk development lokal)
+  // return 'http://localhost:3000/api';
 }
 
 const api = axios.create({
