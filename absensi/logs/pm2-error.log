@@ -158,3 +158,33 @@
 2026-02-11 13:01:47 +07:00:     at node:internal/main/run_main_module:36:49
 2026-02-11 13:01:47 +07:00: 
 2026-02-11 13:01:47 +07:00: Node.js v22.22.0
+2026-03-30 15:31:01 +07:00: Error: SyntaxError: Expected property name or '}' in JSON at position 1 (line 1 column 2)
+2026-03-30 15:31:01 +07:00:     at JSON.parse (<anonymous>)
+2026-03-30 15:31:01 +07:00:     at parse (C:\cloudfire\project\presensi\absensi\node_modules\body-parser\lib\types\json.js:72:19)
+2026-03-30 15:31:01 +07:00:     at C:\cloudfire\project\presensi\absensi\node_modules\body-parser\lib\read.js:162:18
+2026-03-30 15:31:01 +07:00:     at AsyncResource.runInAsyncScope (node:async_hooks:214:14)
+2026-03-30 15:31:01 +07:00:     at invokeCallback (C:\cloudfire\project\presensi\absensi\node_modules\raw-body\index.js:238:16)
+2026-03-30 15:31:01 +07:00:     at done (C:\cloudfire\project\presensi\absensi\node_modules\raw-body\index.js:227:7)
+2026-03-30 15:31:01 +07:00:     at IncomingMessage.onEnd (C:\cloudfire\project\presensi\absensi\node_modules\raw-body\index.js:287:7)
+2026-03-30 15:31:01 +07:00:     at IncomingMessage.emit (node:events:519:28)
+2026-03-30 15:31:01 +07:00:     at IncomingMessage.emit (node:domain:489:12)
+2026-03-30 15:31:01 +07:00:     at endReadableNT (node:internal/streams/readable:1698:12) {
+2026-03-30 15:31:01 +07:00:   expose: true,
+2026-03-30 15:31:01 +07:00:   statusCode: 400,
+2026-03-30 15:31:01 +07:00:   status: 400,
+2026-03-30 15:31:01 +07:00:   body: '{\\"email\\":\\"admin@demo.com\\",\\"password\\":\\"admin123\\"}',
+2026-03-30 15:31:01 +07:00:   type: 'entity.parse.failed'
+2026-03-30 15:31:01 +07:00: }
+2026-03-30 15:56:31 +07:00: Auth error: TokenExpiredError: jwt expired
+2026-03-30 15:56:31 +07:00:     at C:\cloudfire\project\presensi\absensi\node_modules\jsonwebtoken\verify.js:190:21
+2026-03-30 15:56:31 +07:00:     at getSecret (C:\cloudfire\project\presensi\absensi\node_modules\jsonwebtoken\verify.js:97:14)
+2026-03-30 15:56:31 +07:00:     at Object.module.exports [as verify] (C:\cloudfire\project\presensi\absensi\node_modules\jsonwebtoken\verify.js:101:10)
+2026-03-30 15:56:31 +07:00:     at authenticate (C:\cloudfire\project\presensi\absensi\src\middleware\auth.middleware.ts:41:25)
+2026-03-30 15:56:31 +07:00:     at Layer.handleRequest (C:\cloudfire\project\presensi\absensi\node_modules\router\lib\layer.js:152:17)
+2026-03-30 15:56:31 +07:00:     at next (C:\cloudfire\project\presensi\absensi\node_modules\router\lib\route.js:157:13)
+2026-03-30 15:56:31 +07:00:     at Route.dispatch (C:\cloudfire\project\presensi\absensi\node_modules\router\lib\route.js:117:3)
+2026-03-30 15:56:31 +07:00:     at handle (C:\cloudfire\project\presensi\absensi\node_modules\router\index.js:435:11)
+2026-03-30 15:56:31 +07:00:     at Layer.handleRequest (C:\cloudfire\project\presensi\absensi\node_modules\router\lib\layer.js:152:17)
+2026-03-30 15:56:31 +07:00:     at C:\cloudfire\project\presensi\absensi\node_modules\router\index.js:295:15 {
+2026-03-30 15:56:31 +07:00:   expiredAt: 2026-02-18T12:39:52.000Z
+2026-03-30 15:56:31 +07:00: }

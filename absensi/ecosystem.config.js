@@ -25,6 +25,14 @@ module.exports = {
             max_restarts: 10,
             min_uptime: "5s",
             restart_delay: 1000,
+        },
+        {
+            name: "absensi-web",
+            script: "server.js",
+            cwd: "../mobile",
+            env: {
+                NODE_ENV: "production",
+            }
         }
     ]
 }

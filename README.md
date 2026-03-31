@@ -1,15 +1,19 @@
 # Cara Menjalankan Aplikasi Presensi
 
-## Metode 1: Menggunakan Helper Scripts (Recommended)
+## Metode 1: Buka Lewat Browser (Paling Praktis & Bisa Dimana Saja)
+Aplikasi sudah di-deploy secara lokal menggunakan PM2 dan di-online-kan melalui Cloudflare Tunnel. Anda dan tester bisa langsung membukanya di HP atau Laptop manapun tanpa install apa-apa!
 
-### Jalankan Backend
-```powershell
-.\start-all.ps1
-```
+- **Aplikasi Web / Frontend:** `https://app-presensi.yexsx.my.id`
+- **Backend API:** `https://api-presensi.yexsx.my.id/api`
 
-### Jalankan Frontend (di terminal terpisah)
+### Pastikan Tunnel & Server Berjalan:
+Jika aplikasi tidak bisa dibuka, jalankan di PowerShell laptop server Anda:
 ```powershell
-.\start-mobile.ps1
+# 1. Pastikan PM2 berjalan (absensi-server & absensi-web)
+pm2 list
+
+# 2. Pastikan Tunnel Berjalan
+cloudflared tunnel run presensi-backend
 ```
 
 ## Metode 2: Manual

@@ -7,7 +7,7 @@ $baseUrl = "https://api-presensi.yexsx.my.id/api"
 # Test 1: Health Check
 Write-Host "`n[1/3] Testing Health Check..." -ForegroundColor Cyan
 try {
-    $response = Invoke-RestMethod -Uri $baseUrl -Method Get
+    $response = Invoke-RestMethod -Uri "https://api-presensi.yexsx.my.id/" -Method Get
     Write-Host "✓ Backend is running!" -ForegroundColor Green
     Write-Host "  Message: $($response.message)" -ForegroundColor White
     Write-Host "  Version: $($response.version)" -ForegroundColor White
