@@ -1,5 +1,23 @@
 import { Request, Response } from 'express';
 
+function getDistanceFromLatLonInM(lat1: number, lon1: number, lat2: number, lon2: number) {
+  const R = 6371; // Radius of the earth in km
+  const dLat = deg2rad(lat2 - lat1);
+  const dLon = deg2rad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const d = R * c; // Distance in km
+  return d * 1000; // Distance in meters
+}
+
+function deg2rad(deg: number) {
+  return deg * (Math.PI / 180);
+}
+
+
 /**
  * Clock In
  */
@@ -48,9 +66,39 @@ export const clockIn = async (req: Request, res: Response) => {
       });
     }
 
-    // Get company config for late threshold
+    // Get company config for late threshold and location rules
     const config = await prisma.companyConfig.findFirst();
-    const workStartTime = config?.workStartTime || user.startWorkTime || '09:00';
+
+    // Tentukan referensi lokasi (Utamakan setelan per-user, lalu jatuh ke opsi global perusahaan)
+    const targetLatitude = user.workLatitude ?? config?.officeLatitude;
+    const targetLongitude = user.workLongitude ?? config?.officeLongitude;
+    const targetRadius = user.workRadius ?? config?.allowedRadiusMeters ?? 50;
+
+    // Validasi radius lokasi jika referensi lokasi ditemukan
+    if (targetLatitude && targetLongitude) {
+      if (!latitude || !longitude) {
+        return res.status(400).json({
+          success: false,
+          message: 'Akses ditolak: Sistem memerlukan lokasi (GPS) untuk memvalidasi absensi Anda.',
+        });
+      }
+
+      const distance = getDistanceFromLatLonInM(
+        parseFloat(latitude),
+        parseFloat(longitude),
+        targetLatitude,
+        targetLongitude
+      );
+
+      if (distance > targetRadius) {
+        return res.status(400).json({
+          success: false,
+          message: `Absen ditolak: Anda berada di luar radius lokasi kerja (Jarak: ${Math.round(distance)}m, Maksimal: ${targetRadius}m).`,
+        });
+      }
+    }
+
+    const workStartTime = user.startWorkTime || '09:00';
     const lateThreshold = config?.lateThresholdMinutes || 15;
 
     // Determine status - check if late
@@ -101,7 +149,7 @@ export const clockOut = async (req: Request, res: Response) => {
   try {
     const prisma = req.prisma!;
     const userId = req.user!.id;
-    const { faceVerified } = req.body;
+    const { faceVerified, latitude, longitude } = req.body;
     const photo = req.file ? req.file.filename : null;
 
     // Check if user has face registered
@@ -121,6 +169,37 @@ export const clockOut = async (req: Request, res: Response) => {
         success: false,
         message: 'Face verification required for clock out',
       });
+    }
+
+    // Get config to validate distance for clock out too
+    const config = await prisma.companyConfig.findFirst();
+    
+    // Tentukan referensi lokasi untuk pulang
+    const targetLatitude = user.workLatitude ?? config?.officeLatitude;
+    const targetLongitude = user.workLongitude ?? config?.officeLongitude;
+    const targetRadius = user.workRadius ?? config?.allowedRadiusMeters ?? 50;
+    
+    if (targetLatitude && targetLongitude) {
+      if (!latitude || !longitude) {
+        return res.status(400).json({
+          success: false,
+          message: 'Akses ditolak: Sistem memerlukan lokasi (GPS) untuk memvalidasi absensi pulang Anda.',
+        });
+      }
+
+      const distance = getDistanceFromLatLonInM(
+        parseFloat(latitude),
+        parseFloat(longitude),
+        targetLatitude,
+        targetLongitude
+      );
+
+      if (distance > targetRadius) {
+        return res.status(400).json({
+          success: false,
+          message: `Pulang ditolak: Anda berada di luar radius lokasi kerja (Jarak: ${Math.round(distance)}m, Maksimal: ${targetRadius}m).`,
+        });
+      }
     }
 
     // Find today's attendance

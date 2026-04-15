@@ -14,6 +14,7 @@ import {
 import { useRouter } from 'expo-router';
 import { useAuth } from '../src/contexts/AuthContext';
 import { useResponsive } from '../src/hooks/useResponsive';
+import { theme } from '../src/constants/theme';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -241,7 +242,7 @@ const styles = StyleSheet.create({
     outlineStyle: 'none' as any,
   },
   button: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: theme.colors.primary,
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',

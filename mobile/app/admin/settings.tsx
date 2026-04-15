@@ -1,5 +1,6 @@
+import { View, Text, StyleSheet, ScrollView, Alert, Modal } from 'react-native';
+import * as Location from 'expo-location';
 import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { useResponsive } from '../../src/hooks/useResponsive';
@@ -12,6 +13,7 @@ import { Card } from '../../src/components/ui/Card';
 import { Button } from '../../src/components/ui/Button';
 import { Input } from '../../src/components/ui/Input';
 import { SuccessModal } from '../../src/components/ui/SuccessModal';
+import { MapPicker } from '../../src/components/ui/MapPicker';
 
 export default function AdminSettings() {
   const { user } = useAuth();
@@ -19,12 +21,14 @@ export default function AdminSettings() {
   const { isDesktop, isWeb } = useResponsive();
   const [loading, setLoading] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [config, setConfig] = useState({
+  const [showMapPicker, setShowMapPicker] = useState(false);
+  const [config, setConfig] = useState<any>({
     maxBreakMinutesPerDay: 60,
     lateThresholdMinutes: 15,
     overtimeRateMultiplier: 1.5,
-    workStartTime: '09:00',
-    workEndTime: '17:00',
+    officeLatitude: null,
+    officeLongitude: null,
+    allowedRadiusMeters: 50,
   });
 
   useEffect(() => {
@@ -63,27 +67,7 @@ export default function AdminSettings() {
         <View style={[styles.contentWrapper, isDesktop && styles.contentDesktop]}>
           
           <Card style={styles.card}>
-            <Text style={styles.sectionTitle}>⏰ Jam Kerja</Text>
-            
-            <View style={styles.row}>
-              <View style={styles.flex1}>
-                <Input
-                  label="Jam Masuk"
-                  value={config.workStartTime || ''}
-                  onChangeText={(text) => setConfig({ ...config, workStartTime: text })}
-                  placeholder="09:00"
-                />
-              </View>
-              <View style={{ width: 12 }} />
-              <View style={styles.flex1}>
-                <Input
-                  label="Jam Pulang"
-                  value={config.workEndTime || ''}
-                  onChangeText={(text) => setConfig({ ...config, workEndTime: text })}
-                  placeholder="17:00"
-                />
-              </View>
-            </View>
+            <Text style={styles.sectionTitle}>⏰ Waktu Kerja</Text>
 
             <Input
               label="Toleransi Keterlambatan (menit)"
@@ -91,7 +75,7 @@ export default function AdminSettings() {
               onChangeText={(text) => setConfig({ ...config, lateThresholdMinutes: parseInt(text) || 0 })}
               keyboardType="numeric"
               placeholder="15"
-              hint={`Karyawan dianggap telat jika absen setelah jam ${config.workStartTime} + ${config.lateThresholdMinutes} menit`}
+              hint={`Karyawan dianggap telat jika absen setelah jadwal masuk mereka + ${config.lateThresholdMinutes} menit`}
             />
           </Card>
 
@@ -121,6 +105,41 @@ export default function AdminSettings() {
             />
           </Card>
 
+          <Card style={styles.card}>
+            <Text style={styles.sectionTitle}>📍 Jangkauan Lokasi M-Absen</Text>
+            
+            {config.officeLatitude && config.officeLongitude ? (
+               <View style={{ marginBottom: 16 }}>
+                 <Text style={styles.label}>Koordinat Tersimpan</Text>
+                 <Text style={{ color: theme.colors.text.secondary }}>
+                   {config.officeLatitude}, {config.officeLongitude}
+                 </Text>
+               </View>
+            ) : (
+               <View style={{ marginBottom: 16 }}>
+                 <Text style={{ color: theme.colors.text.light, fontStyle: 'italic' }}>
+                   Belum ada lokasi yang diatur
+                 </Text>
+               </View>
+            )}
+
+            <Button 
+              title="🗺️ Pilih via Peta Interaktif" 
+              variant="outline"
+              onPress={() => setShowMapPicker(true)}
+              style={{ marginBottom: 16 }}
+            />
+
+            <Input
+              label="Maksimal Radius (meter)"
+              value={(config.allowedRadiusMeters ?? 50).toString()}
+              onChangeText={(text) => setConfig({ ...config, allowedRadiusMeters: parseInt(text) || 0 })}
+              keyboardType="numeric"
+              placeholder="50"
+              hint="Karyawan tidak bisa absen jika jarak ke kantor melebihi batas meter di atas."
+            />
+          </Card>
+
           <Button
             title="Simpan Pengaturan"
             onPress={handleSave}
@@ -139,6 +158,23 @@ export default function AdminSettings() {
         onClose={() => setShowSuccessModal(false)}
         buttonText="OK"
       />
+
+      {/* Map Picker Modal */}
+      <Modal visible={showMapPicker} animationType="slide" transparent={true}>
+        <View style={styles.modalOverlay}>
+           <View style={[styles.mapModalContainer, isDesktop && styles.mapModalDesktop]}>
+              <MapPicker 
+                 initialLatitude={config.officeLatitude}
+                 initialLongitude={config.officeLongitude}
+                 onClose={() => setShowMapPicker(false)}
+                 onSelect={(lat, lng) => {
+                    setConfig({ ...config, officeLatitude: lat, officeLongitude: lng });
+                    setShowMapPicker(false);
+                 }}
+              />
+           </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -149,7 +185,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
   },
   containerWeb: {
-    minHeight: '100vh', // removed 'as any' since styles.create treats it loosely or we ignore specific web types here
+    minHeight: '100vh' as any, // removed 'as any' since styles.create treats it loosely or we ignore specific web types here
   },
   scrollContent: {
     padding: theme.spacing.lg,
@@ -172,11 +208,36 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
   },
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.text.secondary,
+    marginBottom: 8,
+    marginLeft: 2,
+  },
   flex1: {
     flex: 1,
   },
   saveBtn: {
     marginTop: 8,
   },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    padding: 16,
+  },
+  mapModalContainer: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    overflow: 'hidden',
+    maxHeight: '90%',
+  },
+  mapModalDesktop: {
+    maxWidth: 600,
+    alignSelf: 'center',
+    width: '100%',
+  }
 });
 

@@ -1,5 +1,5 @@
 generator client {
-  provider        = "prisma-client-js"
+  provider = "prisma-client-js"
 }
 
 datasource db {
@@ -35,20 +35,20 @@ model SuperAdmin {
 // ============================================
 
 model User {
-  id             Int      @id @default(autoincrement())
-  email          String   @unique
+  id             Int          @id @default(autoincrement())
+  email          String       @unique
   password       String
   name           String
-  role           Role     @default(USER)
+  role           Role         @default(USER)
   photo          String?
-  faceDescriptor String?  @db.Text
-  faceRegistered Boolean  @default(false)
-  isActive       Boolean  @default(true)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  faceDescriptor String?      @db.Text
+  faceRegistered Boolean      @default(false)
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
   attends        Attendance[]
   breaks         Break[]
-  
+
   tasksAssigned Task[] @relation("AssignedTo")
   tasksCreated  Task[] @relation("CreatedBy")
 
@@ -56,9 +56,15 @@ model User {
   salaryType    SalaryType @default(MONTHLY)
   salary        Float      @default(0)
   startWorkTime String     @default("09:00")
+  endWorkTime   String     @default("17:00")
   latePenalty   Float      @default(0)
+  
+  // Custom Location Config
+  workLatitude  Float?
+  workLongitude Float?
+  workRadius    Int?
 
-  payrolls      Payroll[]
+  payrolls Payroll[]
 }
 
 model CompanyConfig {
@@ -67,8 +73,9 @@ model CompanyConfig {
   maxBreakMinutesPerDay  Int      @default(60)
   lateThresholdMinutes   Int      @default(15)
   overtimeRateMultiplier Float    @default(1.5)
-  workStartTime          String   @default("09:00")
-  workEndTime            String   @default("17:00")
+  officeLatitude         Float?
+  officeLongitude        Float?
+  allowedRadiusMeters    Int      @default(50)
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
 }
@@ -136,7 +143,14 @@ model Payroll {
   overtimeBonus   Float    @default(0)
   deductions      Float
   netSalary       Float
+  paymentStatus   PaymentStatus @default(PENDING)
+  paymentProof    String?
   createdAt       DateTime @default(now())
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
 }
 
 enum Role {

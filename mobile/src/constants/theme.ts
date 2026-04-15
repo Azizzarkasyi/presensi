@@ -1,26 +1,26 @@
 export const theme = {
   colors: {
-    primary: '#2563EB',    // Rich Blue
-    secondary: '#475569',  // Slate 600
-    background: '#F8FAFC', // Ultra Light Slate
+    primary: '#1E3A8A',    // Deep Royal Blue (Modern/Formal)
+    secondary: '#334155',  // Slate 700
+    background: '#F8FAFC', // Slate 50
     card: '#FFFFFF',
     text: {
-      primary: '#1E293B',  // Slate 900
-      secondary: '#64748B', // Slate 500
+      primary: '#0F172A',  // Slate 900
+      secondary: '#475569', // Slate 600
       light: '#94A3B8',    // Slate 400
       inverse: '#FFFFFF',
     },
     border: '#E2E8F0',     // Slate 200
     status: {
-      success: '#10B981',
-      warning: '#F59E0B',
-      error: '#EF4444',
-      info: '#3B82F6',
+      success: '#059669',  // Emerald 600
+      warning: '#D97706',  // Amber 600
+      error: '#DC2626',    // Red 600
+      info: '#2563EB',     // Blue 600
     },
     action: {
-      hover: '#1D4ED8',
-      pressed: '#1E40AF',
-      disabled: '#94A3B8',
+      hover: '#1E40AF',
+      pressed: '#172554',
+      disabled: '#CBD5E1',
     }
   },
   spacing: {
@@ -39,33 +39,33 @@ export const theme = {
     full: 9999,
   },
   typography: {
-    h1: { fontSize: 28, fontWeight: '700', lineHeight: 34 },
-    h2: { fontSize: 24, fontWeight: '700', lineHeight: 30 },
-    h3: { fontSize: 20, fontWeight: '600', lineHeight: 28 },
-    body: { fontSize: 16, lineHeight: 24 },
-    caption: { fontSize: 14, lineHeight: 20 },
-    small: { fontSize: 12, lineHeight: 16 },
+    h1: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 28, lineHeight: 34 },
+    h2: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 24, lineHeight: 30 },
+    h3: { fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 20, lineHeight: 28 },
+    body: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 16, lineHeight: 24 },
+    caption: { fontFamily: 'PlusJakartaSans_500Medium', fontSize: 14, lineHeight: 20 },
+    small: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, lineHeight: 16 },
   },
   shadows: {
     sm: {
-      shadowColor: '#64748B',
+      shadowColor: '#0F172A',
       shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.05,
+      shadowOpacity: 0.04,
       shadowRadius: 2,
       elevation: 2,
     },
     md: {
-      shadowColor: '#64748B',
+      shadowColor: '#0F172A',
       shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.1,
-      shadowRadius: 6,
+      shadowOpacity: 0.06,
+      shadowRadius: 8,
       elevation: 4,
     },
     lg: {
-      shadowColor: '#64748B',
+      shadowColor: '#0F172A',
       shadowOffset: { width: 0, height: 10 },
-      shadowOpacity: 0.15,
-      shadowRadius: 12,
+      shadowOpacity: 0.08,
+      shadowRadius: 16,
       elevation: 8,
     }
   }

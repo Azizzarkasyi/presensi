@@ -12,6 +12,7 @@ interface User {
   salaryType?: string;
   salary?: number;
   startWorkTime?: string;
+  endWorkTime?: string;
 }
 
 interface Tenant {

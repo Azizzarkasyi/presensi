@@ -1,4 +1,6 @@
 import { Request, Response } from 'express';
+import ExcelJS from 'exceljs';
+import path from 'path';
 
 /**
  * Generate payroll for a user
@@ -294,6 +296,197 @@ export const deletePayroll = async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Delete payroll error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+};
+
+/**
+ * Mark as Paid
+ */
+export const markAsPaid = async (req: Request, res: Response) => {
+  try {
+    const prisma = req.prisma!;
+    const id = parseInt(req.params.id as string, 10);
+
+    let paymentProof = null;
+    if (req.file) {
+      paymentProof = `/uploads/${req.file.filename}`;
+    }
+
+    const payload: any = {
+      paymentStatus: 'PAID',
+    };
+    if (paymentProof) {
+      payload.paymentProof = paymentProof;
+    }
+
+    const payroll = await prisma.payroll.update({
+      where: { id },
+      data: payload,
+      include: {
+        user: { select: { name: true, email: true } }
+      }
+    });
+
+    res.json({
+      success: true,
+      message: 'Payroll marked as paid successfully',
+      data: payroll
+    });
+  } catch (error) {
+    console.error('Mark as paid error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+};
+
+/**
+ * Export Payroll to Excel
+ */
+export const exportExcel = async (req: Request, res: Response) => {
+  try {
+    const prisma = req.prisma!;
+    const { periodStart, periodEnd } = req.query;
+
+    const where: any = {};
+    if (periodStart && periodEnd) {
+      where.periodStart = { gte: new Date(periodStart as string) };
+      where.periodEnd = { lte: new Date(periodEnd as string) };
+    }
+
+    const payrolls = await prisma.payroll.findMany({
+      where,
+      include: {
+        user: { select: { id: true, name: true, email: true } },
+      },
+      orderBy: { periodEnd: 'desc' },
+    });
+
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Laporan Penggajian');
+
+    worksheet.columns = [
+      { header: 'ID', key: 'id', width: 10 },
+      { header: 'Nama Karyawan', key: 'name', width: 25 },
+      { header: 'Periode Mulai', key: 'periodStart', width: 15 },
+      { header: 'Periode Selesai', key: 'periodEnd', width: 15 },
+      { header: 'Hari Kerja', key: 'workingDays', width: 15 },
+      { header: 'Jam Kerja', key: 'workingHours', width: 15 },
+      { header: 'Gaji Pokok', key: 'baseSalary', width: 15 },
+      { header: 'Bonus Lembur', key: 'overtimeBonus', width: 15 },
+      { header: 'Total Potongan', key: 'deductions', width: 15 },
+      { header: 'Gaji Bersih', key: 'netSalary', width: 15 },
+      { header: 'Status Pembayaran', key: 'paymentStatus', width: 20 },
+    ];
+
+    payrolls.forEach(p => {
+      worksheet.addRow({
+        id: p.id,
+        name: p.user.name,
+        periodStart: p.periodStart.toISOString().split('T')[0],
+        periodEnd: p.periodEnd.toISOString().split('T')[0],
+        workingDays: p.workingDays,
+        workingHours: p.workingHours.toFixed(2),
+        baseSalary: p.baseSalary,
+        overtimeBonus: p.overtimeBonus,
+        deductions: p.deductions,
+        netSalary: p.netSalary,
+        paymentStatus: p.paymentStatus,
+      });
+    });
+
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    );
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename=' + 'laporan_gaji.xlsx'
+    );
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (error) {
+    console.error('Export Excel error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+};
+
+/**
+ * Export My Payroll to Excel
+ */
+export const exportMyExcel = async (req: Request, res: Response) => {
+  try {
+    const prisma = req.prisma!;
+    const userId = req.user!.id;
+    const { periodStart, periodEnd } = req.query;
+
+    const where: any = { userId };
+    if (periodStart && periodEnd) {
+      where.periodStart = { gte: new Date(periodStart as string) };
+      where.periodEnd = { lte: new Date(periodEnd as string) };
+    }
+
+    const payrolls = await prisma.payroll.findMany({
+      where,
+      include: {
+        user: { select: { name: true } },
+      },
+      orderBy: { periodEnd: 'desc' },
+    });
+
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Gaji Saya');
+
+    worksheet.columns = [
+      { header: 'ID', key: 'id', width: 10 },
+      { header: 'Periode Mulai', key: 'periodStart', width: 15 },
+      { header: 'Periode Selesai', key: 'periodEnd', width: 15 },
+      { header: 'Hari Kerja', key: 'workingDays', width: 15 },
+      { header: 'Jam Kerja', key: 'workingHours', width: 15 },
+      { header: 'Gaji Pokok', key: 'baseSalary', width: 15 },
+      { header: 'Bonus Lembur', key: 'overtimeBonus', width: 15 },
+      { header: 'Total Potongan', key: 'deductions', width: 15 },
+      { header: 'Gaji Bersih', key: 'netSalary', width: 15 },
+      { header: 'Status Pembayaran', key: 'paymentStatus', width: 20 },
+    ];
+
+    payrolls.forEach(p => {
+      worksheet.addRow({
+        id: p.id,
+        periodStart: p.periodStart.toISOString().split('T')[0],
+        periodEnd: p.periodEnd.toISOString().split('T')[0],
+        workingDays: p.workingDays,
+        workingHours: p.workingHours.toFixed(2),
+        baseSalary: p.baseSalary,
+        overtimeBonus: p.overtimeBonus,
+        deductions: p.deductions,
+        netSalary: p.netSalary,
+        paymentStatus: p.paymentStatus,
+      });
+    });
+
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    );
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename=gaji_saya.xlsx'
+    );
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (error) {
+    console.error('Export Excel error:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error',

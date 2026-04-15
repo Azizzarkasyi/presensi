@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform, StatusBar } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../constants/theme';
 
 interface ScreenHeaderProps {
@@ -31,7 +32,7 @@ export const ScreenHeader: React.FC<ScreenHeaderProps> = ({
       <View style={styles.leftContainer}>
         {showBack && (
           <TouchableOpacity onPress={handleBack} style={styles.backButton} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Text style={styles.backIcon}>←</Text>
+            <Ionicons name="chevron-back" size={26} color={theme.colors.text.primary} />
           </TouchableOpacity>
         )}
         <Text style={[styles.title, !showBack && styles.titleNoBack]}>
@@ -70,13 +71,9 @@ const styles = StyleSheet.create({
     marginRight: theme.spacing.md,
     padding: 4,
   },
-  backIcon: {
-    fontSize: 24,
-    color: theme.colors.text.primary,
-    fontWeight: '400',
-  },
   title: {
     ...theme.typography.h2,
+    fontFamily: theme.typography.h2.fontFamily,
     color: theme.colors.text.primary,
     flex: 1,
   },
