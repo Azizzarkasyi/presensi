@@ -21,6 +21,7 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showTenantModal, setShowTenantModal] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
   
   const { 
     login, 
@@ -34,10 +35,11 @@ export default function Login() {
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Error', 'Email dan password harus diisi');
+      setErrorMessage('Email dan password harus diisi');
       return;
     }
 
+    setErrorMessage('');
     setLoading(true);
     try {
       await login(email, password);
@@ -48,7 +50,7 @@ export default function Login() {
         setShowTenantModal(true);
       } else {
         const message = error.response?.data?.message || error.message || 'Terjadi kesalahan';
-        Alert.alert('Login Gagal', message);
+        setErrorMessage(message);
       }
     } finally {
       setLoading(false);
@@ -57,13 +59,14 @@ export default function Login() {
 
   const handleTenantSelect = async (tenantId: number) => {
     setShowTenantModal(false);
+    setErrorMessage('');
     setLoading(true);
     try {
       await loginWithTenant(email, password, tenantId);
       router.replace('/');
     } catch (error: any) {
       const message = error.response?.data?.message || error.message || 'Terjadi kesalahan';
-      Alert.alert('Login Gagal', message);
+      setErrorMessage(message);
     } finally {
       setLoading(false);
     }
@@ -123,6 +126,12 @@ export default function Login() {
           Absensi App
         </Text>
         <Text style={styles.subtitle}>Multi-Tenant Attendance System</Text>
+
+        {errorMessage ? (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{errorMessage}</Text>
+          </View>
+        ) : null}
 
         {/* Login Form */}
         <View style={styles.formGroup}>
@@ -212,6 +221,20 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: '#64748b',
     marginBottom: 24,
+  },
+  errorContainer: {
+    backgroundColor: '#fee2e2',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#f87171',
+  },
+  errorText: {
+    color: '#ef4444',
+    fontSize: 14,
+    textAlign: 'center',
+    fontWeight: '500',
   },
   formGroup: {
     marginBottom: 16,
