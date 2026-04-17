@@ -11,6 +11,7 @@
 
 */
 -- CreateSchema
+DROP SCHEMA IF EXISTS "tenant" CASCADE;
 CREATE SCHEMA IF NOT EXISTS "tenant";
 
 -- CreateEnum
