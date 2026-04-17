@@ -46,48 +46,50 @@ app.get('/', (req: Request, res: Response) => {
   });
 });
 
-// Auth routes (auto-login - no tenant context needed)
+// Auth routes
 app.use('/api/auth', authRoutes);
+app.use('/auth', authRoutes); // Fallback for stripped Nginx
 
-// Super Admin routes (no tenant context needed)
+// Super Admin routes
 app.use('/api/super-admin', superAdminRoutes);
+app.use('/super-admin', superAdminRoutes); // Fallback
 
-// Tenant list endpoint (public, for mobile app to show company list)
-app.get('/api/tenants', async (req: Request, res: Response) => {
+// Tenant list endpoint
+const tenantListHandler = async (req: Request, res: Response) => {
   try {
     const { getPublicPrisma } = require('./prisma/tenant-prisma');
     const prisma = getPublicPrisma();
     
     const tenants = await prisma.tenant.findMany({
       where: { isActive: true },
-      select: {
-        id: true,
-        name: true,
-      },
+      select: { id: true, name: true },
       orderBy: { name: 'asc' },
     });
 
-    res.json({
-      success: true,
-      data: tenants,
-    });
+    res.json({ success: true, data: tenants });
   } catch (error) {
     console.error('Get tenants error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-    });
+    res.status(500).json({ success: false, message: 'Internal server error' });
   }
-});
+};
+app.get('/api/tenants', tenantListHandler);
+app.get('/tenants', tenantListHandler);
 
 // All tenant-specific routes need tenant middleware
-app.use('/api/users', tenantMiddleware, userRoutes);
-app.use('/api/attendance', tenantMiddleware, attendanceRoutes);
-app.use('/api/tasks', tenantMiddleware, taskRoutes);
-app.use('/api/payroll', tenantMiddleware, payrollRoutes);
-app.use('/api/break', tenantMiddleware, breakRoutes);
-app.use('/api/face', tenantMiddleware, faceRoutes);
-app.use('/api/config', tenantMiddleware, configRoutes);
+const apiRoutes = [
+  { path: '/users', router: userRoutes },
+  { path: '/attendance', router: attendanceRoutes },
+  { path: '/tasks', router: taskRoutes },
+  { path: '/payroll', router: payrollRoutes },
+  { path: '/break', router: breakRoutes },
+  { path: '/face', router: faceRoutes },
+  { path: '/config', router: configRoutes },
+];
+
+apiRoutes.forEach(route => {
+  app.use(`/api${route.path}`, tenantMiddleware, route.router);
+  app.use(route.path, tenantMiddleware, route.router); // Fallback
+});
 
 // 404 handler
 app.use((req: Request, res: Response) => {
