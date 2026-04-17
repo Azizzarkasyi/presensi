@@ -4,6 +4,7 @@ import {
   getTenants,
   getTenantById,
   createTenant,
+  updateTenant,
   deleteTenant,
   deactivateTenant,
   activateTenant,
@@ -23,6 +24,7 @@ router.get('/profile', superAdminAuth, getSuperAdminProfile);
 router.get('/tenants', superAdminAuth, getTenants);
 router.get('/tenants/:id', superAdminAuth, getTenantById);
 router.post('/tenants', superAdminAuth, createTenant);
+router.put('/tenants/:id', superAdminAuth, updateTenant);
 router.delete('/tenants/:id', superAdminAuth, deleteTenant);
 router.patch('/tenants/:id/deactivate', superAdminAuth, deactivateTenant);
 router.patch('/tenants/:id/activate', superAdminAuth, activateTenant);

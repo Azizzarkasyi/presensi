@@ -187,6 +187,8 @@ export const createTenant = (data: {
   adminName: string;
 }) => api.post('/super-admin/tenants', data);
 
+export const updateTenant = (id: number, data: { name: string }) => api.put(`/super-admin/tenants/${id}`, data);
+
 export const deleteTenant = (id: number) => api.delete(`/super-admin/tenants/${id}`);
 
 export const deactivateTenant = (id: number) => api.patch(`/super-admin/tenants/${id}/deactivate`);

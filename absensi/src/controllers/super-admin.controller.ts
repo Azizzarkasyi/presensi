@@ -167,6 +167,45 @@ export async function createTenant(req: Request, res: Response) {
 }
 
 /**
+ * Update a tenant
+ */
+export async function updateTenant(req: Request, res: Response) {
+  try {
+    const id = parseInt(req.params.id as string, 10);
+    const { name } = req.body;
+
+    if (!name) {
+      return res.status(400).json({
+        success: false,
+        message: 'Tenant name is required',
+      });
+    }
+
+    const tenant = await tenantService.updateTenant(id, { name });
+
+    res.json({
+      success: true,
+      message: 'Tenant updated successfully',
+      data: tenant,
+    });
+  } catch (error: any) {
+    console.error('Update tenant error:', error);
+    
+    if (error.code === 'P2002') {
+      return res.status(400).json({
+        success: false,
+        message: 'Tenant name already exists',
+      });
+    }
+    
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+}
+
+/**
  * Delete a tenant
  */
 export async function deleteTenant(req: Request, res: Response) {

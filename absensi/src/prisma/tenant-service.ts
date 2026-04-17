@@ -108,6 +108,7 @@ export class TenantService {
       { name: 'SalaryType', values: ['HOURLY', 'DAILY', 'WEEKLY', 'MONTHLY'] },
       { name: 'AttendanceStatus', values: ['PRESENT', 'LATE', 'ABSENT', 'SICK', 'LEAVE', 'ALPHA'] },
       { name: 'TaskStatus', values: ['PENDING', 'IN_PROGRESS', 'DONE'] },
+      { name: 'PaymentStatus', values: ['PENDING', 'PAID'] },
     ];
 
     for (const enumDef of enums) {
@@ -130,6 +131,9 @@ export class TenantService {
         "maxBreakMinutesPerDay" INTEGER NOT NULL DEFAULT 60,
         "lateThresholdMinutes" INTEGER NOT NULL DEFAULT 15,
         "overtimeRateMultiplier" DOUBLE PRECISION NOT NULL DEFAULT 1.5,
+        "officeLatitude" DOUBLE PRECISION,
+        "officeLongitude" DOUBLE PRECISION,
+        "allowedRadiusMeters" INTEGER NOT NULL DEFAULT 50,
         "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
         "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
       )
@@ -153,7 +157,10 @@ export class TenantService {
         "salary" DOUBLE PRECISION NOT NULL DEFAULT 0,
         "startWorkTime" VARCHAR(10) NOT NULL DEFAULT '09:00',
         "endWorkTime" VARCHAR(10) NOT NULL DEFAULT '17:00',
-        "latePenalty" DOUBLE PRECISION NOT NULL DEFAULT 0
+        "latePenalty" DOUBLE PRECISION NOT NULL DEFAULT 0,
+        "workLatitude" DOUBLE PRECISION,
+        "workLongitude" DOUBLE PRECISION,
+        "workRadius" INTEGER
       )
     `);
 
@@ -223,6 +230,8 @@ export class TenantService {
         "overtimeBonus" DOUBLE PRECISION NOT NULL DEFAULT 0,
         "deductions" DOUBLE PRECISION NOT NULL,
         "netSalary" DOUBLE PRECISION NOT NULL,
+        "paymentStatus" "${schemaName}"."PaymentStatus" NOT NULL DEFAULT 'PENDING',
+        "paymentProof" VARCHAR(255),
         "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
       )
     `);
@@ -267,6 +276,32 @@ export class TenantService {
         data: { companyName },
       });
     }
+  }
+
+  /**
+   * Update a tenant
+   */
+  async updateTenant(id: number, data: { name: string }) {
+    const tenant = await this.publicPrisma.tenant.update({
+      where: { id },
+      data: { name: data.name },
+    });
+
+    // Also update company name in tenant's config
+    try {
+      const tenantPrisma = getTenantPrisma(tenant.schemaName);
+      const config = await tenantPrisma.companyConfig.findFirst();
+      if (config) {
+        await tenantPrisma.companyConfig.update({
+          where: { id: config.id },
+          data: { companyName: data.name },
+        });
+      }
+    } catch (e) {
+      console.error('Failed to update tenant company config name', e);
+    }
+
+    return tenant;
   }
 
   /**

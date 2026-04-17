@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert, Platform, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../src/contexts/AuthContext';
-import { getSuperAdminTenants } from '../../src/services/api';
+import { getSuperAdminTenants, updateTenant, deleteTenant } from '../../src/services/api';
+import { Input } from '../../src/components/ui/Input';
+import { Button } from '../../src/components/ui/Button';
 import { useResponsive } from '../../src/hooks/useResponsive';
 import { ScreenHeader } from '../../src/components/ui/ScreenHeader';
 import { theme } from '../../src/constants/theme';
@@ -24,6 +26,8 @@ export default function SuperAdminDashboard() {
   const { isDesktop, isTablet, isWeb } = useResponsive();
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editName, setEditName] = useState('');
 
   useEffect(() => {
     loadTenants();
@@ -48,6 +52,45 @@ export default function SuperAdminDashboard() {
   const handleLogout = async () => {
     await logout();
     router.replace('/login');
+  };
+
+  const handleEdit = (tenant: Tenant) => {
+    setEditingId(tenant.id);
+    setEditName(tenant.name);
+  };
+
+  const saveEdit = async (id: number) => {
+    try {
+      if (!editName) return;
+      await updateTenant(id, { name: editName });
+      setEditingId(null);
+      loadTenants();
+    } catch (error: any) {
+      const msg = error.response?.data?.message || 'Gagal mengedit';
+      Alert.alert('Error', msg);
+    }
+  };
+
+  const executeDelete = async (id: number) => {
+    try {
+      await deleteTenant(id);
+      loadTenants();
+    } catch (error) {
+      Alert.alert('Error', 'Gagal menghapus perusahaan');
+    }
+  };
+
+  const confirmDelete = (id: number) => {
+    if (Platform.OS === 'web') {
+      if (window.confirm('Hapus perusahaan ini secara permanen beserta seluruh datanya?')) {
+        executeDelete(id);
+      }
+    } else {
+      Alert.alert('Konfirmasi', 'Hapus perusahaan ini?', [
+        { text: 'Batal', style: 'cancel' },
+        { text: 'Hapus', style: 'destructive', onPress: () => executeDelete(id) }
+      ]);
+    }
   };
 
   return (
@@ -98,12 +141,31 @@ export default function SuperAdminDashboard() {
                 style={[styles.card, isDesktop && styles.cardDesktop, isTablet && styles.cardTablet]}
               >
                 <View style={styles.cardHeader}>
-                  <Text style={styles.companyName}>{item.name}</Text>
-                  <View style={[styles.badge, item.isActive ? styles.badgeSuccess : styles.badgeError]}>
-                    <Text style={[styles.badgeText, item.isActive ? styles.textSuccess : styles.textError]}>
-                      {item.isActive ? 'Aktif' : 'Non-Aktif'}
-                    </Text>
-                  </View>
+                  {editingId === item.id ? (
+                    <View style={{ flex: 1, flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+                      <Input 
+                        value={editName}
+                        onChangeText={setEditName}
+                        style={{ flex: 1, marginBottom: 0 }}
+                        placeholder="Nama Baru"
+                      />
+                      <TouchableOpacity onPress={() => saveEdit(item.id)} style={[styles.badge, styles.badgeSuccess]}>
+                        <Text style={styles.textSuccess}>Simpan</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => setEditingId(null)} style={[styles.badge]}>
+                        <Text style={{color: '#64748b'}}>Batal</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <>
+                      <Text style={styles.companyName}>{item.name}</Text>
+                      <View style={[styles.badge, item.isActive ? styles.badgeSuccess : styles.badgeError]}>
+                        <Text style={[styles.badgeText, item.isActive ? styles.textSuccess : styles.textError]}>
+                          {item.isActive ? 'Aktif' : 'Non-Aktif'}
+                        </Text>
+                      </View>
+                    </>
+                  )}
                 </View>
                 
                 <View style={styles.cardInfo}>
@@ -118,6 +180,17 @@ export default function SuperAdminDashboard() {
                   <Text style={styles.infoLabel}>Terdaftar:</Text>
                   <Text style={styles.infoValue}>{new Date(item.createdAt).toLocaleDateString()}</Text>
                 </View>
+
+                {editingId !== item.id && (
+                  <View style={styles.actionRow}>
+                    <TouchableOpacity onPress={() => handleEdit(item)} style={styles.editBtn}>
+                      <Text style={styles.editBtnText}>Edit</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => confirmDelete(item.id)} style={styles.deleteBtn}>
+                      <Text style={styles.deleteBtnText}>Hapus</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
               </Card>
             ))}
             
@@ -183,4 +256,10 @@ const styles = StyleSheet.create({
   emptyText: { textAlign: 'center', color: theme.colors.text.secondary, marginTop: 40, width: '100%' },
   addButton: { backgroundColor: theme.colors.primary, borderRadius: 8, paddingVertical: 10, paddingHorizontal: 16 },
   addButtonText: { color: '#fff', fontSize: 14, fontWeight: '600' },
+  
+  actionRow: { flexDirection: 'row', gap: 10, marginTop: 16, borderTopWidth: 1, borderTopColor: '#f1f5f9', paddingTop: 16 },
+  editBtn: { flex: 1, backgroundColor: '#f8fafc', borderColor: '#e2e8f0', borderWidth: 1, padding: 8, borderRadius: 6, alignItems: 'center' },
+  editBtnText: { color: theme.colors.primary, fontWeight: '500' },
+  deleteBtn: { flex: 1, backgroundColor: '#fee2e2', padding: 8, borderRadius: 6, alignItems: 'center' },
+  deleteBtnText: { color: theme.colors.status.error, fontWeight: '500' },
 });
