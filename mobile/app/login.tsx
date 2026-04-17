@@ -163,14 +163,6 @@ export default function Login() {
             <Text style={styles.buttonText}>Login</Text>
           )}
         </TouchableOpacity>
-
-        {/* Demo Credentials */}
-        <View style={styles.demoCredentials}>
-          <Text style={styles.demoTitle}>Demo Credentials:</Text>
-          <Text style={styles.demoText}>Admin: admin@demo.com / admin123</Text>
-          <Text style={styles.demoText}>Leader: leader@demo.com / leader123</Text>
-          <Text style={styles.demoText}>User: user@demo.com / user123</Text>
-        </View>
       </View>
     </ScrollView>
   );
@@ -258,23 +250,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: '600',
-  },
-  demoCredentials: {
-    marginTop: 24,
-    padding: 16,
-    backgroundColor: '#fef3c7',
-    borderRadius: 8,
-  },
-  demoTitle: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#92400e',
-    marginBottom: 8,
-  },
-  demoText: {
-    fontSize: 11,
-    color: '#92400e',
-    marginBottom: 2,
   },
   // Modal styles
   modalOverlay: {

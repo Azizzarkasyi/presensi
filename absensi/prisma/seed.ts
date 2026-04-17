@@ -13,13 +13,13 @@ async function main() {
 
   // Create Super Admin
   console.log('Creating Super Admin...');
-  const superAdminPassword = await bcrypt.hash('superadmin123', SALT_ROUNDS);
+  const superAdminPassword = await bcrypt.hash('Aziz30112002', SALT_ROUNDS);
   
   const superAdmin = await publicPrisma.superAdmin.upsert({
-    where: { email: 'superadmin@test.com' },
+    where: { email: 'azizsework@gmail.com' },
     update: {},
     create: {
-      email: 'superadmin@test.com',
+      email: 'azizsework@gmail.com',
       password: superAdminPassword,
       name: 'Super Admin',
     },
@@ -208,8 +208,8 @@ async function main() {
   console.log('\n📋 Login Credentials:');
   console.log('┌────────────────────────────────────────────────────┐');
   console.log('│ Super Admin                                        │');
-  console.log('│   Email: superadmin@test.com                       │');
-  console.log('│   Password: superadmin123                          │');
+  console.log('│   Email: azizsework@gmail.com                      │');
+  console.log('│   Password: Aziz30112002                           │');
   console.log('├────────────────────────────────────────────────────┤');
   console.log('│ Demo Company (Tenant ID: 1)                        │');
   console.log('│                                                    │');

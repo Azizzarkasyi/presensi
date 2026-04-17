@@ -5,11 +5,11 @@ module.exports = {
             script: "src/server.ts",
             interpreter: "node",
             interpreter_args: "--require ts-node/register",
-            watch: ["src"],
+            watch: false,
             ignore_watch: ["node_modules", "logs", "uploads"],
             cwd: "./",
             env: {
-                NODE_ENV: "development",
+                NODE_ENV: "production",
                 TS_NODE_PROJECT: "./tsconfig.json"
             },
             env_production: {
