@@ -66,8 +66,8 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.md,
   },
   label: {
+    fontFamily: theme.typography.caption.fontFamily,
     fontSize: 14,
-    fontWeight: '600',
     color: theme.colors.text.secondary,
     marginBottom: theme.spacing.xs + 2,
     marginLeft: 2,
@@ -83,6 +83,7 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
+    fontFamily: theme.typography.body.fontFamily,
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.sm,
     fontSize: 16,
@@ -97,12 +98,14 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.status.error,
   },
   errorText: {
+    fontFamily: theme.typography.small.fontFamily,
     fontSize: 12,
     color: theme.colors.status.error,
     marginTop: 4,
     marginLeft: 2,
   },
   hintText: {
+    fontFamily: theme.typography.small.fontFamily,
     fontSize: 12,
     color: theme.colors.text.light,
     marginTop: 4,

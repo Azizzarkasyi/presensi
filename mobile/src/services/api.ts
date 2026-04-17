@@ -169,6 +169,14 @@ export const getUserPayrolls = (userId: number) => api.get(`/payroll/user/${user
 
 export const deletePayroll = (id: number) => api.delete(`/payroll/${id}`);
 
+export const markPayrollPaid = (id: number, data: FormData) =>
+  api.patch(`/payroll/${id}/pay`, data, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+
+export const exportPayrollExcel = (params?: { periodStart?: string; periodEnd?: string }) =>
+  api.get('/payroll/export/excel', { params, responseType: 'blob' });
+
 // Super Admin Endpoints
 export const getSuperAdminTenants = () => api.get('/super-admin/tenants');
 

@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { useResponsive } from '../../src/hooks/useResponsive';
 import api from '../../src/services/api';
+import { theme } from '../../src/constants/theme';
 
 export default function AdminDashboard() {
   const { user, logout } = useAuth();
@@ -162,7 +163,7 @@ const styles = StyleSheet.create({
   titleDesktop: { fontSize: 32 },
   welcome: { fontSize: 16, color: '#64748b', marginTop: 4 },
   logoutBtn: { padding: 8 },
-  logoutText: { color: '#ef4444', fontWeight: '600' },
+  logoutText: { color: theme.colors.status.error, fontWeight: '600' },
   menu: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
   menuTablet: { gap: 16 as any },
   menuCard: { backgroundColor: '#fff', borderRadius: 12, padding: 20, width: '48%', marginBottom: 12, elevation: 2, alignItems: 'center' },
@@ -172,9 +173,9 @@ const styles = StyleSheet.create({
   menuSubtitle: { fontSize: 13, color: '#64748b', marginTop: 4 },
   statsGrid: { flexDirection: 'row', gap: 20 as any, marginBottom: 24 },
   statCard: { backgroundColor: '#fff', borderRadius: 16, padding: 24, flex: 1, elevation: 2 },
-  statValue: { fontSize: 36, fontWeight: 'bold', color: '#3b82f6' },
+  statValue: { fontSize: 36, fontWeight: 'bold', color: theme.colors.primary },
   statLabel: { fontSize: 14, color: '#64748b', marginTop: 4 },
-  addButton: { backgroundColor: '#3b82f6', borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 16 },
+  addButton: { backgroundColor: theme.colors.primary, borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 16 },
   addButtonDesktop: { alignSelf: 'flex-start', paddingHorizontal: 32 },
   addButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
 });

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert, Platform, Modal, ScrollView } from 'react-native';
+import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { useResponsive } from '../../src/hooks/useResponsive';
@@ -9,6 +10,7 @@ import {
   registerFace, verifyFace, getFaceStatus 
 } from '../../src/services/api';
 import FaceCamera from '../../src/components/FaceCamera';
+import { theme } from '../../src/constants/theme';
 
 export default function UserDashboard() {
   const { user, logout } = useAuth();
@@ -64,10 +66,30 @@ export default function UserDashboard() {
     setLoading(true);
 
     try {
+      let currentLat: number | null = null;
+      let currentLon: number | null = null;
+
+      // Wajib mengambil lokasi khusus untuk validasi absen masuk & pulang
+      if (cameraMode === 'clockIn' || cameraMode === 'clockOut') {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Izin Ditolak', 'Izin akses lokasi (GPS) diperlukan untuk melakukan absen.');
+          setLoading(false);
+          return;
+        }
+
+        const location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+        currentLat = location.coords.latitude;
+        currentLon = location.coords.longitude;
+      }
+
       const formData = new FormData();
       formData.append('userId', user!.id.toString());
       formData.append('faceDescriptor', JSON.stringify(faceData.descriptor));
       formData.append('faceVerified', 'true');
+      
+      if (currentLat !== null) formData.append('latitude', currentLat.toString());
+      if (currentLon !== null) formData.append('longitude', currentLon.toString());
       
       // Convert photo URI to blob for upload
       const response = await fetch(photoUri);
@@ -321,14 +343,14 @@ const styles = StyleSheet.create({
   title: { fontSize: 24, fontWeight: 'bold', color: '#1e293b' },
   titleDesktop: { fontSize: 28 },
   logoutBtn: { padding: 8 },
-  logoutText: { color: '#ef4444', fontWeight: '600' },
+  logoutText: { color: theme.colors.status.error, fontWeight: '600' },
   faceRegisterAlert: {
     backgroundColor: '#fef3c7',
     padding: 12,
     borderRadius: 8,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#f59e0b',
+    borderColor: theme.colors.status.warning,
   },
   faceRegisterText: {
     color: '#92400e',
@@ -337,7 +359,7 @@ const styles = StyleSheet.create({
   },
   content: {},
   contentDesktop: { flexDirection: 'row', gap: 24 },
-  userCard: { backgroundColor: '#3b82f6', borderRadius: 16, padding: 20, marginBottom: 16 },
+  userCard: { backgroundColor: theme.colors.primary, borderRadius: 16, padding: 20, marginBottom: 16 },
   userCardDesktop: { flex: 1, marginBottom: 0 },
   userName: { fontSize: 22, fontWeight: 'bold', color: '#fff' },
   userEmail: { fontSize: 14, color: '#bfdbfe', marginTop: 4 },
@@ -360,7 +382,7 @@ const styles = StyleSheet.create({
   timeText: { fontSize: 16, color: '#1e293b', marginBottom: 4 },
   noRecord: { fontSize: 14, color: '#94a3b8' },
   statusBadge: {
-    backgroundColor: '#22c55e',
+    backgroundColor: theme.colors.status.success,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
@@ -368,7 +390,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   statusLate: {
-    backgroundColor: '#f59e0b',
+    backgroundColor: theme.colors.status.warning,
   },
   statusText: {
     color: '#fff',
@@ -393,9 +415,9 @@ const styles = StyleSheet.create({
   },
   buttonRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 16, gap: 12 },
   clockButton: { flex: 1, padding: 14, borderRadius: 10, alignItems: 'center' },
-  clockInBtn: { backgroundColor: '#22c55e' },
-  clockOutBtn: { backgroundColor: '#ef4444' },
-  breakStartBtn: { backgroundColor: '#f59e0b' },
+  clockInBtn: { backgroundColor: theme.colors.status.success },
+  clockOutBtn: { backgroundColor: theme.colors.status.error },
+  breakStartBtn: { backgroundColor: theme.colors.status.warning },
   breakEndBtn: { backgroundColor: '#8b5cf6' },
   buttonDisabled: { backgroundColor: '#cbd5e1' },
   clockButtonText: { color: '#fff', fontSize: 14, fontWeight: '600' },

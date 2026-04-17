@@ -1,5 +1,6 @@
+import { View, ScrollView, StyleSheet, Alert, TouchableOpacity, Text, Modal } from 'react-native';
+import * as Location from 'expo-location';
 import { useState } from 'react';
-import { View, ScrollView, StyleSheet, Alert, TouchableOpacity, Text } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { createUser } from '../../src/services/api';
@@ -11,13 +12,18 @@ import { Card } from '../../src/components/ui/Card';
 import { Button } from '../../src/components/ui/Button';
 import { Input } from '../../src/components/ui/Input';
 import { SuccessModal } from '../../src/components/ui/SuccessModal';
+import { MapPicker } from '../../src/components/ui/MapPicker';
+import { useResponsive } from '../../src/hooks/useResponsive';
 
 type SalaryType = 'HOURLY' | 'DAILY' | 'WEEKLY' | 'MONTHLY';
 type RoleType = 'USER' | 'ADMIN' | 'LEADER';
 
 export default function AddEmployee() {
   const router = useRouter();
+  const { isDesktop } = useResponsive();
   const [loading, setLoading] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showMapPicker, setShowMapPicker] = useState(false);
   
   // Form State
   const [name, setName] = useState('');
@@ -27,7 +33,13 @@ export default function AddEmployee() {
   const [salaryType, setSalaryType] = useState<SalaryType>('MONTHLY');
   const [salary, setSalary] = useState('');
   const [startWorkTime, setStartWorkTime] = useState('09:00');
+  const [endWorkTime, setEndWorkTime] = useState('17:00');
   const [latePenalty, setLatePenalty] = useState('0');
+  
+  // Location Override State
+  const [workLatitude, setWorkLatitude] = useState('');
+  const [workLongitude, setWorkLongitude] = useState('');
+  const [workRadius, setWorkRadius] = useState('');
 
   // Validation State
   const [errors, setErrors] = useState<{[key: string]: string}>({});
@@ -50,7 +62,6 @@ export default function AddEmployee() {
   };
 
   // Success Modal State
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   const handleSubmit = async () => {
     if (!validateForm()) {
@@ -68,7 +79,11 @@ export default function AddEmployee() {
         salaryType,
         salary: Number(salary),
         startWorkTime,
+        endWorkTime,
         latePenalty: Number(latePenalty) || 0,
+        workLatitude: workLatitude ? Number(workLatitude) : undefined,
+        workLongitude: workLongitude ? Number(workLongitude) : undefined,
+        workRadius: workRadius ? Number(workRadius) : undefined,
       });
       
       setShowSuccessModal(true);
@@ -193,13 +208,63 @@ export default function AddEmployee() {
         {/* Working Hours Section */}
         <Card style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>⏰ Jam Kerja</Text>
-          <Input
-            label="Jam Masuk"
-            placeholder="09:00"
-            value={startWorkTime}
-            onChangeText={setStartWorkTime}
-          />
+          <View style={styles.rowInputs}>
+             <View style={{ flex: 1, marginRight: 8 }}>
+                <Input
+                  label="Jam Masuk"
+                  placeholder="09:00"
+                  value={startWorkTime}
+                  onChangeText={setStartWorkTime}
+                />
+             </View>
+             <View style={{ flex: 1, marginLeft: 8 }}>
+                <Input
+                  label="Jam Pulang"
+                  placeholder="17:00"
+                  value={endWorkTime}
+                  onChangeText={setEndWorkTime}
+                />
+             </View>
+          </View>
           <Text style={styles.hintText}>Format: HH:MM (contoh: 09:00)</Text>
+        </Card>
+
+        {/* Location Section */}
+        <Card style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>📍 Lokasi Kerja Khusus (Opsional)</Text>
+          <Text style={styles.hintText}>Isi area ini jika karyawan memiliki pembatasan radius absen terpisah dari kantor pusat.</Text>
+          
+          <View style={{ marginTop: theme.spacing.md }}>
+            {workLatitude && workLongitude ? (
+               <View style={{ marginBottom: 16 }}>
+                 <Text style={styles.label}>Koordinat Khusus Tersimpan</Text>
+                 <Text style={{ color: theme.colors.text.secondary }}>
+                   {workLatitude}, {workLongitude}
+                 </Text>
+               </View>
+            ) : (
+               <View style={{ marginBottom: 16 }}>
+                 <Text style={{ color: theme.colors.text.light, fontStyle: 'italic' }}>
+                   Belum ada lokasi khusus, akan mengikuti pusat
+                 </Text>
+               </View>
+            )}
+
+            <Button 
+              title="🗺️ Pilih via Peta Interaktif" 
+              variant="outline"
+              onPress={() => setShowMapPicker(true)}
+              style={{ marginBottom: 16 }}
+            />
+
+            <Input
+              label="Radius Individual (meter)"
+              value={workRadius}
+              onChangeText={setWorkRadius}
+              keyboardType="numeric"
+              placeholder="Contoh: 50"
+            />
+          </View>
         </Card>
 
         <Button
@@ -219,6 +284,24 @@ export default function AddEmployee() {
         onClose={handleSuccessClose}
         buttonText="OK, Kembali ke List"
       />
+
+      {/* Map Picker Modal */}
+      <Modal visible={showMapPicker} animationType="slide" transparent={true}>
+        <View style={styles.modalOverlay}>
+           <View style={[styles.mapModalContainer, isDesktop && styles.mapModalDesktop]}>
+              <MapPicker 
+                 initialLatitude={workLatitude ? parseFloat(workLatitude) : null}
+                 initialLongitude={workLongitude ? parseFloat(workLongitude) : null}
+                 onClose={() => setShowMapPicker(false)}
+                 onSelect={(lat, lng) => {
+                    setWorkLatitude(lat.toString()); 
+                    setWorkLongitude(lng.toString());
+                    setShowMapPicker(false);
+                 }}
+              />
+           </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -271,4 +354,22 @@ const styles = StyleSheet.create({
   submitBtn: {
     marginTop: theme.spacing.sm,
   },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    padding: 16,
+  },
+  mapModalContainer: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    overflow: 'hidden',
+    maxHeight: '90%',
+  },
+  mapModalDesktop: {
+    maxWidth: 600,
+    alignSelf: 'center',
+    width: '100%',
+  }
 });

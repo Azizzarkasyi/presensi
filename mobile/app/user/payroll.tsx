@@ -2,7 +2,14 @@ import { useEffect, useState } from 'react';
 import { View, Text, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../src/contexts/AuthContext';
-import { getPayrollHistory } from '../../src/services/api';
+import { getMyPayrolls } from '../../src/services/api';
+import api from '../../src/services/api';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
+import { Platform, Alert } from 'react-native';
+import { ScreenHeader } from '../../src/components/ui/ScreenHeader';
+import { Button } from '../../src/components/ui/Button';
+import { theme } from '../../src/constants/theme';
 
 interface Payroll {
   id: number;
@@ -11,6 +18,8 @@ interface Payroll {
   baseSalary: number;
   deductions: number;
   netSalary: number;
+  paymentStatus: string;
+  paymentProof: string | null;
   createdAt: string;
 }
 
@@ -26,8 +35,8 @@ export default function PayrollView() {
 
   const loadPayrolls = async () => {
     try {
-      const res = await getPayrollHistory(user!.id);
-      setPayrolls(res.data);
+      const res = await getMyPayrolls();
+      setPayrolls(res.data.data);
     } catch (error) {
       console.error('Error loading payrolls:', error);
     } finally {
@@ -51,14 +60,47 @@ export default function PayrollView() {
     });
   };
 
+  const handleExportExcel = async () => {
+    try {
+      setLoading(true);
+      const res = await api.get('/payroll/my/export/excel', { responseType: 'blob' });
+      if (Platform.OS === 'web') {
+        const url = window.URL.createObjectURL(new Blob([res.data]));
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', 'gaji_saya.xlsx');
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } else {
+        const fr = new FileReader();
+        fr.onload = async () => {
+           const fileUri = `${FileSystem.documentDirectory}gaji_saya.xlsx`;
+           await FileSystem.writeAsStringAsync(fileUri, (fr.result as string).split(',')[1], { encoding: FileSystem.EncodingType.Base64 });
+           await Sharing.shareAsync(fileUri);
+        };
+        fr.readAsDataURL(res.data);
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Gagal mengekspor laporan excel');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Text style={styles.backBtn}>← Kembali</Text>
-        </TouchableOpacity>
-        <Text style={styles.title}>Slip Gaji</Text>
-      </View>
+      <ScreenHeader 
+         title="Slip Gaji" 
+         rightElement={
+             <Button 
+                title="📥 Excel" 
+                variant="success" 
+                size="sm" 
+                onPress={handleExportExcel} 
+             />
+         }
+      />
 
       <FlatList
         data={payrolls}
@@ -90,6 +132,21 @@ export default function PayrollView() {
               <Text style={styles.netLabel}>Total Diterima</Text>
               <Text style={styles.netValue}>{formatCurrency(item.netSalary)}</Text>
             </View>
+
+            <View style={[styles.divider, { marginTop: 12, marginBottom: 12 }]} />
+            
+            <View style={styles.salaryRow}>
+               <Text style={styles.salaryLabel}>Status Pencairan</Text>
+               <Text style={{ fontWeight: 'bold', color: item.paymentStatus === 'PAID' ? theme.colors.status.success : theme.colors.status.warning }}>
+                  {item.paymentStatus}
+               </Text>
+            </View>
+
+            {item.paymentStatus === 'PAID' && item.paymentProof && (
+               <TouchableOpacity onPress={() => window.open(api.defaults.baseURL?.replace('/api', '') + item.paymentProof, '_blank')} style={{ marginTop: 8 }}>
+                  <Text style={{ color: theme.colors.status.info, textAlign: 'center', fontWeight: '500' }}>📄 Lihat Bukti Transfer</Text>
+               </TouchableOpacity>
+            )}
           </View>
         )}
         ListEmptyComponent={
@@ -106,11 +163,8 @@ export default function PayrollView() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8fafc', padding: 16 },
-  header: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
-  backBtn: { color: '#3b82f6', fontSize: 16, marginRight: 16 },
-  title: { fontSize: 20, fontWeight: 'bold', color: '#1e293b' },
-  card: { backgroundColor: '#fff', borderRadius: 16, padding: 20, marginBottom: 16, elevation: 3 },
+  container: { flex: 1, backgroundColor: '#f8fafc' },
+  card: { backgroundColor: '#fff', borderRadius: 16, padding: 20, marginBottom: 16, marginHorizontal: 16, elevation: 3 },
   periodRow: { marginBottom: 12 },
   periodLabel: { fontSize: 12, color: '#64748b', marginBottom: 4 },
   periodValue: { fontSize: 16, fontWeight: '600', color: '#1e293b' },
@@ -118,9 +172,9 @@ const styles = StyleSheet.create({
   salaryRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
   salaryLabel: { fontSize: 14, color: '#64748b' },
   salaryValue: { fontSize: 14, color: '#1e293b' },
-  deductionValue: { fontSize: 14, color: '#ef4444' },
+  deductionValue: { fontSize: 14, color: theme.colors.status.error },
   netLabel: { fontSize: 16, fontWeight: '600', color: '#1e293b' },
-  netValue: { fontSize: 18, fontWeight: 'bold', color: '#22c55e' },
+  netValue: { fontSize: 18, fontWeight: 'bold', color: theme.colors.status.success },
   emptyContainer: { alignItems: 'center', marginTop: 60 },
   emptyIcon: { fontSize: 48, marginBottom: 16 },
   emptyText: { color: '#94a3b8', fontSize: 16 },

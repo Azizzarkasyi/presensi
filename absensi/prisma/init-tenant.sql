@@ -22,6 +22,10 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'TaskStatus' AND typnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'tenant_X')) THEN
         CREATE TYPE tenant_X."TaskStatus" AS ENUM ('PENDING', 'IN_PROGRESS', 'DONE');
     END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'PaymentStatus' AND typnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'tenant_X')) THEN
+        CREATE TYPE tenant_X."PaymentStatus" AS ENUM ('PENDING', 'PAID');
+    END IF;
 END$$;
 
 -- 3. Buat tabel CompanyConfig
@@ -31,8 +35,9 @@ CREATE TABLE IF NOT EXISTS tenant_X."CompanyConfig" (
     "maxBreakMinutesPerDay" INTEGER NOT NULL DEFAULT 60,
     "lateThresholdMinutes" INTEGER NOT NULL DEFAULT 15,
     "overtimeRateMultiplier" DOUBLE PRECISION NOT NULL DEFAULT 1.5,
-    "workStartTime" VARCHAR(10) NOT NULL DEFAULT '09:00',
-    "workEndTime" VARCHAR(10) NOT NULL DEFAULT '17:00',
+    "officeLatitude" DOUBLE PRECISION,
+    "officeLongitude" DOUBLE PRECISION,
+    "allowedRadiusMeters" INTEGER NOT NULL DEFAULT 50,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -53,7 +58,11 @@ CREATE TABLE IF NOT EXISTS tenant_X."User" (
     "salaryType" tenant_X."SalaryType" NOT NULL DEFAULT 'MONTHLY',
     "salary" DOUBLE PRECISION NOT NULL DEFAULT 0,
     "startWorkTime" VARCHAR(10) NOT NULL DEFAULT '09:00',
-    "latePenalty" DOUBLE PRECISION NOT NULL DEFAULT 0
+    "endWorkTime" VARCHAR(10) NOT NULL DEFAULT '17:00',
+    "latePenalty" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "workLatitude" DOUBLE PRECISION,
+    "workLongitude" DOUBLE PRECISION,
+    "workRadius" INTEGER
 );
 
 -- 5. Buat tabel Attendance
@@ -115,6 +124,8 @@ CREATE TABLE IF NOT EXISTS tenant_X."Payroll" (
     "overtimeBonus" DOUBLE PRECISION NOT NULL DEFAULT 0,
     "deductions" DOUBLE PRECISION NOT NULL,
     "netSalary" DOUBLE PRECISION NOT NULL,
+    "paymentStatus" tenant_X."PaymentStatus" NOT NULL DEFAULT 'PENDING',
+    "paymentProof" VARCHAR(255),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 

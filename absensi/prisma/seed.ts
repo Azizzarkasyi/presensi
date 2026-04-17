@@ -76,8 +76,6 @@ async function main() {
         "maxBreakMinutesPerDay" INTEGER NOT NULL DEFAULT 60,
         "lateThresholdMinutes" INTEGER NOT NULL DEFAULT 15,
         "overtimeRateMultiplier" DOUBLE PRECISION NOT NULL DEFAULT 1.5,
-        "workStartTime" VARCHAR(10) NOT NULL DEFAULT '09:00',
-        "workEndTime" VARCHAR(10) NOT NULL DEFAULT '17:00',
         "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
         "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
       )
@@ -99,6 +97,7 @@ async function main() {
         "salaryType" "${schemaName}"."SalaryType" NOT NULL DEFAULT 'MONTHLY',
         "salary" DOUBLE PRECISION NOT NULL DEFAULT 0,
         "startWorkTime" VARCHAR(10) NOT NULL DEFAULT '09:00',
+        "endWorkTime" VARCHAR(10) NOT NULL DEFAULT '17:00',
         "latePenalty" DOUBLE PRECISION NOT NULL DEFAULT 0
       )
     `);

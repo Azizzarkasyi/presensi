@@ -40,8 +40,9 @@ export const updateConfig = async (req: Request, res: Response) => {
       maxBreakMinutesPerDay,
       lateThresholdMinutes,
       overtimeRateMultiplier,
-      workStartTime,
-      workEndTime,
+      officeLatitude,
+      officeLongitude,
+      allowedRadiusMeters,
     } = req.body;
 
     let config = await prisma.companyConfig.findFirst();
@@ -53,8 +54,9 @@ export const updateConfig = async (req: Request, res: Response) => {
           maxBreakMinutesPerDay,
           lateThresholdMinutes,
           overtimeRateMultiplier,
-          workStartTime,
-          workEndTime,
+          officeLatitude,
+          officeLongitude,
+          allowedRadiusMeters,
         },
       });
     } else {
@@ -65,8 +67,9 @@ export const updateConfig = async (req: Request, res: Response) => {
           ...(maxBreakMinutesPerDay !== undefined && { maxBreakMinutesPerDay }),
           ...(lateThresholdMinutes !== undefined && { lateThresholdMinutes }),
           ...(overtimeRateMultiplier !== undefined && { overtimeRateMultiplier }),
-          ...(workStartTime && { workStartTime }),
-          ...(workEndTime && { workEndTime }),
+          ...(officeLatitude !== undefined && { officeLatitude }),
+          ...(officeLongitude !== undefined && { officeLongitude }),
+          ...(allowedRadiusMeters !== undefined && { allowedRadiusMeters }),
         },
       });
     }

@@ -22,6 +22,7 @@ interface TenantUser {
     salaryType?: string;
     salary?: number;
     startWorkTime?: string;
+    endWorkTime?: string;
   };
 }
 
@@ -128,6 +129,7 @@ export async function autoLogin(req: Request, res: Response) {
               salaryType: user.salaryType,
               salary: user.salary,
               startWorkTime: user.startWorkTime,
+              endWorkTime: user.endWorkTime,
             },
           });
         }
@@ -204,6 +206,7 @@ export async function autoLogin(req: Request, res: Response) {
           salaryType: foundUser.user.salaryType,
           salary: foundUser.user.salary,
           startWorkTime: foundUser.user.startWorkTime,
+          endWorkTime: foundUser.user.endWorkTime,
         },
         tenant: {
           id: foundUser.tenantId,
@@ -302,6 +305,7 @@ export async function loginWithTenant(req: Request, res: Response) {
           salaryType: user.salaryType,
           salary: user.salary,
           startWorkTime: user.startWorkTime,
+          endWorkTime: user.endWorkTime,
         },
         tenant: {
           id: tenant.id,

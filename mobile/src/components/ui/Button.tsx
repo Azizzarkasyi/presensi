@@ -114,8 +114,8 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.primary,
   },
   text: {
-    fontWeight: '600',
-    letterSpacing: 0.5,
+    fontFamily: theme.typography.h3.fontFamily,
+    letterSpacing: 0.3,
   },
   disabled: {
     opacity: 0.8,

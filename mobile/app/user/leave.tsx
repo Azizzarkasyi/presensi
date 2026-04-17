@@ -3,6 +3,9 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'reac
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { clockIn } from '../../src/services/api';
+import { ScreenHeader } from '../../src/components/ui/ScreenHeader';
+import { Button } from '../../src/components/ui/Button';
+import { theme } from '../../src/constants/theme';
 
 export default function LeaveRequest() {
   const { user } = useAuth();
@@ -36,12 +39,7 @@ export default function LeaveRequest() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Text style={styles.backBtn}>← Kembali</Text>
-        </TouchableOpacity>
-        <Text style={styles.title}>Pengajuan Izin/Sakit</Text>
-      </View>
+      <ScreenHeader title="Pengajuan Izin/Sakit" />
 
       <View style={styles.card}>
         <Text style={styles.label}>Jenis Pengajuan</Text>
@@ -75,34 +73,26 @@ export default function LeaveRequest() {
           textAlignVertical="top"
         />
 
-        <TouchableOpacity 
-          style={[styles.submitBtn, loading && styles.submitBtnDisabled]}
-          onPress={handleSubmit}
-          disabled={loading}
-        >
-          <Text style={styles.submitBtnText}>
-            {loading ? 'Mengirim...' : 'Kirim Pengajuan'}
-          </Text>
-        </TouchableOpacity>
+        <Button
+           title={loading ? 'Mengirim...' : 'Kirim Pengajuan'}
+           onPress={handleSubmit}
+           disabled={loading}
+           loading={loading}
+           size="lg"
+        />
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8fafc', padding: 16 },
-  header: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
-  backBtn: { color: '#3b82f6', fontSize: 16, marginRight: 16 },
-  title: { fontSize: 20, fontWeight: 'bold', color: '#1e293b' },
+  container: { flex: 1, backgroundColor: '#f8fafc' },
   card: { backgroundColor: '#fff', borderRadius: 16, padding: 20, elevation: 3 },
   label: { fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: 12 },
   typeRow: { flexDirection: 'row', marginBottom: 20 },
   typeBtn: { flex: 1, padding: 16, borderRadius: 12, borderWidth: 2, borderColor: '#e2e8f0', marginHorizontal: 4, alignItems: 'center' },
-  typeBtnActive: { borderColor: '#3b82f6', backgroundColor: '#eff6ff' },
+  typeBtnActive: { borderColor: theme.colors.primary, backgroundColor: '#eff6ff' },
   typeBtnText: { fontSize: 16, color: '#64748b' },
-  typeBtnTextActive: { color: '#3b82f6', fontWeight: '600' },
+  typeBtnTextActive: { color: theme.colors.primary, fontWeight: '600' },
   textArea: { backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 12, padding: 16, fontSize: 16, marginBottom: 20, minHeight: 120 },
-  submitBtn: { backgroundColor: '#3b82f6', borderRadius: 12, padding: 16, alignItems: 'center' },
-  submitBtnDisabled: { backgroundColor: '#93c5fd' },
-  submitBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
 });

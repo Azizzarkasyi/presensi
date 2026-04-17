@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ScrollView, Alert, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import { useAuth } from '../../src/contexts/AuthContext';
-import api, { generatePayroll } from '../../src/services/api';
+import api, { generatePayroll, getAllPayrolls, markPayrollPaid } from '../../src/services/api';
 
 // UI Components
 import { theme } from '../../src/constants/theme';
@@ -24,6 +27,7 @@ export default function AdminPayroll() {
   const { user } = useAuth();
   const router = useRouter();
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [payrolls, setPayrolls] = useState<any[]>([]);
   const [selectedEmployee, setSelectedEmployee] = useState<number | null>(null);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -32,6 +36,7 @@ export default function AdminPayroll() {
 
   useEffect(() => {
     loadEmployees();
+    loadPayrolls();
   }, []);
 
   const loadEmployees = async () => {
@@ -49,6 +54,15 @@ export default function AdminPayroll() {
     } catch (error) {
       console.error('Error:', error);
       Alert.alert('Error', 'Gagal memuat data karyawan');
+    }
+  };
+
+  const loadPayrolls = async () => {
+    try {
+      const res = await getAllPayrolls();
+      setPayrolls(res.data.data);
+    } catch (error) {
+      console.error(error);
     }
   };
 
@@ -73,6 +87,72 @@ export default function AdminPayroll() {
       Alert.alert('Gagal', error.response?.data?.error || 'Terjadi kesalahan saat generate gaji');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleExportExcel = async () => {
+    try {
+      setLoading(true);
+      const res = await api.get('/payroll/export/excel', { responseType: 'blob' });
+      if (Platform.OS === 'web') {
+        const url = window.URL.createObjectURL(new Blob([res.data]));
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', 'laporan_gaji.xlsx');
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } else {
+        const fr = new FileReader();
+        fr.onload = async () => {
+           const fileUri = `${FileSystem.documentDirectory}laporan_gaji.xlsx`;
+           await FileSystem.writeAsStringAsync(fileUri, (fr.result as string).split(',')[1], { encoding: FileSystem.EncodingType.Base64 });
+           await Sharing.shareAsync(fileUri);
+        };
+        fr.readAsDataURL(res.data);
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Gagal mengekspor laporan');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleMarkPaid = async (payrollId: number) => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        const formData = new FormData();
+        
+        let fileObj: any;
+        if (Platform.OS === 'web') {
+          const res = await fetch(asset.uri);
+          const blob = await res.blob();
+          fileObj = new File([blob], 'transfer-proof.jpg', { type: 'image/jpeg' });
+          formData.append('paymentProof', fileObj);
+        } else {
+          formData.append('paymentProof', {
+            uri: asset.uri,
+            name: 'transfer-proof.jpg',
+            type: 'image/jpeg',
+          } as any);
+        }
+
+        setLoading(true);
+        await markPayrollPaid(payrollId, formData);
+        Alert.alert('Sukses', 'Slip gaji berhasil ditandai sudah dibayar!');
+        loadPayrolls();
+      }
+    } catch (error) {
+       Alert.alert('Gagal', 'Terjadi kesalahan upload bukti bayar');
+    } finally {
+       setLoading(false);
     }
   };
 
@@ -144,9 +224,47 @@ export default function AdminPayroll() {
             onPress={handleGenerate}
             loading={loading}
             size="lg"
-            variant="success"
+            variant="primary"
             icon={<Text>💰</Text>}
           />
+        </Card>
+
+        <Card style={styles.card}>
+           <View style={[styles.row, { justifyContent: 'space-between', alignItems: 'center' }]}>
+               <Text style={styles.sectionTitle}>Riwayat Pembayaran Slip</Text>
+               <Button title="📥 Ekspor Excel" onPress={handleExportExcel} variant="success" size="sm" loading={loading} />
+           </View>
+           
+           {payrolls.length === 0 ? (
+               <Text style={styles.emptyText}>Belum ada riwayat penggajian.</Text>
+           ) : (
+               payrolls.map((p: any) => (
+                   <View key={p.id} style={styles.payrollItem}>
+                      <View style={{ flex: 1 }}>
+                         <Text style={{ fontWeight: 'bold' }}>{p.user?.name}</Text>
+                         <Text style={{ fontSize: 12, color: theme.colors.text.secondary }}>Periode: {p.periodStart.split('T')[0]} s/d {p.periodEnd.split('T')[0]}</Text>
+                         <Text style={{ fontSize: 14, marginTop: 4 }}>Net: {formatCurrency(p.netSalary)}</Text>
+                         <Text style={{ fontSize: 12, color: p.paymentStatus === 'PAID' ? theme.colors.status.success : theme.colors.status.warning, fontWeight: 'bold' }}>
+                            Status: {p.paymentStatus}
+                         </Text>
+                      </View>
+                      
+                      {p.paymentStatus === 'PENDING' && (
+                         <Button 
+                             title="Tandai Bayar" 
+                             onPress={() => handleMarkPaid(p.id)} 
+                             variant="outline" 
+                             size="sm"
+                         />
+                      )}
+                      {p.paymentStatus === 'PAID' && p.paymentProof && (
+                         <Text style={{ color: 'blue', textDecorationLine: 'underline', fontSize: 12 }} onPress={() => window.open(api.defaults.baseURL?.replace('/api', '') + p.paymentProof, '_blank')}>
+                            Lihat Foto
+                         </Text>
+                      )}
+                   </View>
+               ))
+           )}
         </Card>
       </ScrollView>
 
@@ -212,5 +330,13 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.border,
     marginVertical: 24,
   },
+  payrollItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderColor: theme.colors.border,
+  }
 });
 
