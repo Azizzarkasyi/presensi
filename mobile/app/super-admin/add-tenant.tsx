@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useResponsive } from '../../src/hooks/useResponsive';
 import { createTenant } from '../../src/services/api';
@@ -15,6 +15,7 @@ export default function AddTenant() {
   const { isDesktop, isWeb } = useResponsive();
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
   
   const [formData, setFormData] = useState({
     name: '',
@@ -25,9 +26,11 @@ export default function AddTenant() {
 
   const handleSubmit = async () => {
     if (!formData.name || !formData.adminName || !formData.adminEmail || !formData.adminPassword) {
-      Alert.alert('Eror', 'Semua field wajib diisi');
+      setErrorMessage('Semua field wajib diisi');
       return;
     }
+
+    setErrorMessage('');
 
     setLoading(true);
     try {
@@ -37,8 +40,8 @@ export default function AddTenant() {
       }
     } catch (error: any) {
       console.error('Create tenant error:', error);
-      const msg = error.response?.data?.message || 'Gagal membuat perusahaan';
-      Alert.alert('Gagal', msg);
+      const msg = error.response?.data?.message || 'Gagal membuat perusahaan. Pastikan nama tidak duplikat.';
+      setErrorMessage(msg);
     } finally {
       setLoading(false);
     }
@@ -55,6 +58,12 @@ export default function AddTenant() {
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={[styles.contentWrapper, isDesktop && styles.contentDesktop]}>
+          {errorMessage ? (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>{errorMessage}</Text>
+            </View>
+          ) : null}
+
           <Card>
             <Input
               label="Nama Perusahaan"
@@ -130,5 +139,19 @@ const styles = StyleSheet.create({
   },
   submitBtn: {
     marginTop: theme.spacing.md,
+  },
+  errorContainer: {
+    backgroundColor: '#fee2e2',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#f87171',
+  },
+  errorText: {
+    color: '#ef4444',
+    fontSize: 14,
+    textAlign: 'center',
+    fontWeight: '500',
   },
 });
