@@ -28,8 +28,8 @@ module.exports = {
         },
         {
             name: "absensi-web",
-            script: "server.js",
-            cwd: "../mobile",
+            script: "npx",
+            args: "serve -s mobile/dist -l 5000",
             env: {
                 NODE_ENV: "production",
             }
