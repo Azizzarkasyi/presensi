@@ -9,6 +9,7 @@ import {
   getStatistics,
   getAllTodayAttendance,
   getAttendanceReport,
+  requestLeave,
 } from '../controllers/attendance.controller';
 import { authenticate, authorizeAdmin } from '../middleware/auth.middleware';
 
@@ -42,6 +43,7 @@ const upload = multer({
 // All routes require authentication
 router.post('/clock-in', authenticate, upload.single('photo'), clockIn);
 router.post('/clock-out', authenticate, upload.single('photo'), clockOut);
+router.post('/leave', authenticate, upload.single('photo'), requestLeave);
 router.get('/today', authenticate, getTodayAttendance);
 router.get('/history', authenticate, getHistory);
 router.get('/statistics', authenticate, getStatistics);

@@ -5,6 +5,11 @@ import { Platform } from 'react-native';
 // Detect platform for correct API URL
 const getApiUrl = () => {
   // Production URL (Cloudflare Tunnel)
+  // if(Platform.OS === 'android'){
+  //   return 'https://yexsx.my.id/api';
+  // }else{
+  //   return 'http://localhost:3000/api';
+  // }
   return 'https://yexsx.my.id/api';
 
   // Development URL (uncomment untuk development lokal)
@@ -86,6 +91,11 @@ export const clockIn = (data: FormData) =>
 
 export const clockOut = (data: FormData) =>
   api.post('/attendance/clock-out', data, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+
+export const requestLeave = (data: FormData) =>
+  api.post('/attendance/leave', data, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
 

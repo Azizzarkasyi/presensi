@@ -99,18 +99,37 @@ export const clockIn = async (req: Request, res: Response) => {
     }
 
     const workStartTime = user.startWorkTime || '09:00';
+    const isFLEX = workStartTime.toUpperCase() === 'FLEX';
     const lateThreshold = config?.lateThresholdMinutes || 15;
 
     // Determine status - check if late
     const now = new Date();
-    const [startHour, startMinute] = workStartTime.split(':').map(Number);
     
     let attendanceStatus = status || 'PRESENT';
-    if (attendanceStatus === 'PRESENT') {
-      const startTimeToday = new Date(today);
-      startTimeToday.setHours(startHour, startMinute + lateThreshold, 0, 0);
+    if (attendanceStatus === 'PRESENT' && !isFLEX) {
+      // Logic: Split by comma and find the shift closest to 'now'
+      const shiftTimes = workStartTime.split(',').map(s => s.trim()).filter(s => s);
       
-      if (now > startTimeToday) {
+      let closestShiftTime = new Date(today);
+      let smallestDiff = Infinity;
+
+      for (const st of shiftTimes) {
+        const [sh, sm] = st.split(':').map(Number);
+        if (!isNaN(sh) && !isNaN(sm)) {
+          const shiftDate = new Date(today);
+          shiftDate.setHours(sh, sm, 0, 0);
+          const diff = Math.abs(now.getTime() - shiftDate.getTime());
+          if (diff < smallestDiff) {
+            smallestDiff = diff;
+            closestShiftTime = shiftDate;
+          }
+        }
+      }
+
+      // Add late threshold to the closest shift
+      closestShiftTime.setMinutes(closestShiftTime.getMinutes() + lateThreshold);
+      
+      if (now > closestShiftTime) {
         attendanceStatus = 'LATE';
       }
     }
@@ -135,6 +154,78 @@ export const clockIn = async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Clock in error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+};
+
+/**
+ * Request Leave/Sick (Izin/Sakit)
+ */
+export const requestLeave = async (req: Request, res: Response) => {
+  try {
+    const prisma = req.prisma!;
+    const userId = req.user!.id;
+    const { status, date, description } = req.body;
+    const photo = req.file ? req.file.filename : null;
+
+    if (!['SICK', 'LEAVE'].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Status harus SICK atau LEAVE',
+      });
+    }
+
+    if (!photo) {
+      return res.status(400).json({
+        success: false,
+        message: 'Dokumen / Foto Surat wajib dilampirkan',
+      });
+    }
+
+    let targetDate = new Date();
+    if (date) {
+      targetDate = new Date(date);
+    }
+    targetDate.setHours(0, 0, 0, 0);
+
+    const existingAttendance = await prisma.attendance.findFirst({
+      where: {
+        userId,
+        date: targetDate,
+      },
+    });
+
+    if (existingAttendance) {
+      return res.status(400).json({
+        success: false,
+        message: 'Kehadiran/Izin sudah tercatat untuk tanggal tersebut',
+      });
+    }
+
+    // Save description in clockOutPhoto (Repurpose for Zero-Migration storage strategy)
+    // Trim to 255 chars to prevent database text-overflow
+    const safeDesc = description ? description.substring(0, 250) : null;
+
+    const attendance = await prisma.attendance.create({
+      data: {
+        userId,
+        date: targetDate,
+        status: status,
+        clockInPhoto: photo, // Repurpose for Document URL
+        clockOutPhoto: safeDesc, // Repurpose for Keterangan Text
+      },
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Pengajuan Izin berhasil dicatat',
+      data: attendance,
+    });
+  } catch (error) {
+    console.error('Request leave error:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error',

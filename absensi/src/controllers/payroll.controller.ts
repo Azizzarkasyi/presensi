@@ -106,10 +106,18 @@ export const generatePayroll = async (req: Request, res: Response) => {
       hourlyRate = user.salary / 40;
     }
     
-    const overtimeBonus = overtimeHours * hourlyRate * overtimeRate;
-
     // Total deductions
     const totalDeductions = lateDeductions;
+
+    // Fix bug: If HOURLY, the baseSalary ALREADY paid for the overtime hours at 1.0x rate.
+    // So the overtimeBonus should only be the remaining 0.5x (or (overtimeRate - 1.0)x) bonus.
+    // For NON-HOURLY, baseSalary is fixed, so overtime pays the FULL overtimeRate (e.g. 1.5x)
+    let overtimeBonus = 0;
+    if (user.salaryType === 'HOURLY') {
+      overtimeBonus = overtimeHours * hourlyRate * (overtimeRate - 1.0);
+    } else {
+      overtimeBonus = overtimeHours * hourlyRate * overtimeRate;
+    }
 
     // Net salary
     const netSalary = baseSalary + overtimeBonus - totalDeductions;

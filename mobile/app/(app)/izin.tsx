@@ -7,7 +7,6 @@ import { useResponsive } from '../../src/hooks/useResponsive';
 import { ScreenHeader } from '../../src/components/ui/ScreenHeader';
 import { Card } from '../../src/components/ui/Card';
 import { Button } from '../../src/components/ui/Button';
-import { Input } from '../../src/components/ui/Input';
 import { theme } from '../../src/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { SuccessModal } from '../../src/components/ui/SuccessModal';
@@ -19,7 +18,6 @@ export default function LeaveRequest() {
   const [success, setSuccess] = useState(false);
   
   const [status, setStatus] = useState<'SICK' | 'LEAVE'>('SICK');
-  const [description, setDescription] = useState('');
   const [photoUri, setPhotoUri] = useState<string | null>(null);
 
   const pickImage = async (useCamera: boolean = false) => {
@@ -65,9 +63,6 @@ export default function LeaveRequest() {
     try {
       const formData = new FormData();
       formData.append('status', status);
-      if (description) {
-        formData.append('description', description);
-      }
 
       // Handle file upload
       const fallbackName = `document-${Date.now()}.jpg`;
@@ -104,7 +99,7 @@ export default function LeaveRequest() {
 
   const handleCloseSuccess = () => {
     setSuccess(false);
-    router.replace('/user');
+    router.replace('/');
   };
 
   return (
@@ -132,15 +127,6 @@ export default function LeaveRequest() {
                 <Text style={[styles.statusText, status === 'LEAVE' && styles.statusTextActive]}>Izin / Cuti</Text>
               </TouchableOpacity>
             </View>
-
-            <View style={styles.divider} />
-
-            <Input
-              label="Keterangan / Alasan"
-              placeholder="Contoh: Demam tinggi, perlu istirahat 2 hari"
-              value={description}
-              onChangeText={setDescription}
-            />
 
             <View style={styles.divider} />
 

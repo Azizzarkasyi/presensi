@@ -109,4 +109,19 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   });
 });
 
+// Auto-migrate schema length for existing tenants on boot
+setTimeout(async () => {
+  try {
+    const { getPublicPrisma } = require('./prisma/tenant-prisma');
+    const prisma = getPublicPrisma();
+    const tenants = await prisma.tenant.findMany();
+    for (const tenant of tenants) {
+      await prisma.$executeRawUnsafe(`ALTER TABLE "${tenant.schemaName}"."User" ALTER COLUMN "startWorkTime" TYPE VARCHAR(255)`).catch(() => {});
+      await prisma.$executeRawUnsafe(`ALTER TABLE "${tenant.schemaName}"."User" ALTER COLUMN "endWorkTime" TYPE VARCHAR(255)`).catch(() => {});
+    }
+  } catch(e) {
+    // Ignore migration errors
+  }
+}, 5000);
+
 export default app;

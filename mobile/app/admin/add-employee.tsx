@@ -207,26 +207,26 @@ export default function AddEmployee() {
 
         {/* Working Hours Section */}
         <Card style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>⏰ Jam Kerja</Text>
+          <Text style={styles.sectionTitle}>⏰ Jam Kerja & Auto-Shift</Text>
           <View style={styles.rowInputs}>
              <View style={{ flex: 1, marginRight: 8 }}>
                 <Input
-                  label="Jam Masuk"
-                  placeholder="09:00"
+                  label="Jam Masuk (Pisahkan dg koma)"
+                  placeholder="Contoh: 08:00,14:00"
                   value={startWorkTime}
                   onChangeText={setStartWorkTime}
                 />
              </View>
              <View style={{ flex: 1, marginLeft: 8 }}>
                 <Input
-                  label="Jam Pulang"
+                  label="Jam Pulang (Opsional)"
                   placeholder="17:00"
                   value={endWorkTime}
                   onChangeText={setEndWorkTime}
                 />
              </View>
           </View>
-          <Text style={styles.hintText}>Format: HH:MM (contoh: 09:00)</Text>
+          <Text style={styles.hintText}>Isi koma jika ada 2 Shift. Contoh: 06:00,12:00</Text>
         </Card>
 
         {/* Location Section */}
