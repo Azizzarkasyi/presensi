@@ -107,30 +107,42 @@ export const clockIn = async (req: Request, res: Response) => {
     
     let attendanceStatus = status || 'PRESENT';
     if (attendanceStatus === 'PRESENT' && !isFLEX) {
-      // Logic: Split by comma and find the shift closest to 'now'
-      const shiftTimes = workStartTime.split(',').map(s => s.trim()).filter(s => s);
-      
-      let closestShiftTime = new Date(today);
-      let smallestDiff = Infinity;
+      try {
+        const shiftTimes = workStartTime.split(',').map(s => s.trim()).filter(s => s);
+        
+        let closestShiftTime = new Date(today);
+        let smallestDiff = Infinity;
 
-      for (const st of shiftTimes) {
-        const [sh, sm] = st.split(':').map(Number);
-        if (!isNaN(sh) && !isNaN(sm)) {
-          const shiftDate = new Date(today);
-          shiftDate.setHours(sh, sm, 0, 0);
-          const diff = Math.abs(now.getTime() - shiftDate.getTime());
-          if (diff < smallestDiff) {
-            smallestDiff = diff;
-            closestShiftTime = shiftDate;
+        // Ensure we default to 09:00 if parsing array goes wrong
+        if (shiftTimes.length === 0) shiftTimes.push('09:00');
+
+        for (const st of shiftTimes) {
+          const parts = st.split(':');
+          if (parts.length === 2) {
+            const sh = parseInt(parts[0], 10);
+            const sm = parseInt(parts[1], 10);
+            if (!isNaN(sh) && !isNaN(sm)) {
+              const shiftDate = new Date(today);
+              shiftDate.setHours(sh, sm, 0, 0);
+              const diff = Math.abs(now.getTime() - shiftDate.getTime());
+              if (diff < smallestDiff) {
+                smallestDiff = diff;
+                closestShiftTime = shiftDate;
+              }
+            }
           }
         }
-      }
 
-      // Add late threshold to the closest shift
-      closestShiftTime.setMinutes(closestShiftTime.getMinutes() + lateThreshold);
-      
-      if (now > closestShiftTime) {
-        attendanceStatus = 'LATE';
+        // Add late threshold to the closest shift
+        closestShiftTime.setMinutes(closestShiftTime.getMinutes() + lateThreshold);
+        
+        if (now > closestShiftTime) {
+          attendanceStatus = 'LATE';
+        }
+      } catch (err) {
+        console.error('Shift logic error:', err);
+        // Fallback safely to LATE if computation crashes, just to save the record
+        attendanceStatus = 'LATE'; 
       }
     }
 

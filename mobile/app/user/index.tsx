@@ -78,7 +78,11 @@ export default function UserDashboard() {
           return;
         }
 
-        const location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+        // Gunakan timeout dan akurasi rendah agar tidak hang (macet) di Web Browser Desktop
+        const location = await Location.getCurrentPositionAsync({ 
+          accuracy: Location.Accuracy.Balanced,
+          timeout: 10000 // Timeout 10 detik
+        });
         currentLat = location.coords.latitude;
         currentLon = location.coords.longitude;
       }
