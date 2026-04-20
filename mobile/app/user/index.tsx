@@ -81,8 +81,7 @@ export default function UserDashboard() {
         // Gunakan Promise.race untuk menjamin aplikasi tidak akan pernah membeku (hang) 
         // walau library expo-location nge-bug/nge-freeze saat minta GPS di HP tertentu.
         const locationPromise = Location.getCurrentPositionAsync({ 
-          accuracy: Location.Accuracy.Balanced,
-          timeout: 8000
+          accuracy: Location.Accuracy.Balanced
         });
 
         const timeoutPromise = new Promise((_, reject) => 
@@ -134,7 +133,7 @@ export default function UserDashboard() {
       loadData();
     } catch (error: any) {
       console.error('Action error:', error);
-      const errorMsg = error.response?.data?.message || error.response?.data?.error || 'Terjadi kesalahan saat memproses data.';
+      const errorMsg = error.response?.data?.message || error.response?.data?.error || error.message || 'Terjadi kesalahan saat memproses data.';
       Alert.alert('Gagal', errorMsg);
     } finally {
       setLoading(false);
