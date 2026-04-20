@@ -78,11 +78,19 @@ export default function UserDashboard() {
           return;
         }
 
-        // Gunakan timeout dan akurasi rendah agar tidak hang (macet) di Web Browser Desktop
-        const location = await Location.getCurrentPositionAsync({ 
+        // Gunakan Promise.race untuk menjamin aplikasi tidak akan pernah membeku (hang) 
+        // walau library expo-location nge-bug/nge-freeze saat minta GPS di HP tertentu.
+        const locationPromise = Location.getCurrentPositionAsync({ 
           accuracy: Location.Accuracy.Balanced,
-          timeout: 10000 // Timeout 10 detik
+          timeout: 8000
         });
+
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Pencarian GPS terlalu lama (Timeout)')), 8000)
+        );
+
+        const location: any = await Promise.race([locationPromise, timeoutPromise]);
+        
         currentLat = location.coords.latitude;
         currentLon = location.coords.longitude;
       }
