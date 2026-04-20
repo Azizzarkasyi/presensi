@@ -122,7 +122,8 @@ export default function UserDashboard() {
       loadData();
     } catch (error: any) {
       console.error('Action error:', error);
-      Alert.alert('Gagal', error.response?.data?.error || 'Terjadi kesalahan');
+      const errorMsg = error.response?.data?.message || error.response?.data?.error || 'Terjadi kesalahan saat memproses data.';
+      Alert.alert('Gagal', errorMsg);
     } finally {
       setLoading(false);
     }

@@ -23,10 +23,34 @@ export default function AddTenant() {
     adminEmail: '',
     adminPassword: '',
   });
+  const [errors, setErrors] = useState<{[key: string]: string}>({});
+
+  const validateForm = () => {
+    const newErrors: {[key: string]: string} = {};
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    
+    if (!formData.name.trim()) newErrors.name = 'Nama Perusahaan wajib diisi';
+    if (!formData.adminName.trim()) newErrors.adminName = 'Nama Admin wajib diisi';
+    
+    if (!formData.adminEmail.trim()) {
+      newErrors.adminEmail = 'Email wajib diisi';
+    } else if (!emailRegex.test(formData.adminEmail.trim())) {
+      newErrors.adminEmail = 'Format email tidak valid';
+    }
+    
+    if (!formData.adminPassword) {
+      newErrors.adminPassword = 'Password wajib diisi';
+    } else if (formData.adminPassword.length < 6) {
+      newErrors.adminPassword = 'Password minimal 6 karakter';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleSubmit = async () => {
-    if (!formData.name || !formData.adminName || !formData.adminEmail || !formData.adminPassword) {
-      setErrorMessage('Semua field wajib diisi');
+    if (!validateForm()) {
+      setErrorMessage('Mohon periksa kembali form Anda');
       return;
     }
 
@@ -69,14 +93,16 @@ export default function AddTenant() {
               label="Nama Perusahaan"
               placeholder="Contoh: PT. Maju Jaya"
               value={formData.name}
-              onChangeText={(text) => setFormData(prev => ({ ...prev, name: text }))}
+              onChangeText={(text) => { setFormData(prev => ({ ...prev, name: text })); setErrors({...errors, name: ''}); }}
+              error={errors.name}
             />
 
             <Input
               label="Nama Admin"
               placeholder="Nama Lengkap Admin"
               value={formData.adminName}
-              onChangeText={(text) => setFormData(prev => ({ ...prev, adminName: text }))}
+              onChangeText={(text) => { setFormData(prev => ({ ...prev, adminName: text })); setErrors({...errors, adminName: ''}); }}
+              error={errors.adminName}
             />
 
             <Input
@@ -85,8 +111,9 @@ export default function AddTenant() {
               keyboardType="email-address"
               autoCapitalize="none"
               value={formData.adminEmail}
-              onChangeText={(text) => setFormData(prev => ({ ...prev, adminEmail: text }))}
+              onChangeText={(text) => { setFormData(prev => ({ ...prev, adminEmail: text })); setErrors({...errors, adminEmail: ''}); }}
               hint="Email ini akan digunakan untuk login admin"
+              error={errors.adminEmail}
             />
 
             <Input
@@ -94,7 +121,8 @@ export default function AddTenant() {
               placeholder="Minimal 6 karakter"
               secureTextEntry
               value={formData.adminPassword}
-              onChangeText={(text) => setFormData(prev => ({ ...prev, adminPassword: text }))}
+              onChangeText={(text) => { setFormData(prev => ({ ...prev, adminPassword: text })); setErrors({...errors, adminPassword: ''}); }}
+              error={errors.adminPassword}
             />
 
             <Button

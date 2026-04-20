@@ -57,6 +57,24 @@ export default function AddEmployee() {
     if (!salary) newErrors.salary = 'Gaji wajib diisi';
     else if (isNaN(Number(salary))) newErrors.salary = 'Gaji harus angka';
 
+    if (latePenalty && isNaN(Number(latePenalty))) newErrors.latePenalty = 'Denda harus angka';
+    if (workRadius && isNaN(Number(workRadius))) newErrors.workRadius = 'Radius harus angka';
+    if (workLatitude && isNaN(Number(workLatitude))) newErrors.workLatitude = 'Koordinat salah';
+    if (workLongitude && isNaN(Number(workLongitude))) newErrors.workLongitude = 'Koordinat salah';
+
+    const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9](,\s*([01]?[0-9]|2[0-3]):[0-5][0-9])*$/;
+    const singleTimeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
+
+    if (!startWorkTime.trim()) {
+      newErrors.startWorkTime = 'Jam Masuk wajib diisi';
+    } else if (startWorkTime.toUpperCase() !== 'FLEX' && !timeRegex.test(startWorkTime.trim())) {
+      newErrors.startWorkTime = 'Format jam salah (HH:MM)';
+    }
+
+    if (endWorkTime.trim() && !singleTimeRegex.test(endWorkTime.trim())) {
+      newErrors.endWorkTime = 'Format jam salah (HH:MM)';
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -197,9 +215,10 @@ export default function AddEmployee() {
                 <Input
                   label="Denda Terlambat"
                   value={latePenalty}
-                  onChangeText={setLatePenalty}
+                  onChangeText={(text) => { setLatePenalty(text); setErrors({...errors, latePenalty: ''}); }}
                   keyboardType="numeric"
                   placeholder="0"
+                  error={errors.latePenalty}
                 />
              </View>
           </View>
@@ -214,7 +233,11 @@ export default function AddEmployee() {
                   label="Jam Masuk (Pisahkan dg koma)"
                   placeholder="Contoh: 08:00,14:00"
                   value={startWorkTime}
-                  onChangeText={setStartWorkTime}
+                  onChangeText={(text) => {
+                    setStartWorkTime(text);
+                    setErrors({...errors, startWorkTime: ''});
+                  }}
+                  error={errors.startWorkTime}
                 />
              </View>
              <View style={{ flex: 1, marginLeft: 8 }}>
@@ -222,7 +245,11 @@ export default function AddEmployee() {
                   label="Jam Pulang (Opsional)"
                   placeholder="17:00"
                   value={endWorkTime}
-                  onChangeText={setEndWorkTime}
+                  onChangeText={(text) => {
+                    setEndWorkTime(text);
+                    setErrors({...errors, endWorkTime: ''});
+                  }}
+                  error={errors.endWorkTime}
                 />
              </View>
           </View>
@@ -260,9 +287,10 @@ export default function AddEmployee() {
             <Input
               label="Radius Individual (meter)"
               value={workRadius}
-              onChangeText={setWorkRadius}
+              onChangeText={(text) => { setWorkRadius(text); setErrors({...errors, workRadius: ''}); }}
               keyboardType="numeric"
               placeholder="Contoh: 50"
+              error={errors.workRadius}
             />
           </View>
         </Card>
