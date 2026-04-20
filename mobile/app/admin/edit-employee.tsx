@@ -134,7 +134,8 @@ export default function EditEmployee() {
       });
       setShowSuccessModal(true);
     } catch (error: any) {
-      Alert.alert('Gagal', error.response?.data?.message || 'Terjadi kesalahan');
+      console.error('Edit employee error:', error);
+      Alert.alert('Gagal', error.response?.data?.message || error.message || 'Terjadi kesalahan');
     } finally {
       setSaving(false);
     }

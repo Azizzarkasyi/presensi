@@ -53,7 +53,8 @@ export default function AdminSettings() {
       await updateCompanyConfig(config);
       setShowSuccessModal(true);
     } catch (error: any) {
-      Alert.alert('Gagal', error.response?.data?.error || 'Gagal menyimpan pengaturan');
+      console.error('Save config error:', error);
+      Alert.alert('Gagal', error.response?.data?.message || error.response?.data?.error || error.message || 'Gagal menyimpan pengaturan');
     } finally {
       setLoading(false);
     }

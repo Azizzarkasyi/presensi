@@ -46,7 +46,8 @@ export default function UserTasks() {
       loadTasks(); 
       Alert.alert('Sukses', `Status diubah menjadi ${newStatus}`);
     } catch (error: any) {
-      Alert.alert('Gagal', error.response?.data?.message || 'Gagal update status');
+      console.error('Update task error:', error);
+      Alert.alert('Gagal', error.response?.data?.message || error.message || 'Gagal update status');
     } finally {
       setUpdatingId(null);
     }

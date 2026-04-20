@@ -73,7 +73,8 @@ export default function AdminTasks() {
       loadData();
       Alert.alert('Sukses', 'Tugas berhasil ditambahkan');
     } catch (error: any) {
-      Alert.alert('Gagal', error.response?.data?.message || 'Terjadi kesalahan');
+      console.error('Create task error:', error);
+      Alert.alert('Gagal', error.response?.data?.message || error.message || 'Terjadi kesalahan');
     } finally {
       setLoading(false);
     }

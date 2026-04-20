@@ -51,6 +51,7 @@ export default function AddTenant() {
   const handleSubmit = async () => {
     if (!validateForm()) {
       setErrorMessage('Mohon periksa kembali form Anda');
+      Alert.alert('Gagal', 'Mohon periksa kembali form Anda yang kosong/salah');
       return;
     }
 
@@ -64,8 +65,9 @@ export default function AddTenant() {
       }
     } catch (error: any) {
       console.error('Create tenant error:', error);
-      const msg = error.response?.data?.message || 'Gagal membuat perusahaan. Pastikan nama tidak duplikat.';
+      const msg = error.response?.data?.message || error.message || 'Gagal membuat perusahaan. Pastikan nama tidak duplikat.';
       setErrorMessage(msg);
+      Alert.alert('Gagal', msg);
     } finally {
       setLoading(false);
     }

@@ -106,7 +106,8 @@ export default function AddEmployee() {
       
       setShowSuccessModal(true);
     } catch (error: any) {
-      Alert.alert('Gagal', error.response?.data?.message || 'Terjadi kesalahan saat menyimpan data');
+      console.error('Save employee error:', error);
+      Alert.alert('Gagal', error.response?.data?.message || error.message || 'Terjadi kesalahan');
     } finally {
       setLoading(false);
     }

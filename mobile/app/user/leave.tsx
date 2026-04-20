@@ -95,7 +95,7 @@ export default function LeaveRequest() {
       setSuccess(true);
     } catch (error: any) {
       console.error('Request leave error:', error);
-      const msg = error.response?.data?.message || 'Gagal mengajukan izin';
+      const msg = error.response?.data?.message || error.message || 'Gagal mengajukan izin';
       Alert.alert('Gagal', msg);
     } finally {
       setLoading(false);
