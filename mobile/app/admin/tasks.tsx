@@ -1,5 +1,12 @@
-import {useEffect, useState} from "react";
-import {View, FlatList, StyleSheet, Modal, Text} from "react-native";
+import {useEffect, useMemo, useState} from "react";
+import {
+  View,
+  FlatList,
+  StyleSheet,
+  Modal,
+  Text,
+  ScrollView,
+} from "react-native";
 import {Ionicons} from "@expo/vector-icons";
 import {useRouter} from "expo-router";
 import {useAuth} from "../../src/contexts/AuthContext";
@@ -41,6 +48,7 @@ export default function AdminTasks() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [selectedEmployee, setSelectedEmployee] = useState<number | null>(null);
+  const [employeeSearch, setEmployeeSearch] = useState("");
   const [loading, setLoading] = useState(false);
   const [usingCache, setUsingCache] = useState(false);
 
@@ -144,6 +152,22 @@ export default function AdminTasks() {
     }
   };
 
+  const filteredEmployees = useMemo(() => {
+    const q = employeeSearch.toLowerCase().trim();
+    if (!q) {
+      return employees;
+    }
+
+    return employees.filter(employee =>
+      employee.name.toLowerCase().includes(q),
+    );
+  }, [employees, employeeSearch]);
+
+  const openTaskModal = () => {
+    setEmployeeSearch("");
+    setShowTaskModal(true);
+  };
+
   const renderTaskItem = ({item}: {item: Task}) => (
     <Card style={styles.taskCard}>
       <View style={styles.cardHeader}>
@@ -179,7 +203,7 @@ export default function AdminTasks() {
         rightElement={
           <Button
             title="+ Baru"
-            onPress={() => setShowTaskModal(true)}
+            onPress={openTaskModal}
             variant="primary"
             style={{paddingHorizontal: 16, height: 40, minHeight: 40}}
             textStyle={{fontSize: 14}}
@@ -194,38 +218,10 @@ export default function AdminTasks() {
               <Ionicons name="list-outline" size={14} color="#fff" />
               <Text style={styles.heroBadgeText}>Task Console</Text>
             </View>
-            <Text style={styles.heroTitle}>
-              Kelola tugas dari browser dengan tampilan yang lebih ringan.
-            </Text>
+            <Text style={styles.heroTitle}>Kelola tugas dari browser.</Text>
             <Text style={styles.heroSubtitle}>
-              Buat tugas, cek siapa yang ditugaskan, dan tetap lihat data
-              terakhir saat koneksi tidak stabil.
+              Buat tugas dan cek penugasan tanpa statistik di header.
             </Text>
-          </View>
-
-          <View style={styles.heroStats}>
-            <View style={styles.heroStatCard}>
-              <Text style={styles.heroStatLabel}>Total</Text>
-              <Text style={styles.heroStatValue}>{tasks.length}</Text>
-            </View>
-            <View style={styles.heroStatCard}>
-              <Text style={styles.heroStatLabel}>Pending</Text>
-              <Text style={styles.heroStatValue}>
-                {tasks.filter(item => item.status === "PENDING").length}
-              </Text>
-            </View>
-            <View style={styles.heroStatCard}>
-              <Text style={styles.heroStatLabel}>Proses</Text>
-              <Text style={styles.heroStatValue}>
-                {tasks.filter(item => item.status === "IN_PROGRESS").length}
-              </Text>
-            </View>
-            <View style={styles.heroStatCard}>
-              <Text style={styles.heroStatLabel}>Selesai</Text>
-              <Text style={styles.heroStatValue}>
-                {tasks.filter(item => item.status === "DONE").length}
-              </Text>
-            </View>
           </View>
         </View>
       )}
@@ -249,73 +245,99 @@ export default function AdminTasks() {
       </View>
 
       {/* Modern Modal */}
-      <Modal visible={showModal} animationType="slide" transparent>
+      <Modal visible={showTaskModal} animationType="fade" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Buat Tugas Baru</Text>
-              <Button
-                title="✕"
-                variant="ghost"
-                onPress={() => setShowModal(false)}
-                style={{width: 40, paddingHorizontal: 0}}
-              />
-            </View>
-
-            <Input
-              label="Judul Tugas"
-              placeholder="Contoh: Perbaiki Bug Login"
-              value={title}
-              onChangeText={setTitle}
-            />
-
-            <Input
-              label="Deskripsi"
-              placeholder="Jelaskan detail tugas..."
-              value={description}
-              onChangeText={setDescription}
-              multiline
-              numberOfLines={3}
-              style={{height: 80, textAlignVertical: "top"}}
-            />
-
-            <Text style={styles.sectionLabel}>Ditugaskan Kepada</Text>
-            <FlatList
-              data={employees}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              keyExtractor={item => item.id.toString()}
-              contentContainerStyle={{paddingVertical: 8}}
-              renderItem={({item}) => (
+            <ScrollView
+              contentContainerStyle={styles.modalScrollContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Buat Tugas Baru</Text>
                 <Button
-                  title={item.name}
-                  variant={selectedEmployee === item.id ? "primary" : "outline"}
-                  onPress={() => setSelectedEmployee(item.id)}
-                  style={[
-                    styles.employeeChip,
-                    selectedEmployee !== item.id && {
-                      borderColor: theme.colors.border,
-                    },
-                  ]}
-                  textStyle={{
-                    fontSize: 13,
-                    color:
-                      selectedEmployee === item.id
-                        ? "#fff"
-                        : theme.colors.text.secondary,
-                  }}
+                  title="✕"
+                  variant="ghost"
+                  onPress={() => setShowTaskModal(false)}
+                  style={{width: 40, paddingHorizontal: 0}}
                 />
-              )}
-            />
+              </View>
 
-            <View style={styles.modalButtons}>
-              <Button
-                title="Simpan Tugas"
-                onPress={handleCreateTask}
-                loading={loading}
-                style={{flex: 1}}
+              <Input
+                label="Judul Tugas"
+                placeholder="Contoh: Perbaiki Bug Login"
+                value={title}
+                onChangeText={setTitle}
               />
-            </View>
+
+              <Input
+                label="Deskripsi"
+                placeholder="Jelaskan detail tugas..."
+                value={description}
+                onChangeText={setDescription}
+                multiline
+                numberOfLines={3}
+                style={{height: 80, textAlignVertical: "top"}}
+              />
+
+              <Text style={styles.sectionLabel}>Ditugaskan Kepada</Text>
+              <Input
+                label="Cari karyawan"
+                placeholder="Ketik nama karyawan"
+                value={employeeSearch}
+                onChangeText={setEmployeeSearch}
+              />
+
+              {selectedEmployee ? (
+                <Text style={styles.selectedNote}>
+                  Dipilih:{" "}
+                  {employees.find(item => item.id === selectedEmployee)?.name ||
+                    "-"}
+                </Text>
+              ) : null}
+
+              <View style={styles.employeeList}>
+                {filteredEmployees.length > 0 ? (
+                  filteredEmployees.map(item => (
+                    <Button
+                      key={item.id}
+                      title={item.name}
+                      variant={
+                        selectedEmployee === item.id ? "primary" : "outline"
+                      }
+                      onPress={() => setSelectedEmployee(item.id)}
+                      style={[
+                        styles.employeeRow,
+                        selectedEmployee !== item.id && {
+                          borderColor: theme.colors.border,
+                        },
+                      ]}
+                      textStyle={{
+                        fontSize: 14,
+                        color:
+                          selectedEmployee === item.id
+                            ? "#fff"
+                            : theme.colors.text.secondary,
+                        textAlign: "left",
+                      }}
+                    />
+                  ))
+                ) : (
+                  <Text style={styles.emptyEmployeeText}>
+                    Karyawan tidak ditemukan.
+                  </Text>
+                )}
+              </View>
+
+              <View style={styles.modalButtons}>
+                <Button
+                  title="Simpan Tugas"
+                  onPress={handleCreateTask}
+                  loading={loading}
+                  style={{flex: 1}}
+                />
+              </View>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -449,14 +471,20 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.4)",
-    justifyContent: "flex-end",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: theme.spacing.lg,
   },
   modalContent: {
     backgroundColor: theme.colors.card,
-    borderTopLeftRadius: theme.radius.xl,
-    borderTopRightRadius: theme.radius.xl,
+    borderRadius: theme.radius.xl,
     padding: theme.spacing.lg,
+    width: "100%",
+    maxWidth: 640,
     maxHeight: "85%",
+  },
+  modalScrollContent: {
+    paddingBottom: theme.spacing.md,
   },
   modalHeader: {
     flexDirection: "row",
@@ -481,6 +509,29 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     minHeight: 36,
     borderRadius: theme.radius.full,
+  },
+  selectedNote: {
+    marginTop: theme.spacing.sm,
+    marginBottom: theme.spacing.sm,
+    color: theme.colors.text.secondary,
+    fontSize: 12,
+  },
+  employeeList: {
+    marginTop: theme.spacing.sm,
+    gap: 8 as any,
+    maxHeight: 280,
+  },
+  employeeRow: {
+    width: "100%",
+    justifyContent: "flex-start",
+    alignItems: "flex-start",
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+  },
+  emptyEmployeeText: {
+    color: theme.colors.text.secondary,
+    fontStyle: "italic",
+    paddingVertical: 12,
   },
   modalButtons: {
     marginTop: theme.spacing.xl,

@@ -191,92 +191,6 @@ export default function AdminEmployees() {
         }
       />
 
-      {isWeb && isDesktop && (
-        <View style={styles.heroPanel}>
-          <View style={styles.heroTextBlock}>
-            <View style={styles.heroBadge}>
-              <Ionicons name="people-outline" size={14} color="#fff" />
-              <Text style={styles.heroBadgeText}>Employee Console</Text>
-            </View>
-            <Text style={styles.heroTitle}>
-              Kelola karyawan langsung dari browser.
-            </Text>
-            <Text style={styles.heroSubtitle}>
-              Pencarian, filter role, dan edit data tetap cepat, plus data
-              terakhir tetap bisa dibuka saat offline.
-            </Text>
-          </View>
-
-          <View style={styles.heroStats}>
-            <View style={styles.heroStatCard}>
-              <Text style={styles.heroStatLabel}>Total</Text>
-              <Text style={styles.heroStatValue}>{roleCounts.total}</Text>
-            </View>
-            <View style={styles.heroStatCard}>
-              <Text style={styles.heroStatLabel}>Admin</Text>
-              <Text style={styles.heroStatValue}>{roleCounts.admin}</Text>
-            </View>
-            <View style={styles.heroStatCard}>
-              <Text style={styles.heroStatLabel}>Leader</Text>
-              <Text style={styles.heroStatValue}>{roleCounts.leader}</Text>
-            </View>
-            <View style={styles.heroStatCard}>
-              <Text style={styles.heroStatLabel}>User</Text>
-              <Text style={styles.heroStatValue}>{roleCounts.user}</Text>
-            </View>
-          </View>
-        </View>
-      )}
-
-      <View style={styles.filterWrap}>
-        <Card style={styles.filterCard}>
-          {usingCache ? (
-            <Text style={styles.cacheNote}>
-              Menampilkan cache data terakhir.
-            </Text>
-          ) : null}
-          <Input
-            label="Cari Karyawan"
-            placeholder="Nama atau email"
-            value={searchText}
-            onChangeText={setSearchText}
-          />
-
-          <Text style={styles.filterLabel}>Filter Role</Text>
-          <View style={styles.filterRow}>
-            {["ALL", "ADMIN", "LEADER", "USER"].map(role => (
-              <Button
-                key={role}
-                title={role === "ALL" ? "Semua" : role}
-                variant={roleFilter === role ? "primary" : "outline"}
-                size="sm"
-                onPress={() => setRoleFilter(role)}
-                style={styles.filterBtn}
-              />
-            ))}
-          </View>
-
-          <View style={styles.summaryRow}>
-            <Card style={styles.summaryCard}>
-              <Text style={styles.summaryValue}>{roleCounts.total}</Text>
-              <Text style={styles.summaryLabel}>Total</Text>
-            </Card>
-            <Card style={styles.summaryCard}>
-              <Text style={styles.summaryValue}>{roleCounts.admin}</Text>
-              <Text style={styles.summaryLabel}>Admin</Text>
-            </Card>
-            <Card style={styles.summaryCard}>
-              <Text style={styles.summaryValue}>{roleCounts.leader}</Text>
-              <Text style={styles.summaryLabel}>Leader</Text>
-            </Card>
-            <Card style={styles.summaryCard}>
-              <Text style={styles.summaryValue}>{roleCounts.user}</Text>
-              <Text style={styles.summaryLabel}>User</Text>
-            </Card>
-          </View>
-        </Card>
-      </View>
-
       <FlatList
         data={filteredEmployees}
         keyExtractor={item => item.id.toString()}
@@ -285,10 +199,79 @@ export default function AdminEmployees() {
         showsVerticalScrollIndicator={false}
         refreshing={loading}
         onRefresh={loadEmployees}
+        ListHeaderComponent={
+          <View>
+            {isWeb && isDesktop && (
+              <View style={styles.heroPanel}>
+                <View style={styles.heroTextBlock}>
+                  <View style={styles.heroBadge}>
+                    <Ionicons name="people-outline" size={14} color="#fff" />
+                    <Text style={styles.heroBadgeText}>Employee Console</Text>
+                  </View>
+                  <Text style={styles.heroTitle}>Daftar karyawan.</Text>
+                  <Text style={styles.heroSubtitle}>
+                    Cari, filter, dan edit tanpa pengulangan statistik.
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            <Card style={styles.filterCard}>
+              {usingCache ? (
+                <Text style={styles.cacheNote}>
+                  Menampilkan cache data terakhir.
+                </Text>
+              ) : null}
+              <Input
+                label="Cari Karyawan"
+                placeholder="Nama atau email"
+                value={searchText}
+                onChangeText={setSearchText}
+              />
+
+              <Text style={styles.filterLabel}>Filter Role</Text>
+              <View style={styles.filterRow}>
+                {["ALL", "ADMIN", "LEADER", "USER"].map(role => (
+                  <Button
+                    key={role}
+                    title={role === "ALL" ? "Semua" : role}
+                    variant={roleFilter === role ? "primary" : "outline"}
+                    size="sm"
+                    onPress={() => setRoleFilter(role)}
+                    style={styles.filterBtn}
+                  />
+                ))}
+              </View>
+
+              <View style={styles.summaryRow}>
+                <Card style={styles.summaryCard}>
+                  <Text style={styles.summaryValue}>{roleCounts.total}</Text>
+                  <Text style={styles.summaryLabel}>Total</Text>
+                </Card>
+                <Card style={styles.summaryCard}>
+                  <Text style={styles.summaryValue}>{roleCounts.admin}</Text>
+                  <Text style={styles.summaryLabel}>Admin</Text>
+                </Card>
+                <Card style={styles.summaryCard}>
+                  <Text style={styles.summaryValue}>{roleCounts.leader}</Text>
+                  <Text style={styles.summaryLabel}>Leader</Text>
+                </Card>
+                <Card style={styles.summaryCard}>
+                  <Text style={styles.summaryValue}>{roleCounts.user}</Text>
+                  <Text style={styles.summaryLabel}>User</Text>
+                </Card>
+              </View>
+            </Card>
+          </View>
+        }
         ListEmptyComponent={
           !loading ? (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyText}>Belum ada karyawan</Text>
+              <Text style={styles.emptyText}>
+                {employees.length === 0
+                  ? "Belum ada karyawan"
+                  : "Tidak ada karyawan yang cocok dengan pencarian atau filter"}
+              </Text>
             </View>
           ) : null
         }
@@ -340,31 +323,12 @@ const styles = StyleSheet.create({
     maxWidth: 680,
   },
   heroStats: {
-    flexDirection: "row",
-    gap: 12 as any,
-    flexWrap: "wrap",
-    justifyContent: "flex-end",
-    alignItems: "stretch",
-    minWidth: 320,
+    display: "none",
   },
-  heroStatCard: {
-    minWidth: 88,
-    backgroundColor: "rgba(255,255,255,0.08)",
-    borderColor: "rgba(255,255,255,0.12)",
-    borderWidth: 1,
-    borderRadius: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-  },
-  heroStatLabel: {color: "#94a3b8", fontSize: 12, marginBottom: 4},
-  heroStatValue: {color: "#fff", fontSize: 18, fontWeight: "800"},
-  listContent: {
-    padding: theme.spacing.lg,
-  },
-  filterWrap: {
-    paddingHorizontal: theme.spacing.lg,
-    paddingTop: theme.spacing.lg,
-  },
+  heroStatCard: {display: "none"},
+  heroStatLabel: {display: "none"},
+  heroStatValue: {display: "none"},
+  listContent: {padding: theme.spacing.lg, paddingBottom: theme.spacing.xl},
   filterCard: {
     marginBottom: theme.spacing.lg,
   },

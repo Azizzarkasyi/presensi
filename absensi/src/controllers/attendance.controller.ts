@@ -159,7 +159,7 @@ export const clockIn = async (req: Request, res: Response) => {
     const prisma = req.prisma!;
     const userId = req.user!.id;
     const {status, latitude, longitude, faceVerified} = req.body;
-    const photo = req.file ? req.file.filename : null;
+    const photo = req.file ? `/uploads/${req.file.filename}` : null;
 
     // Check if user has face registered
     const user = await prisma.user.findUnique({

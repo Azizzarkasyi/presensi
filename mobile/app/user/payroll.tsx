@@ -1,19 +1,23 @@
 import {useEffect, useState} from "react";
-import {View, Text, FlatList, StyleSheet, TouchableOpacity} from "react-native";
+import {
+  View,
+  Text,
+  FlatList,
+  StyleSheet,
+  TouchableOpacity,
+  Platform,
+} from "react-native";
 import {Ionicons} from "@expo/vector-icons";
-import {useRouter} from "expo-router";
-import {useAuth} from "../../src/contexts/AuthContext";
-import {getMyPayrolls} from "../../src/services/api";
-import api from "../../src/services/api";
 import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
-import {Platform} from "react-native";
 import {ScreenHeader} from "../../src/components/ui/ScreenHeader";
 import {Button} from "../../src/components/ui/Button";
 import {theme} from "../../src/constants/theme";
 import {useResponsive} from "../../src/hooks/useResponsive";
 import {readCachedJson, writeCachedJson} from "../../src/utils/webCache";
 import {useGlobalModal} from "../../src/contexts/GlobalModalContext";
+import {getMyPayrolls} from "../../src/services/api";
+import api from "../../src/services/api";
 
 interface Payroll {
   id: number;
@@ -28,8 +32,6 @@ interface Payroll {
 }
 
 export default function PayrollView() {
-  const {user} = useAuth();
-  const router = useRouter();
   const {isDesktop, isWeb} = useResponsive();
   const {showModal} = useGlobalModal();
   const [payrolls, setPayrolls] = useState<Payroll[]>([]);
@@ -61,21 +63,19 @@ export default function PayrollView() {
     }
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("id-ID", {
+  const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat("id-ID", {
       style: "currency",
       currency: "IDR",
       minimumFractionDigits: 0,
     }).format(amount);
-  };
 
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString("id-ID", {
+  const formatDate = (dateStr: string) =>
+    new Date(dateStr).toLocaleDateString("id-ID", {
       day: "numeric",
       month: "short",
       year: "numeric",
     });
-  };
 
   const handleExportExcel = async () => {
     try {
@@ -83,6 +83,7 @@ export default function PayrollView() {
       const res = await api.get("/payroll/my/export/excel", {
         responseType: "blob",
       });
+
       if (Platform.OS === "web") {
         const url = window.URL.createObjectURL(new Blob([res.data]));
         const link = document.createElement("a");
@@ -130,46 +131,10 @@ export default function PayrollView() {
         }
       />
 
-      {isWeb && isDesktop && (
-        <View style={styles.heroPanel}>
-          <View style={styles.heroTextBlock}>
-            <View style={styles.heroBadge}>
-              <Ionicons name="wallet-outline" size={14} color="#fff" />
-              <Text style={styles.heroBadgeText}>Payroll Overview</Text>
-            </View>
-            <Text style={styles.heroTitle}>
-              Slip gaji yang nyaman dibuka dari browser.
-            </Text>
-            <Text style={styles.heroSubtitle}>
-              Ekspor laporan, cek status pencairan, dan lihat slip terakhir
-              meski koneksi sedang turun.
-            </Text>
-          </View>
-
-          <View style={styles.heroStats}>
-            <View style={styles.heroStatCard}>
-              <Text style={styles.heroStatLabel}>Total Slip</Text>
-              <Text style={styles.heroStatValue}>{payrolls.length}</Text>
-            </View>
-            <View style={styles.heroStatCard}>
-              <Text style={styles.heroStatLabel}>Offline</Text>
-              <Text style={styles.heroStatValue}>
-                {usingCache ? "Cache" : "Live"}
-              </Text>
-            </View>
-          </View>
-        </View>
-      )}
-
-      {usingCache ? (
-        <Text style={styles.cacheNote}>
-          Menampilkan cache slip gaji terakhir.
-        </Text>
-      ) : null}
-
       <FlatList
         data={payrolls}
         keyExtractor={item => item.id.toString()}
+        contentContainerStyle={styles.listContent}
         renderItem={({item}) => (
           <View style={styles.card}>
             <View style={styles.periodRow}>
@@ -245,6 +210,33 @@ export default function PayrollView() {
             )}
           </View>
         )}
+        ListHeaderComponent={
+          <View>
+            {isWeb && isDesktop && (
+              <View style={styles.heroPanel}>
+                <View style={styles.heroTextBlock}>
+                  <View style={styles.heroBadge}>
+                    <Ionicons name="wallet-outline" size={14} color="#fff" />
+                    <Text style={styles.heroBadgeText}>Payroll Overview</Text>
+                  </View>
+                  <Text style={styles.heroTitle}>
+                    Slip gaji yang nyaman dibuka dari browser.
+                  </Text>
+                  <Text style={styles.heroSubtitle}>
+                    Ekspor laporan dan cek status pencairan tanpa blok statistik
+                    tambahan.
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            {usingCache ? (
+              <Text style={styles.cacheNote}>
+                Menampilkan cache slip gaji terakhir.
+              </Text>
+            ) : null}
+          </View>
+        }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyIcon}>💰</Text>
@@ -253,6 +245,9 @@ export default function PayrollView() {
             </Text>
           </View>
         }
+        showsVerticalScrollIndicator={false}
+        refreshing={loading}
+        onRefresh={loadPayrolls}
       />
     </View>
   );
@@ -323,12 +318,12 @@ const styles = StyleSheet.create({
     marginTop: 8,
     fontStyle: "italic",
   },
+  listContent: {padding: theme.spacing.lg, paddingBottom: theme.spacing.xl},
   card: {
     backgroundColor: "#fff",
     borderRadius: 16,
     padding: 20,
     marginBottom: 16,
-    marginHorizontal: 16,
     elevation: 3,
   },
   periodRow: {marginBottom: 12},

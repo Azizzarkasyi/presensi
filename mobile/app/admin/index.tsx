@@ -197,31 +197,11 @@ export default function AdminDashboard() {
                 <Text style={styles.heroBadgeText}>Admin Web Console</Text>
               </View>
               <Text style={styles.heroTitle}>
-                Pantau absensi, izin, koreksi, dan payroll dari satu layar.
+                Pantau data penting dari satu layar.
               </Text>
               <Text style={styles.heroSubtitle}>
-                Dashboard ini dirancang supaya nyaman dibuka di browser HP atau
-                desktop, tanpa mengorbankan alur kerja harian.
+                Ringkas, cepat dibaca, dan tidak mengulang ringkasan di bawah.
               </Text>
-            </View>
-
-            <View style={styles.heroStats}>
-              <View style={styles.heroStatCard}>
-                <Text style={styles.heroStatLabel}>Karyawan</Text>
-                <Text style={styles.heroStatValue}>{employeeCount}</Text>
-              </View>
-              <View style={styles.heroStatCard}>
-                <Text style={styles.heroStatLabel}>Hadir</Text>
-                <Text style={styles.heroStatValue}>{presentCount}</Text>
-              </View>
-              <View style={styles.heroStatCard}>
-                <Text style={styles.heroStatLabel}>Terlambat</Text>
-                <Text style={styles.heroStatValue}>{lateCount}</Text>
-              </View>
-              <View style={styles.heroStatCard}>
-                <Text style={styles.heroStatLabel}>Task Aktif</Text>
-                <Text style={styles.heroStatValue}>{activeTaskCount}</Text>
-              </View>
             </View>
           </View>
         )}

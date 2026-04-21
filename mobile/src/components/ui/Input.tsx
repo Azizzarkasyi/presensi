@@ -1,6 +1,13 @@
-import React, { useState } from 'react';
-import { View, TextInput, Text, StyleSheet, TextInputProps, ViewStyle } from 'react-native';
-import { theme } from '../../constants/theme';
+import React, {useState} from "react";
+import {
+  View,
+  TextInput,
+  Text,
+  StyleSheet,
+  TextInputProps,
+  ViewStyle,
+} from "react-native";
+import {theme} from "../../constants/theme";
 
 interface InputProps extends TextInputProps {
   label?: string;
@@ -36,12 +43,14 @@ export const Input: React.FC<InputProps> = ({
   return (
     <View style={[styles.container, containerStyle]}>
       {label && <Text style={styles.label}>{label}</Text>}
-      
-      <View style={[
-        styles.inputContainer,
-        isFocused && styles.focused,
-        error ? styles.errorBorder : null,
-      ]}>
+
+      <View
+        style={[
+          styles.inputContainer,
+          isFocused && styles.focused,
+          error ? styles.errorBorder : null,
+        ]}
+      >
         <TextInput
           style={[styles.input, style]}
           placeholderTextColor={theme.colors.text.light}
@@ -73,8 +82,8 @@ const styles = StyleSheet.create({
     marginLeft: 2,
   },
   inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: theme.colors.background,
     borderWidth: 1,
     borderColor: theme.colors.border,
@@ -88,10 +97,13 @@ const styles = StyleSheet.create({
     paddingVertical: theme.spacing.sm,
     fontSize: 16,
     color: theme.colors.text.primary,
+    outlineStyle: "none" as any,
+    outlineWidth: 0 as any,
+    boxShadow: "none" as any,
   },
   focused: {
     borderColor: theme.colors.primary,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     ...theme.shadows.sm,
   },
   errorBorder: {

@@ -149,172 +149,137 @@ export default function AdminAttendanceCorrections() {
   return (
     <View style={styles.container}>
       <ScreenHeader title="Koreksi Absensi" onBack={() => router.back()} />
-
-      {isWeb && isDesktop && (
-        <View style={styles.heroPanel}>
-          <View style={styles.heroTextBlock}>
-            <View style={styles.heroBadge}>
-              <Ionicons name="time-outline" size={14} color="#fff" />
-              <Text style={styles.heroBadgeText}>Correction Review</Text>
-            </View>
-            <Text style={styles.heroTitle}>
-              Review koreksi absensi langsung dari browser.
-            </Text>
-            <Text style={styles.heroSubtitle}>
-              Filter pengajuan, cek jam yang diminta, dan tetap lihat data
-              terakhir ketika koneksi sedang tidak stabil.
-            </Text>
-          </View>
-
-          <View style={styles.heroStats}>
-            <View style={styles.heroStatCard}>
-              <Text style={styles.heroStatLabel}>Total</Text>
-              <Text style={styles.heroStatValue}>{items.length}</Text>
-            </View>
-            <View style={styles.heroStatCard}>
-              <Text style={styles.heroStatLabel}>Pending</Text>
-              <Text style={styles.heroStatValue}>
-                {
-                  items.filter(item => item.correctionStatus === "PENDING")
-                    .length
-                }
-              </Text>
-            </View>
-            <View style={styles.heroStatCard}>
-              <Text style={styles.heroStatLabel}>Approved</Text>
-              <Text style={styles.heroStatValue}>
-                {
-                  items.filter(item => item.correctionStatus === "APPROVED")
-                    .length
-                }
-              </Text>
-            </View>
-            <View style={styles.heroStatCard}>
-              <Text style={styles.heroStatLabel}>Rejected</Text>
-              <Text style={styles.heroStatValue}>
-                {
-                  items.filter(item => item.correctionStatus === "REJECTED")
-                    .length
-                }
-              </Text>
-            </View>
-          </View>
-        </View>
-      )}
-
-      <View style={styles.content}>
-        <Card style={styles.filterCard}>
-          <Text style={styles.sectionTitle}>Filter</Text>
-          {usingCache ? (
-            <Text style={styles.cacheNote}>
-              Menampilkan cache data terakhir.
-            </Text>
-          ) : null}
-          <Input
-            label="Cari nama/email"
-            value={searchText}
-            onChangeText={setSearchText}
-            placeholder="Nama karyawan"
-          />
-          <View style={styles.filterRow}>
-            {(["ALL", "PENDING", "APPROVED", "REJECTED"] as const).map(
-              status => (
-                <Button
-                  key={status}
-                  title={status === "ALL" ? "Semua" : status}
-                  variant={statusFilter === status ? "primary" : "outline"}
-                  size="sm"
-                  onPress={() => setStatusFilter(status)}
-                  style={styles.filterBtn}
-                />
-              ),
-            )}
-          </View>
-          <Button
-            title="Muat Ulang"
-            variant="outline"
-            onPress={loadItems}
-            loading={loading}
-          />
-        </Card>
-
-        <FlatList
-          data={filteredItems}
-          keyExtractor={item => item.id.toString()}
-          refreshing={loading}
-          onRefresh={loadItems}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          renderItem={({item}) => (
-            <Card style={styles.card}>
-              <View style={styles.cardHeader}>
-                <View style={{flex: 1}}>
-                  <Text style={styles.name}>{item.user.name}</Text>
-                  <Text style={styles.email}>{item.user.email}</Text>
+      <FlatList
+        data={filteredItems}
+        keyExtractor={item => item.id.toString()}
+        refreshing={loading}
+        onRefresh={loadItems}
+        contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
+        ListHeaderComponent={
+          <View>
+            {isWeb && isDesktop && (
+              <View style={styles.heroPanel}>
+                <View style={styles.heroTextBlock}>
+                  <View style={styles.heroBadge}>
+                    <Ionicons name="time-outline" size={14} color="#fff" />
+                    <Text style={styles.heroBadgeText}>Correction Review</Text>
+                  </View>
+                  <Text style={styles.heroTitle}>
+                    Review koreksi absensi langsung dari browser.
+                  </Text>
+                  <Text style={styles.heroSubtitle}>
+                    Filter pengajuan, cek jam yang diminta, dan tetap lihat data
+                    terakhir ketika koneksi sedang tidak stabil.
+                  </Text>
                 </View>
-                <Badge
-                  label={item.correctionStatus}
-                  variant={getVariant(item.correctionStatus)}
-                  size="sm"
-                />
               </View>
+            )}
 
-              <Text style={styles.date}>{formatDate(item.date)}</Text>
-              <Text style={styles.meta}>
-                Jam saat ini: Masuk{" "}
-                {formatTime(item.correctionRequestedClockIn)} | Pulang{" "}
-                {formatTime(item.correctionRequestedClockOut)}
-              </Text>
-              <Text style={styles.reason}>
-                Alasan: {item.correctionReason || "-"}
-              </Text>
-
-              {item.correctionReviewNote ? (
-                <Text style={styles.reviewNote}>
-                  Catatan admin: {item.correctionReviewNote}
+            <Card style={styles.filterCard}>
+              <Text style={styles.sectionTitle}>Filter</Text>
+              {usingCache ? (
+                <Text style={styles.cacheNote}>
+                  Menampilkan cache data terakhir.
                 </Text>
               ) : null}
-
-              {item.correctionStatus === "PENDING" && (
-                <View>
-                  <Input
-                    label="Catatan review (opsional)"
-                    value={reviewNoteMap[item.id] || ""}
-                    onChangeText={value =>
-                      setReviewNoteMap(prev => ({...prev, [item.id]: value}))
-                    }
-                    placeholder="Misal: data disetujui"
-                  />
-                  <View style={styles.actionRow}>
+              <Input
+                label="Cari nama/email"
+                value={searchText}
+                onChangeText={setSearchText}
+                placeholder="Nama karyawan"
+              />
+              <View style={styles.filterRow}>
+                {(["ALL", "PENDING", "APPROVED", "REJECTED"] as const).map(
+                  status => (
                     <Button
-                      title="Tolak"
-                      variant="outline"
-                      onPress={() => handleReview(item.id, "REJECTED")}
-                      loading={updatingId === item.id}
-                      style={styles.actionBtn}
+                      key={status}
+                      title={status === "ALL" ? "Semua" : status}
+                      variant={statusFilter === status ? "primary" : "outline"}
+                      size="sm"
+                      onPress={() => setStatusFilter(status)}
+                      style={styles.filterBtn}
                     />
-                    <Button
-                      title="Setujui"
-                      onPress={() => handleReview(item.id, "APPROVED")}
-                      loading={updatingId === item.id}
-                      style={styles.actionBtn}
-                    />
-                  </View>
-                </View>
-              )}
-            </Card>
-          )}
-          ListEmptyComponent={
-            !loading ? (
-              <View style={styles.emptyState}>
-                <Text style={styles.emptyText}>
-                  Belum ada koreksi absensi yang cocok dengan filter.
-                </Text>
+                  ),
+                )}
               </View>
-            ) : null
-          }
-        />
-      </View>
+              <Button
+                title="Muat Ulang"
+                variant="outline"
+                onPress={loadItems}
+                loading={loading}
+              />
+            </Card>
+          </View>
+        }
+        renderItem={({item}) => (
+          <Card style={styles.card}>
+            <View style={styles.cardHeader}>
+              <View style={{flex: 1}}>
+                <Text style={styles.name}>{item.user.name}</Text>
+                <Text style={styles.email}>{item.user.email}</Text>
+              </View>
+              <Badge
+                label={item.correctionStatus}
+                variant={getVariant(item.correctionStatus)}
+                size="sm"
+              />
+            </View>
+
+            <Text style={styles.date}>{formatDate(item.date)}</Text>
+            <Text style={styles.meta}>
+              Jam saat ini: Masuk {formatTime(item.correctionRequestedClockIn)}{" "}
+              | Pulang {formatTime(item.correctionRequestedClockOut)}
+            </Text>
+            <Text style={styles.reason}>
+              Alasan: {item.correctionReason || "-"}
+            </Text>
+
+            {item.correctionReviewNote ? (
+              <Text style={styles.reviewNote}>
+                Catatan admin: {item.correctionReviewNote}
+              </Text>
+            ) : null}
+
+            {item.correctionStatus === "PENDING" && (
+              <View>
+                <Input
+                  label="Catatan review (opsional)"
+                  value={reviewNoteMap[item.id] || ""}
+                  onChangeText={value =>
+                    setReviewNoteMap(prev => ({...prev, [item.id]: value}))
+                  }
+                  placeholder="Misal: data disetujui"
+                />
+                <View style={styles.actionRow}>
+                  <Button
+                    title="Tolak"
+                    variant="outline"
+                    onPress={() => handleReview(item.id, "REJECTED")}
+                    loading={updatingId === item.id}
+                    style={styles.actionBtn}
+                  />
+                  <Button
+                    title="Setujui"
+                    onPress={() => handleReview(item.id, "APPROVED")}
+                    loading={updatingId === item.id}
+                    style={styles.actionBtn}
+                  />
+                </View>
+              </View>
+            )}
+          </Card>
+        )}
+        ListEmptyComponent={
+          !loading ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyText}>
+                Belum ada koreksi absensi yang cocok dengan filter.
+              </Text>
+            </View>
+          ) : null
+        }
+      />
     </View>
   );
 }
@@ -377,7 +342,6 @@ const styles = StyleSheet.create({
   },
   heroStatLabel: {color: "#94a3b8", fontSize: 12, marginBottom: 4},
   heroStatValue: {color: "#fff", fontSize: 18, fontWeight: "800"},
-  content: {flex: 1, padding: theme.spacing.lg},
   filterCard: {marginBottom: theme.spacing.lg},
   sectionTitle: {
     ...theme.typography.h3,
@@ -397,7 +361,7 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.md,
   },
   filterBtn: {minWidth: 92},
-  listContent: {paddingBottom: theme.spacing.lg},
+  listContent: {padding: theme.spacing.lg, paddingBottom: theme.spacing.xl},
   card: {marginBottom: theme.spacing.md},
   cardHeader: {
     flexDirection: "row",

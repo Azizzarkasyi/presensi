@@ -183,122 +183,6 @@ export default function AdminAttendance() {
     <View style={styles.container}>
       <ScreenHeader title="Rekap Absensi" />
 
-      <View style={styles.heroPanel}>
-        <View style={styles.heroTextBlock}>
-          <View style={styles.heroBadge}>
-            <Ionicons name="calendar-outline" size={14} color="#fff" />
-            <Text style={styles.heroBadgeText}>Attendance Console</Text>
-          </View>
-          <Text style={styles.heroTitle}>
-            Rekap absensi harian yang cepat dibaca dari browser.
-          </Text>
-          <Text style={styles.heroSubtitle}>{heroHint}</Text>
-        </View>
-
-        <View style={styles.heroStats}>
-          <View style={styles.heroStatCard}>
-            <Text style={styles.heroStatLabel}>Total</Text>
-            <Text style={styles.heroStatValue}>{summary.total}</Text>
-          </View>
-          <View style={styles.heroStatCard}>
-            <Text style={styles.heroStatLabel}>Hadir</Text>
-            <Text style={styles.heroStatValue}>{summary.present}</Text>
-          </View>
-          <View style={styles.heroStatCard}>
-            <Text style={styles.heroStatLabel}>Terlambat</Text>
-            <Text style={styles.heroStatValue}>{summary.late}</Text>
-          </View>
-          <View style={styles.heroStatCard}>
-            <Text style={styles.heroStatLabel}>Alpa</Text>
-            <Text style={styles.heroStatValue}>{summary.alpha}</Text>
-          </View>
-        </View>
-      </View>
-
-      <View style={styles.filterWrap}>
-        <Card style={styles.filterCard}>
-          <Text style={styles.sectionTitle}>Filter Rekap</Text>
-          <Input
-            label="Cari Nama Karyawan"
-            value={searchText}
-            onChangeText={setSearchText}
-            placeholder="Ketik nama"
-            hint="Pencarian berlaku di data yang sudah dimuat"
-          />
-          <View style={styles.row}>
-            <View style={styles.flex1}>
-              <Input
-                label="Tanggal Mulai"
-                value={startDate}
-                onChangeText={setStartDate}
-                placeholder="YYYY-MM-DD"
-                hint="Contoh: 2026-04-01"
-              />
-            </View>
-            <View style={styles.gap} />
-            <View style={styles.flex1}>
-              <Input
-                label="Tanggal Akhir"
-                value={endDate}
-                onChangeText={setEndDate}
-                placeholder="YYYY-MM-DD"
-                hint="Contoh: 2026-04-30"
-              />
-            </View>
-          </View>
-
-          <Text style={styles.statusLabel}>Status</Text>
-          <View style={styles.statusRow}>
-            {["ALL", "PRESENT", "LATE", "ALPHA", "SICK", "LEAVE"].map(
-              status => (
-                <Button
-                  key={status}
-                  title={status === "ALL" ? "Semua" : status}
-                  variant={filterStatus === status ? "primary" : "outline"}
-                  size="sm"
-                  onPress={() => setFilterStatus(status)}
-                  style={styles.statusBtn}
-                />
-              ),
-            )}
-          </View>
-
-          <View style={styles.actionRow}>
-            <Button
-              title="Terapkan"
-              onPress={applyFilters}
-              loading={loading}
-              style={styles.actionBtn}
-            />
-            <Button
-              title="Reset"
-              variant="outline"
-              onPress={resetFilters}
-              style={styles.actionBtn}
-            />
-          </View>
-        </Card>
-
-        <View style={styles.summaryGrid}>
-          <Card style={styles.summaryCard}>
-            <Text style={styles.summaryValue}>{summary.total}</Text>
-            <Text style={styles.summaryLabel}>Total Data</Text>
-          </Card>
-          <Card style={styles.summaryCard}>
-            <Text style={styles.summaryValue}>{summary.present}</Text>
-            <Text style={styles.summaryLabel}>Hadir</Text>
-          </Card>
-          <Card style={styles.summaryCard}>
-            <Text style={styles.summaryValue}>{summary.late}</Text>
-            <Text style={styles.summaryLabel}>Terlambat</Text>
-          </Card>
-          <Card style={styles.summaryCard}>
-            <Text style={styles.summaryValue}>{summary.alpha}</Text>
-            <Text style={styles.summaryLabel}>Alpa</Text>
-          </Card>
-        </View>
-      </View>
-
       <FlatList
         data={filteredRecords}
         keyExtractor={item => item.id.toString()}
@@ -307,10 +191,112 @@ export default function AdminAttendance() {
         showsVerticalScrollIndicator={false}
         refreshing={loading}
         onRefresh={loadRecords}
+        ListHeaderComponent={
+          <View>
+            <View style={styles.heroPanel}>
+              <View style={styles.heroTextBlock}>
+                <View style={styles.heroBadge}>
+                  <Ionicons name="calendar-outline" size={14} color="#fff" />
+                  <Text style={styles.heroBadgeText}>Attendance Console</Text>
+                </View>
+                <Text style={styles.heroTitle}>
+                  Rekap absensi harian yang cepat dibaca dari browser.
+                </Text>
+                <Text style={styles.heroSubtitle}>{heroHint}</Text>
+              </View>
+            </View>
+
+            <Card style={styles.filterCard}>
+              <Text style={styles.sectionTitle}>Filter Rekap</Text>
+              <Input
+                label="Cari Nama Karyawan"
+                value={searchText}
+                onChangeText={setSearchText}
+                placeholder="Ketik nama"
+                hint="Pencarian berlaku di data yang sudah dimuat"
+              />
+              <View style={styles.row}>
+                <View style={styles.flex1}>
+                  <Input
+                    label="Tanggal Mulai"
+                    value={startDate}
+                    onChangeText={setStartDate}
+                    placeholder="YYYY-MM-DD"
+                    hint="Contoh: 2026-04-01"
+                  />
+                </View>
+                <View style={styles.gap} />
+                <View style={styles.flex1}>
+                  <Input
+                    label="Tanggal Akhir"
+                    value={endDate}
+                    onChangeText={setEndDate}
+                    placeholder="YYYY-MM-DD"
+                    hint="Contoh: 2026-04-30"
+                  />
+                </View>
+              </View>
+
+              <Text style={styles.statusLabel}>Status</Text>
+              <View style={styles.statusRow}>
+                {["ALL", "PRESENT", "LATE", "ALPHA", "SICK", "LEAVE"].map(
+                  status => (
+                    <Button
+                      key={status}
+                      title={status === "ALL" ? "Semua" : status}
+                      variant={filterStatus === status ? "primary" : "outline"}
+                      size="sm"
+                      onPress={() => setFilterStatus(status)}
+                      style={styles.statusBtn}
+                    />
+                  ),
+                )}
+              </View>
+
+              <View style={styles.actionRow}>
+                <Button
+                  title="Terapkan"
+                  onPress={applyFilters}
+                  loading={loading}
+                  style={styles.actionBtn}
+                />
+                <Button
+                  title="Reset"
+                  variant="outline"
+                  onPress={resetFilters}
+                  style={styles.actionBtn}
+                />
+              </View>
+            </Card>
+
+            <View style={styles.summaryGrid}>
+              <Card style={styles.summaryCard}>
+                <Text style={styles.summaryValue}>{summary.total}</Text>
+                <Text style={styles.summaryLabel}>Total Data</Text>
+              </Card>
+              <Card style={styles.summaryCard}>
+                <Text style={styles.summaryValue}>{summary.present}</Text>
+                <Text style={styles.summaryLabel}>Hadir</Text>
+              </Card>
+              <Card style={styles.summaryCard}>
+                <Text style={styles.summaryValue}>{summary.late}</Text>
+                <Text style={styles.summaryLabel}>Terlambat</Text>
+              </Card>
+              <Card style={styles.summaryCard}>
+                <Text style={styles.summaryValue}>{summary.alpha}</Text>
+                <Text style={styles.summaryLabel}>Alpa</Text>
+              </Card>
+            </View>
+          </View>
+        }
         ListEmptyComponent={
           !loading ? (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyText}>Belum ada data absensi</Text>
+              <Text style={styles.emptyText}>
+                {records.length === 0
+                  ? "Belum ada data absensi"
+                  : "Tidak ada data yang cocok dengan filter atau pencarian"}
+              </Text>
             </View>
           ) : null
         }
@@ -380,10 +366,6 @@ const styles = StyleSheet.create({
   },
   heroStatLabel: {color: "#94a3b8", fontSize: 12, marginBottom: 4},
   heroStatValue: {color: "#fff", fontSize: 18, fontWeight: "800"},
-  filterWrap: {
-    paddingHorizontal: theme.spacing.lg,
-    paddingTop: theme.spacing.lg,
-  },
   filterCard: {
     marginBottom: theme.spacing.lg,
   },
@@ -445,10 +427,7 @@ const styles = StyleSheet.create({
     color: theme.colors.text.secondary,
     fontSize: 13,
   },
-  listContent: {
-    paddingHorizontal: theme.spacing.lg,
-    paddingBottom: theme.spacing.lg,
-  },
+  listContent: {padding: theme.spacing.lg, paddingBottom: theme.spacing.xl},
   card: {
     marginBottom: theme.spacing.md,
   },

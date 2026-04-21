@@ -1,8 +1,18 @@
 import {useEffect, useMemo, useState} from "react";
-import {View, Text, StyleSheet, FlatList, TouchableOpacity} from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  Image,
+} from "react-native";
 import {Ionicons} from "@expo/vector-icons";
 import {useRouter} from "expo-router";
-import {getLeaveRequests, reviewLeaveRequest} from "../../src/services/api";
+import api, {
+  getLeaveRequests,
+  reviewLeaveRequest,
+} from "../../src/services/api";
 import {useResponsive} from "../../src/hooks/useResponsive";
 import {readCachedJson, writeCachedJson} from "../../src/utils/webCache";
 
@@ -25,6 +35,25 @@ interface LeaveItem {
   clockOutPhoto?: string | null;
   user: {id: number; name: string; email: string};
 }
+
+const getImageUri = (path?: string | null) => {
+  if (!path) {
+    return null;
+  }
+
+  if (path.startsWith("http://") || path.startsWith("https://")) {
+    return path;
+  }
+
+  const baseUrl = api.defaults.baseURL?.replace(/\/api\/?$/, "");
+  const normalizedPath = path.startsWith("/") ? path : `/uploads/${path}`;
+
+  if (!baseUrl) {
+    return normalizedPath;
+  }
+
+  return `${baseUrl}${normalizedPath}`;
+};
 
 export default function AdminLeaveRequests() {
   const router = useRouter();
@@ -136,177 +165,164 @@ export default function AdminLeaveRequests() {
       year: "numeric",
     });
 
+  const getImageUri = (path?: string | null) => {
+    if (!path) return null;
+    if (/^https?:\/\//i.test(path)) return path;
+    const baseUrl = api.defaults.baseURL?.replace(/\/api\/?$/, "");
+    return baseUrl ? `${baseUrl}${path}` : path;
+  };
+
   return (
     <View style={styles.container}>
       <ScreenHeader title="Approval Izin" onBack={() => router.back()} />
-
-      {isWeb && isDesktop && (
-        <View style={styles.heroPanel}>
-          <View style={styles.heroTextBlock}>
-            <View style={styles.heroBadge}>
-              <Ionicons name="document-text-outline" size={14} color="#fff" />
-              <Text style={styles.heroBadgeText}>Leave Review Console</Text>
-            </View>
-            <Text style={styles.heroTitle}>
-              Setujui atau tolak izin dari browser dengan cepat.
-            </Text>
-            <Text style={styles.heroSubtitle}>
-              Daftar pengajuan bisa difilter, dan data terakhir tetap bisa
-              dilihat jika koneksi sedang tidak stabil.
-            </Text>
-          </View>
-
-          <View style={styles.heroStats}>
-            <View style={styles.heroStatCard}>
-              <Text style={styles.heroStatLabel}>Total</Text>
-              <Text style={styles.heroStatValue}>{requests.length}</Text>
-            </View>
-            <View style={styles.heroStatCard}>
-              <Text style={styles.heroStatLabel}>Pending</Text>
-              <Text style={styles.heroStatValue}>
-                {
-                  requests.filter(
-                    item => item.leaveApprovalStatus === "PENDING",
-                  ).length
-                }
-              </Text>
-            </View>
-            <View style={styles.heroStatCard}>
-              <Text style={styles.heroStatLabel}>Approved</Text>
-              <Text style={styles.heroStatValue}>
-                {
-                  requests.filter(
-                    item => item.leaveApprovalStatus === "APPROVED",
-                  ).length
-                }
-              </Text>
-            </View>
-            <View style={styles.heroStatCard}>
-              <Text style={styles.heroStatLabel}>Rejected</Text>
-              <Text style={styles.heroStatValue}>
-                {
-                  requests.filter(
-                    item => item.leaveApprovalStatus === "REJECTED",
-                  ).length
-                }
-              </Text>
-            </View>
-          </View>
-        </View>
-      )}
-
-      <View style={styles.content}>
-        <Card style={styles.filterCard}>
-          <Text style={styles.sectionTitle}>Filter Pengajuan</Text>
-          {usingCache ? (
-            <Text style={styles.cacheNote}>
-              Menampilkan cache data terakhir.
-            </Text>
-          ) : null}
-          <Input
-            label="Cari nama/email"
-            value={searchText}
-            onChangeText={setSearchText}
-            placeholder="Nama karyawan"
-          />
-          <View style={styles.filterRow}>
-            {(["ALL", "PENDING", "APPROVED", "REJECTED"] as const).map(item => (
-              <Button
-                key={item}
-                title={item === "ALL" ? "Semua" : item}
-                variant={statusFilter === item ? "primary" : "outline"}
-                size="sm"
-                onPress={() => setStatusFilter(item)}
-                style={styles.filterBtn}
-              />
-            ))}
-          </View>
-          <Button
-            title="Muat Ulang"
-            variant="outline"
-            onPress={loadRequests}
-            loading={loading}
-          />
-        </Card>
-
-        <FlatList
-          data={filteredRequests}
-          keyExtractor={item => item.id.toString()}
-          contentContainerStyle={styles.listContent}
-          refreshing={loading}
-          onRefresh={loadRequests}
-          showsVerticalScrollIndicator={false}
-          renderItem={({item}) => (
-            <Card style={styles.card}>
-              <View style={styles.cardHeader}>
-                <View style={{flex: 1}}>
-                  <Text style={styles.name}>{item.user.name}</Text>
-                  <Text style={styles.email}>{item.user.email}</Text>
-                </View>
-                <Badge
-                  label={item.leaveApprovalStatus}
-                  variant={getStatusVariant(item.leaveApprovalStatus)}
-                  size="sm"
-                />
-              </View>
-
-              <Text style={styles.date}>{formatDate(item.date)}</Text>
-              <Text style={styles.type}>
-                {item.status === "SICK" ? "Sakit" : "Izin / Cuti"}
-              </Text>
-
-              {item.clockInPhoto ? (
-                <Text style={styles.meta}>Bukti: tersedia</Text>
-              ) : null}
-              {item.clockOutPhoto ? (
-                <Text style={styles.meta}>Alasan: {item.clockOutPhoto}</Text>
-              ) : null}
-              {item.leaveReviewNote ? (
-                <Text style={styles.meta}>
-                  Catatan admin: {item.leaveReviewNote}
-                </Text>
-              ) : null}
-
-              {item.leaveApprovalStatus === "PENDING" && (
-                <View>
-                  <Input
-                    label="Catatan admin (opsional)"
-                    placeholder="Misal: disetujui, silakan update jadwal"
-                    value={noteMap[item.id] || ""}
-                    onChangeText={value =>
-                      setNoteMap(prev => ({...prev, [item.id]: value}))
-                    }
-                  />
-                  <View style={styles.actionRow}>
-                    <Button
-                      title="Tolak"
-                      variant="outline"
-                      onPress={() => handleReview(item.id, "REJECTED")}
-                      loading={updatingId === item.id}
-                      style={styles.actionBtn}
+      <FlatList
+        data={filteredRequests}
+        keyExtractor={item => item.id.toString()}
+        contentContainerStyle={styles.listContent}
+        refreshing={loading}
+        onRefresh={loadRequests}
+        showsVerticalScrollIndicator={false}
+        ListHeaderComponent={
+          <View>
+            {isWeb && isDesktop && (
+              <View style={styles.heroPanel}>
+                <View style={styles.heroTextBlock}>
+                  <View style={styles.heroBadge}>
+                    <Ionicons
+                      name="document-text-outline"
+                      size={14}
+                      color="#fff"
                     />
-                    <Button
-                      title="Setujui"
-                      onPress={() => handleReview(item.id, "APPROVED")}
-                      loading={updatingId === item.id}
-                      style={styles.actionBtn}
-                    />
+                    <Text style={styles.heroBadgeText}>
+                      Leave Review Console
+                    </Text>
                   </View>
+                  <Text style={styles.heroTitle}>
+                    Setujui atau tolak izin dari browser dengan cepat.
+                  </Text>
+                  <Text style={styles.heroSubtitle}>
+                    Daftar pengajuan bisa difilter tanpa blok statistik
+                    tambahan.
+                  </Text>
                 </View>
-              )}
-            </Card>
-          )}
-          ListEmptyComponent={
-            !loading ? (
-              <View style={styles.emptyState}>
-                <Text style={styles.emptyText}>
-                  Belum ada pengajuan yang cocok dengan filter.
-                </Text>
               </View>
-            ) : null
-          }
-        />
-      </View>
+            )}
+
+            <Card style={styles.filterCard}>
+              <Text style={styles.sectionTitle}>Filter Pengajuan</Text>
+              {usingCache ? (
+                <Text style={styles.cacheNote}>
+                  Menampilkan cache data terakhir.
+                </Text>
+              ) : null}
+              <Input
+                label="Cari nama/email"
+                value={searchText}
+                onChangeText={setSearchText}
+                placeholder="Nama karyawan"
+              />
+              <View style={styles.filterRow}>
+                {(["ALL", "PENDING", "APPROVED", "REJECTED"] as const).map(
+                  item => (
+                    <Button
+                      key={item}
+                      title={item === "ALL" ? "Semua" : item}
+                      variant={statusFilter === item ? "primary" : "outline"}
+                      size="sm"
+                      onPress={() => setStatusFilter(item)}
+                      style={styles.filterBtn}
+                    />
+                  ),
+                )}
+              </View>
+              <Button
+                title="Muat Ulang"
+                variant="outline"
+                onPress={loadRequests}
+                loading={loading}
+              />
+            </Card>
+          </View>
+        }
+        renderItem={({item}) => (
+          <Card style={styles.card}>
+            <View style={styles.cardHeader}>
+              <View style={{flex: 1}}>
+                <Text style={styles.name}>{item.user.name}</Text>
+                <Text style={styles.email}>{item.user.email}</Text>
+              </View>
+              <Badge
+                label={item.leaveApprovalStatus}
+                variant={getStatusVariant(item.leaveApprovalStatus)}
+                size="sm"
+              />
+            </View>
+
+            <Text style={styles.date}>{formatDate(item.date)}</Text>
+            <Text style={styles.type}>
+              {item.status === "SICK" ? "Sakit" : "Izin / Cuti"}
+            </Text>
+
+            {item.clockInPhoto ? (
+              <View style={styles.proofSection}>
+                <Text style={styles.proofTitle}>Bukti Foto</Text>
+                <View style={styles.proofBlock}>
+                  <Text style={styles.proofLabel}>Lampiran</Text>
+                  <Image
+                    source={{uri: getImageUri(item.clockInPhoto) || undefined}}
+                    style={styles.proofImage}
+                  />
+                </View>
+              </View>
+            ) : null}
+            {item.clockOutPhoto ? (
+              <Text style={styles.meta}>Keterangan: {item.clockOutPhoto}</Text>
+            ) : null}
+            {item.leaveReviewNote ? (
+              <Text style={styles.meta}>
+                Catatan admin: {item.leaveReviewNote}
+              </Text>
+            ) : null}
+
+            {item.leaveApprovalStatus === "PENDING" && (
+              <View>
+                <Input
+                  label="Catatan admin (opsional)"
+                  placeholder="Misal: disetujui, silakan update jadwal"
+                  value={noteMap[item.id] || ""}
+                  onChangeText={value =>
+                    setNoteMap(prev => ({...prev, [item.id]: value}))
+                  }
+                />
+                <View style={styles.actionRow}>
+                  <Button
+                    title="Tolak"
+                    variant="outline"
+                    onPress={() => handleReview(item.id, "REJECTED")}
+                    loading={updatingId === item.id}
+                    style={styles.actionBtn}
+                  />
+                  <Button
+                    title="Setujui"
+                    onPress={() => handleReview(item.id, "APPROVED")}
+                    loading={updatingId === item.id}
+                    style={styles.actionBtn}
+                  />
+                </View>
+              </View>
+            )}
+          </Card>
+        )}
+        ListEmptyComponent={
+          !loading ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyText}>
+                Belum ada pengajuan yang cocok dengan filter.
+              </Text>
+            </View>
+          ) : null
+        }
+      />
     </View>
   );
 }
@@ -369,7 +385,6 @@ const styles = StyleSheet.create({
   },
   heroStatLabel: {color: "#94a3b8", fontSize: 12, marginBottom: 4},
   heroStatValue: {color: "#fff", fontSize: 18, fontWeight: "800"},
-  content: {flex: 1, padding: theme.spacing.lg},
   filterCard: {marginBottom: theme.spacing.lg},
   sectionTitle: {
     ...theme.typography.h3,
@@ -389,7 +404,7 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.md,
   },
   filterBtn: {minWidth: 92},
-  listContent: {paddingBottom: theme.spacing.lg},
+  listContent: {padding: theme.spacing.lg, paddingBottom: theme.spacing.xl},
   card: {marginBottom: theme.spacing.md},
   cardHeader: {
     flexDirection: "row",
@@ -405,6 +420,30 @@ const styles = StyleSheet.create({
     color: theme.colors.primary,
     fontWeight: "600",
     marginBottom: 8,
+  },
+  proofSection: {
+    marginTop: theme.spacing.sm,
+    marginBottom: theme.spacing.sm,
+  },
+  proofTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: theme.colors.text.primary,
+    marginBottom: 8,
+  },
+  proofBlock: {
+    marginBottom: 12,
+  },
+  proofLabel: {
+    fontSize: 12,
+    color: theme.colors.text.secondary,
+    marginBottom: 6,
+  },
+  proofImage: {
+    width: "100%",
+    height: 180,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.background,
   },
   meta: {fontSize: 12, color: theme.colors.text.secondary, marginBottom: 4},
   actionRow: {

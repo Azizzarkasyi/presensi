@@ -202,37 +202,6 @@ export default function AttendanceHistory() {
     <View style={styles.container}>
       <ScreenHeader title="Riwayat Absensi" />
 
-      {isWeb && isDesktop && (
-        <View style={styles.heroPanel}>
-          <View style={styles.heroTextBlock}>
-            <View style={styles.heroBadge}>
-              <Ionicons name="time-outline" size={14} color="#fff" />
-              <Text style={styles.heroBadgeText}>Attendance History</Text>
-            </View>
-            <Text style={styles.heroTitle}>
-              Riwayat absensi yang mudah dibaca di browser.
-            </Text>
-            <Text style={styles.heroSubtitle}>
-              Lihat status, approval izin, dan koreksi absensi dalam satu
-              tampilan yang rapi.
-            </Text>
-          </View>
-
-          <View style={styles.heroStats}>
-            <View style={styles.heroStatCard}>
-              <Text style={styles.heroStatLabel}>Total</Text>
-              <Text style={styles.heroStatValue}>{history.length}</Text>
-            </View>
-          </View>
-        </View>
-      )}
-
-      {usingCache ? (
-        <Text style={styles.cacheNote}>
-          Menampilkan cache riwayat terakhir.
-        </Text>
-      ) : null}
-
       <FlatList
         data={history}
         keyExtractor={item => item.id.toString()}
@@ -241,6 +210,33 @@ export default function AttendanceHistory() {
         showsVerticalScrollIndicator={false}
         refreshing={loading}
         onRefresh={loadHistory}
+        ListHeaderComponent={
+          <View>
+            {isWeb && isDesktop && (
+              <View style={styles.heroPanel}>
+                <View style={styles.heroTextBlock}>
+                  <View style={styles.heroBadge}>
+                    <Ionicons name="time-outline" size={14} color="#fff" />
+                    <Text style={styles.heroBadgeText}>Attendance History</Text>
+                  </View>
+                  <Text style={styles.heroTitle}>
+                    Riwayat absensi yang mudah dibaca di browser.
+                  </Text>
+                  <Text style={styles.heroSubtitle}>
+                    Lihat status, approval izin, dan koreksi absensi dalam satu
+                    tampilan yang rapi.
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            {usingCache ? (
+              <Text style={styles.cacheNote}>
+                Menampilkan cache riwayat terakhir.
+              </Text>
+            ) : null}
+          </View>
+        }
         ListEmptyComponent={
           !loading ? (
             <View style={styles.emptyState}>
@@ -314,11 +310,10 @@ const styles = StyleSheet.create({
   cacheNote: {
     color: theme.colors.text.secondary,
     fontSize: 12,
-    marginHorizontal: theme.spacing.lg,
     marginTop: 8,
     fontStyle: "italic",
   },
-  listContent: {padding: theme.spacing.lg},
+  listContent: {padding: theme.spacing.lg, paddingBottom: theme.spacing.xl},
   card: {marginBottom: theme.spacing.md},
   cardHeader: {
     flexDirection: "row",

@@ -163,26 +163,10 @@ export default function UserTasks() {
               <Ionicons name="clipboard-outline" size={14} color="#fff" />
               <Text style={styles.heroBadgeText}>Task Overview</Text>
             </View>
-            <Text style={styles.heroTitle}>
-              Tugas harian yang lebih nyaman dibaca di browser.
-            </Text>
+            <Text style={styles.heroTitle}>Tugas harian saya.</Text>
             <Text style={styles.heroSubtitle}>
-              Lihat status, deadline, dan lanjutkan tugas langsung tanpa perlu
-              buka tampilan mobile.
+              Lihat status dan deadline tanpa blok statistik tambahan.
             </Text>
-          </View>
-
-          <View style={styles.heroStats}>
-            <View style={styles.heroStatCard}>
-              <Text style={styles.heroStatLabel}>Total</Text>
-              <Text style={styles.heroStatValue}>{tasks.length}</Text>
-            </View>
-            <View style={styles.heroStatCard}>
-              <Text style={styles.heroStatLabel}>Offline</Text>
-              <Text style={styles.heroStatValue}>
-                {usingCache ? "Cache" : "Live"}
-              </Text>
-            </View>
           </View>
         </View>
       )}
@@ -287,7 +271,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   title: {
-    ...theme.typography.h4,
+    ...theme.typography.h3,
     color: theme.colors.text.primary,
     flex: 1,
     marginRight: 8,
@@ -304,7 +288,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   creator: {fontSize: 12, color: theme.colors.text.light},
-  dueDate: {fontSize: 12, color: theme.colors.error},
+  dueDate: {fontSize: 12, color: theme.colors.status.error},
   footer: {
     borderTopWidth: 1,
     borderTopColor: theme.colors.border,
@@ -313,7 +297,11 @@ const styles = StyleSheet.create({
   },
   actionBtn: {width: 140},
   doneContainer: {flexDirection: "row", alignItems: "center"},
-  doneText: {color: theme.colors.success, fontWeight: "600", fontSize: 14},
+  doneText: {
+    color: theme.colors.status.success,
+    fontWeight: "600",
+    fontSize: 14,
+  },
   emptyState: {padding: 32, alignItems: "center"},
   emptyText: {color: theme.colors.text.secondary, fontStyle: "italic"},
 });
