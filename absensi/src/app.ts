@@ -159,6 +159,7 @@ setTimeout(async () => {
                 AND data_type = 'character varying'
             ) THEN
               ALTER TABLE "${tenant.schemaName}"."Attendance"
+                  ALTER COLUMN "leaveApprovalStatus" DROP DEFAULT,
                 ALTER COLUMN "leaveApprovalStatus" TYPE "${tenant.schemaName}"."LeaveApprovalStatus"
                 USING "leaveApprovalStatus"::text::"${tenant.schemaName}"."LeaveApprovalStatus";
             END IF;
@@ -172,10 +173,18 @@ setTimeout(async () => {
                 AND data_type = 'character varying'
             ) THEN
               ALTER TABLE "${tenant.schemaName}"."Attendance"
+                  ALTER COLUMN "correctionStatus" DROP DEFAULT,
                 ALTER COLUMN "correctionStatus" TYPE "${tenant.schemaName}"."CorrectionStatus"
                 USING "correctionStatus"::text::"${tenant.schemaName}"."CorrectionStatus";
             END IF;
           END $$;`,
+        )
+        .catch(() => {});
+      await prisma
+        .$executeRawUnsafe(
+          `ALTER TABLE "${tenant.schemaName}"."Attendance"
+            ALTER COLUMN "leaveApprovalStatus" SET DEFAULT 'PENDING',
+            ALTER COLUMN "correctionStatus" SET DEFAULT 'NONE';`,
         )
         .catch(() => {});
       await prisma

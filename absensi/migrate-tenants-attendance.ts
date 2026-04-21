@@ -60,6 +60,7 @@ async function main() {
               AND data_type = 'character varying'
           ) THEN
             ALTER TABLE "${schemaName}"."Attendance"
+              ALTER COLUMN "leaveApprovalStatus" DROP DEFAULT,
               ALTER COLUMN "leaveApprovalStatus" TYPE "${schemaName}"."LeaveApprovalStatus"
               USING "leaveApprovalStatus"::text::"${schemaName}"."LeaveApprovalStatus";
           END IF;
@@ -73,10 +74,17 @@ async function main() {
               AND data_type = 'character varying'
           ) THEN
             ALTER TABLE "${schemaName}"."Attendance"
+              ALTER COLUMN "correctionStatus" DROP DEFAULT,
               ALTER COLUMN "correctionStatus" TYPE "${schemaName}"."CorrectionStatus"
               USING "correctionStatus"::text::"${schemaName}"."CorrectionStatus";
           END IF;
         END $$;
+      `);
+
+      await prisma.$executeRawUnsafe(`
+        ALTER TABLE "${schemaName}"."Attendance"
+        ALTER COLUMN "leaveApprovalStatus" SET DEFAULT 'PENDING',
+        ALTER COLUMN "correctionStatus" SET DEFAULT 'NONE';
       `);
 
       await prisma.$executeRawUnsafe(`
