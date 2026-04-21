@@ -1,8 +1,8 @@
-import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
-import { getPublicPrisma, getTenantPrisma } from '../prisma/tenant-prisma';
+import {Request, Response, NextFunction} from "express";
+import jwt from "jsonwebtoken";
+import {getPublicPrisma} from "../prisma/tenant-prisma";
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
 // Extend Express Request type
 declare global {
@@ -25,15 +25,15 @@ declare global {
 export async function authenticate(
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) {
   try {
     const authHeader = req.headers.authorization;
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return res.status(401).json({
         success: false,
-        message: 'No token provided',
+        message: "No token provided",
       });
     }
 
@@ -47,14 +47,16 @@ export async function authenticate(
 
     // Check if user exists in tenant schema
     if (!decoded.isSuperAdmin && req.prisma) {
-      const user = await req.prisma.user.findUnique({
-        where: { id: decoded.id },
-      });
+      const userRows = await req.prisma.$queryRawUnsafe<any[]>(
+        'SELECT "id", "isActive" FROM "User" WHERE "id" = $1 LIMIT 1',
+        decoded.id,
+      );
+      const user = userRows[0];
 
       if (!user || !user.isActive) {
         return res.status(401).json({
           success: false,
-          message: 'User not found or inactive',
+          message: "User not found or inactive",
         });
       }
     }
@@ -62,10 +64,10 @@ export async function authenticate(
     req.user = decoded;
     next();
   } catch (error) {
-    console.error('Auth error:', error);
+    console.error("Auth error:", error);
     res.status(401).json({
       success: false,
-      message: 'Invalid token',
+      message: "Invalid token",
     });
   }
 }
@@ -76,19 +78,19 @@ export async function authenticate(
 export function authorizeAdmin(
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) {
   if (!req.user) {
     return res.status(401).json({
       success: false,
-      message: 'Unauthorized',
+      message: "Unauthorized",
     });
   }
 
-  if (req.user.role !== 'ADMIN' && !req.user.isSuperAdmin) {
+  if (req.user.role !== "ADMIN" && !req.user.isSuperAdmin) {
     return res.status(403).json({
       success: false,
-      message: 'Admin access required',
+      message: "Admin access required",
     });
   }
 
@@ -101,19 +103,19 @@ export function authorizeAdmin(
 export function authorizeLeaderOrAdmin(
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) {
   if (!req.user) {
     return res.status(401).json({
       success: false,
-      message: 'Unauthorized',
+      message: "Unauthorized",
     });
   }
 
-  if (!['ADMIN', 'LEADER'].includes(req.user.role) && !req.user.isSuperAdmin) {
+  if (!["ADMIN", "LEADER"].includes(req.user.role) && !req.user.isSuperAdmin) {
     return res.status(403).json({
       success: false,
-      message: 'Leader or Admin access required',
+      message: "Leader or Admin access required",
     });
   }
 
@@ -126,15 +128,15 @@ export function authorizeLeaderOrAdmin(
 export async function superAdminAuth(
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) {
   try {
     const authHeader = req.headers.authorization;
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return res.status(401).json({
         success: false,
-        message: 'No token provided',
+        message: "No token provided",
       });
     }
 
@@ -149,20 +151,20 @@ export async function superAdminAuth(
     if (!decoded.isSuperAdmin) {
       return res.status(403).json({
         success: false,
-        message: 'Super admin access required',
+        message: "Super admin access required",
       });
     }
 
     // Verify super admin exists
     const prisma = getPublicPrisma();
     const superAdmin = await prisma.superAdmin.findUnique({
-      where: { id: decoded.id },
+      where: {id: decoded.id},
     });
 
     if (!superAdmin) {
       return res.status(401).json({
         success: false,
-        message: 'Super admin not found',
+        message: "Super admin not found",
       });
     }
 
@@ -170,10 +172,10 @@ export async function superAdminAuth(
     req.isSuperAdmin = true;
     next();
   } catch (error) {
-    console.error('Super admin auth error:', error);
+    console.error("Super admin auth error:", error);
     res.status(401).json({
       success: false,
-      message: 'Invalid token',
+      message: "Invalid token",
     });
   }
 }
@@ -186,7 +188,7 @@ export const authorize = (roles: string[] = []) => {
     if (!req.user) {
       return res.status(401).json({
         success: false,
-        message: 'Unauthorized',
+        message: "Unauthorized",
       });
     }
 
@@ -197,7 +199,7 @@ export const authorize = (roles: string[] = []) => {
     if (roles.length && !roles.includes(req.user.role)) {
       return res.status(403).json({
         success: false,
-        message: 'Insufficient permissions',
+        message: "Insufficient permissions",
       });
     }
 
