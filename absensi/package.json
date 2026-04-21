@@ -5,7 +5,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "nodemon src/server.ts",
-    "migrate:tenants:work-locations": "tsx migrate-tenants-work-locations.ts"
+    "migrate:tenants:work-locations": "tsx migrate-tenants-work-locations.ts",
+    "migrate:tenants:attendance": "tsx migrate-tenants-attendance.ts"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"

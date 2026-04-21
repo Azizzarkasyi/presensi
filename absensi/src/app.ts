@@ -133,6 +133,21 @@ setTimeout(async () => {
           `ALTER TABLE "${tenant.schemaName}"."User" ADD COLUMN IF NOT EXISTS "workLocations" JSONB`,
         )
         .catch(() => {});
+      await prisma
+        .$executeRawUnsafe(
+          `ALTER TABLE "${tenant.schemaName}"."Attendance"
+          ADD COLUMN IF NOT EXISTS "leaveApprovalStatus" VARCHAR(255) NOT NULL DEFAULT 'PENDING',
+          ADD COLUMN IF NOT EXISTS "leaveReviewNote" VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS "leaveReviewedAt" TIMESTAMP(3),
+          ADD COLUMN IF NOT EXISTS "correctionStatus" VARCHAR(255) NOT NULL DEFAULT 'NONE',
+          ADD COLUMN IF NOT EXISTS "correctionReason" VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS "correctionRequestedClockIn" TIMESTAMP(3),
+          ADD COLUMN IF NOT EXISTS "correctionRequestedClockOut" TIMESTAMP(3),
+          ADD COLUMN IF NOT EXISTS "correctionReviewNote" VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS "correctionRequestedAt" TIMESTAMP(3),
+          ADD COLUMN IF NOT EXISTS "correctionReviewedAt" TIMESTAMP(3)`,
+        )
+        .catch(() => {});
     }
   } catch (e) {
     // Ignore migration errors
