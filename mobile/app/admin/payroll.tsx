@@ -5,7 +5,6 @@ import {
   StyleSheet,
   FlatList,
   ScrollView,
-  Alert,
   Platform,
 } from "react-native";
 import {Ionicons} from "@expo/vector-icons";
@@ -27,8 +26,8 @@ import {ScreenHeader} from "../../src/components/ui/ScreenHeader";
 import {Card} from "../../src/components/ui/Card";
 import {Button} from "../../src/components/ui/Button";
 import {Input} from "../../src/components/ui/Input";
-import {SuccessModal} from "../../src/components/ui/SuccessModal";
 import {Badge} from "../../src/components/ui/Badge";
+import {useGlobalModal} from "../../src/contexts/GlobalModalContext";
 
 interface Employee {
   id: number;
@@ -42,6 +41,7 @@ export default function AdminPayroll() {
   const {user} = useAuth();
   const router = useRouter();
   const {isDesktop, isWeb} = useResponsive();
+  const {showModal} = useGlobalModal();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [payrolls, setPayrolls] = useState<any[]>([]);
   const [selectedEmployee, setSelectedEmployee] = useState<number | null>(null);
@@ -54,7 +54,6 @@ export default function AdminPayroll() {
   const [historyStartDate, setHistoryStartDate] = useState("");
   const [historyEndDate, setHistoryEndDate] = useState("");
   const [loading, setLoading] = useState(false);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   useEffect(() => {
     loadEmployees();
@@ -77,7 +76,12 @@ export default function AdminPayroll() {
       setEmployees(companyEmployees);
     } catch (error) {
       console.error("Error:", error);
-      Alert.alert("Error", "Gagal memuat data karyawan");
+      showModal({
+        title: "Error",
+        message: "Gagal memuat data karyawan",
+        isError: true,
+        buttonText: "Tutup",
+      });
     }
   };
 
@@ -98,10 +102,12 @@ export default function AdminPayroll() {
 
   const handleGenerate = async () => {
     if (!selectedEmployee || !startDate || !endDate) {
-      Alert.alert(
-        "Validasi Gagal",
-        "Mohon pilih karyawan dan tentukan periode",
-      );
+      showModal({
+        title: "Validasi Gagal",
+        message: "Mohon pilih karyawan dan tentukan periode",
+        isError: true,
+        buttonText: "Tutup",
+      });
       return;
     }
 
@@ -112,15 +118,22 @@ export default function AdminPayroll() {
         periodStart: startDate,
         periodEnd: endDate,
       });
-      setShowSuccessModal(true);
+      showModal({
+        title: "Berhasil",
+        message: "Slip gaji berhasil dibuat dan dikirim ke karyawan.",
+        buttonText: "OK",
+      });
       setSelectedEmployee(null);
       setStartDate("");
       setEndDate("");
     } catch (error: any) {
-      Alert.alert(
-        "Gagal",
-        error.response?.data?.error || "Terjadi kesalahan saat generate gaji",
-      );
+      showModal({
+        title: "Gagal",
+        message:
+          error.response?.data?.error || "Terjadi kesalahan saat generate gaji",
+        isError: true,
+        buttonText: "Tutup",
+      });
     } finally {
       setLoading(false);
     }
@@ -154,7 +167,12 @@ export default function AdminPayroll() {
         fr.readAsDataURL(res.data);
       }
     } catch (error) {
-      Alert.alert("Error", "Gagal mengekspor laporan");
+      showModal({
+        title: "Error",
+        message: "Gagal mengekspor laporan",
+        isError: true,
+        buttonText: "Tutup",
+      });
     } finally {
       setLoading(false);
     }
@@ -190,11 +208,20 @@ export default function AdminPayroll() {
 
         setLoading(true);
         await markPayrollPaid(payrollId, formData);
-        Alert.alert("Sukses", "Slip gaji berhasil ditandai sudah dibayar!");
+        showModal({
+          title: "Sukses",
+          message: "Slip gaji berhasil ditandai sudah dibayar!",
+          buttonText: "OK",
+        });
         loadPayrolls();
       }
     } catch (error) {
-      Alert.alert("Gagal", "Terjadi kesalahan upload bukti bayar");
+      showModal({
+        title: "Gagal",
+        message: "Terjadi kesalahan upload bukti bayar",
+        isError: true,
+        buttonText: "Tutup",
+      });
     } finally {
       setLoading(false);
     }
@@ -520,13 +547,6 @@ export default function AdminPayroll() {
           )}
         </Card>
       </ScrollView>
-
-      <SuccessModal
-        visible={showSuccessModal}
-        message="Slip gaji berhasil dibuat dan dikirim ke karyawan."
-        onClose={() => setShowSuccessModal(false)}
-        buttonText="OK"
-      />
     </View>
   );
 }

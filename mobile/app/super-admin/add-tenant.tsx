@@ -1,5 +1,11 @@
 import {useState} from "react";
-import {View, Text, StyleSheet, ScrollView, Alert} from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+} from "react-native";
 import {Ionicons} from "@expo/vector-icons";
 import {useRouter} from "expo-router";
 import {useResponsive} from "../../src/hooks/useResponsive";
@@ -9,14 +15,15 @@ import {ScreenHeader} from "../../src/components/ui/ScreenHeader";
 import {Card} from "../../src/components/ui/Card";
 import {Input} from "../../src/components/ui/Input";
 import {Button} from "../../src/components/ui/Button";
-import {SuccessModal} from "../../src/components/ui/SuccessModal";
+import {useGlobalModal} from "../../src/contexts/GlobalModalContext";
 
 export default function AddTenant() {
   const router = useRouter();
   const {isDesktop, isWeb} = useResponsive();
+  const {showModal} = useGlobalModal();
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -53,7 +60,12 @@ export default function AddTenant() {
   const handleSubmit = async () => {
     if (!validateForm()) {
       setErrorMessage("Mohon periksa kembali form Anda");
-      Alert.alert("Gagal", "Mohon periksa kembali form Anda yang kosong/salah");
+      showModal({
+        title: "Gagal",
+        message: "Mohon periksa kembali form Anda yang kosong/salah",
+        isError: true,
+        buttonText: "Tutup",
+      });
       return;
     }
 
@@ -63,7 +75,12 @@ export default function AddTenant() {
     try {
       const res = await createTenant(formData);
       if (res.data.success) {
-        setSuccess(true);
+        showModal({
+          title: "Berhasil!",
+          message: "Perusahaan baru dan akun admin berhasil dibuat.",
+          buttonText: "Kembali ke Dashboard",
+          onPrimaryPress: () => router.replace("/super-admin"),
+        });
       }
     } catch (error: any) {
       console.error("Create tenant error:", error);
@@ -72,15 +89,15 @@ export default function AddTenant() {
         error.message ||
         "Gagal membuat perusahaan. Pastikan nama tidak duplikat.";
       setErrorMessage(msg);
-      Alert.alert("Gagal", msg);
+      showModal({
+        title: "Gagal",
+        message: msg,
+        isError: true,
+        buttonText: "Tutup",
+      });
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleCloseSuccess = () => {
-    setSuccess(false);
-    router.replace("/super-admin");
   };
 
   return (
@@ -173,12 +190,27 @@ export default function AddTenant() {
             <Input
               label="Password Admin"
               placeholder="Minimal 6 karakter"
-              secureTextEntry
               value={formData.adminPassword}
               onChangeText={text => {
                 setFormData(prev => ({...prev, adminPassword: text}));
                 setErrors({...errors, adminPassword: ""});
               }}
+              secureTextEntry={!showPassword}
+              rightIcon={
+                <TouchableOpacity
+                  onPress={() => setShowPassword(prev => !prev)}
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    showPassword ? "Sembunyikan password" : "Tampilkan password"
+                  }
+                >
+                  <Ionicons
+                    name={showPassword ? "eye-off-outline" : "eye-outline"}
+                    size={18}
+                    color={theme.colors.text.light}
+                  />
+                </TouchableOpacity>
+              }
               error={errors.adminPassword}
             />
 
@@ -192,14 +224,6 @@ export default function AddTenant() {
           </Card>
         </View>
       </ScrollView>
-
-      <SuccessModal
-        visible={success}
-        title="Berhasil!"
-        message="Perusahaan baru dan akun admin berhasil dibuat."
-        buttonText="Kembali ke Dashboard"
-        onClose={handleCloseSuccess}
-      />
     </View>
   );
 }

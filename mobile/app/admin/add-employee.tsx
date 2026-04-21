@@ -20,9 +20,9 @@ import {ScreenHeader} from "../../src/components/ui/ScreenHeader";
 import {Card} from "../../src/components/ui/Card";
 import {Button} from "../../src/components/ui/Button";
 import {Input} from "../../src/components/ui/Input";
-import {SuccessModal} from "../../src/components/ui/SuccessModal";
 import {MapPicker} from "../../src/components/ui/MapPicker";
 import {useResponsive} from "../../src/hooks/useResponsive";
+import {useGlobalModal} from "../../src/contexts/GlobalModalContext";
 
 type SalaryType = "HOURLY" | "DAILY" | "WEEKLY" | "MONTHLY";
 type RoleType = "USER" | "ADMIN" | "LEADER";
@@ -39,18 +39,15 @@ const createLocationId = () =>
 export default function AddEmployee() {
   const router = useRouter();
   const {isDesktop, isWeb} = useResponsive();
+  const {showModal} = useGlobalModal();
   const [loading, setLoading] = useState(false);
-  const [modalConfig, setModalConfig] = useState({
-    visible: false,
-    isError: false,
-    message: "",
-  });
   const [showMapPicker, setShowMapPicker] = useState(false);
 
   // Form State
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [role, setRole] = useState<RoleType>("USER");
   const [salaryType, setSalaryType] = useState<SalaryType>("MONTHLY");
   const [salary, setSalary] = useState("");
@@ -119,7 +116,12 @@ export default function AddEmployee() {
 
   const handleSubmit = async () => {
     if (!validateForm()) {
-      Alert.alert("Validasi Gagal", "Mohon periksa kembali inputan Anda");
+      showModal({
+        title: "Validasi Gagal",
+        message: "Mohon periksa kembali inputan Anda",
+        isError: true,
+        buttonText: "Tutup",
+      });
       return;
     }
 
@@ -144,30 +146,23 @@ export default function AddEmployee() {
               }))
             : undefined,
       });
-
-      setModalConfig({
-        visible: true,
-        isError: false,
+      showModal({
+        title: "Sukses",
         message: "Data Karyawan berhasil disimpan.",
+        buttonText: "OK, Kembali ke List",
+        onPrimaryPress: () => router.back(),
       });
     } catch (error: any) {
       console.error("Save employee error:", error);
-      setModalConfig({
-        visible: true,
-        isError: true,
+      showModal({
+        title: "Gagal",
         message:
           error.response?.data?.message || error.message || "Terjadi kesalahan",
+        isError: true,
+        buttonText: "Tutup",
       });
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleModalClose = () => {
-    const wasSuccess = !modalConfig.isError;
-    setModalConfig({...modalConfig, visible: false});
-    if (wasSuccess) {
-      router.back();
     }
   };
 
@@ -260,8 +255,23 @@ export default function AddEmployee() {
               setPassword(text);
               setErrors({...errors, password: ""});
             }}
-            secureTextEntry
             placeholder="Minimal 6 karakter"
+            secureTextEntry={!showPassword}
+            rightIcon={
+              <TouchableOpacity
+                onPress={() => setShowPassword(prev => !prev)}
+                accessibilityRole="button"
+                accessibilityLabel={
+                  showPassword ? "Sembunyikan password" : "Tampilkan password"
+                }
+              >
+                <Ionicons
+                  name={showPassword ? "eye-off-outline" : "eye-outline"}
+                  size={18}
+                  color={theme.colors.text.light}
+                />
+              </TouchableOpacity>
+            }
             error={errors.password}
           />
 
@@ -462,14 +472,6 @@ export default function AddEmployee() {
 
         <View style={{height: 40}} />
       </ScrollView>
-
-      <SuccessModal
-        visible={modalConfig.visible}
-        isError={modalConfig.isError}
-        message={modalConfig.message}
-        onClose={handleModalClose}
-        buttonText={modalConfig.isError ? "Tutup" : "OK, Kembali ke List"}
-      />
 
       {/* Map Picker Modal */}
       <Modal visible={showMapPicker} animationType="slide" transparent={true}>

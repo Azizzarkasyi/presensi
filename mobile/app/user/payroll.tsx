@@ -7,12 +7,13 @@ import {getMyPayrolls} from "../../src/services/api";
 import api from "../../src/services/api";
 import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
-import {Platform, Alert} from "react-native";
+import {Platform} from "react-native";
 import {ScreenHeader} from "../../src/components/ui/ScreenHeader";
 import {Button} from "../../src/components/ui/Button";
 import {theme} from "../../src/constants/theme";
 import {useResponsive} from "../../src/hooks/useResponsive";
 import {readCachedJson, writeCachedJson} from "../../src/utils/webCache";
+import {useGlobalModal} from "../../src/contexts/GlobalModalContext";
 
 interface Payroll {
   id: number;
@@ -30,6 +31,7 @@ export default function PayrollView() {
   const {user} = useAuth();
   const router = useRouter();
   const {isDesktop, isWeb} = useResponsive();
+  const {showModal} = useGlobalModal();
   const [payrolls, setPayrolls] = useState<Payroll[]>([]);
   const [loading, setLoading] = useState(true);
   const [usingCache, setUsingCache] = useState(false);
@@ -103,7 +105,12 @@ export default function PayrollView() {
         fr.readAsDataURL(res.data);
       }
     } catch (error) {
-      Alert.alert("Error", "Gagal mengekspor laporan excel");
+      showModal({
+        title: "Error",
+        message: "Gagal mengekspor laporan excel",
+        isError: true,
+        buttonText: "Tutup",
+      });
     } finally {
       setLoading(false);
     }

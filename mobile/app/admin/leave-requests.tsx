@@ -1,12 +1,5 @@
 import {useEffect, useMemo, useState} from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  Alert,
-  TouchableOpacity,
-} from "react-native";
+import {View, Text, StyleSheet, FlatList, TouchableOpacity} from "react-native";
 import {Ionicons} from "@expo/vector-icons";
 import {useRouter} from "expo-router";
 import {getLeaveRequests, reviewLeaveRequest} from "../../src/services/api";
@@ -19,6 +12,7 @@ import {Card} from "../../src/components/ui/Card";
 import {Badge} from "../../src/components/ui/Badge";
 import {Button} from "../../src/components/ui/Button";
 import {Input} from "../../src/components/ui/Input";
+import {useGlobalModal} from "../../src/contexts/GlobalModalContext";
 
 interface LeaveItem {
   id: number;
@@ -35,6 +29,7 @@ interface LeaveItem {
 export default function AdminLeaveRequests() {
   const router = useRouter();
   const {isDesktop, isWeb} = useResponsive();
+  const {showModal} = useGlobalModal();
   const [requests, setRequests] = useState<LeaveItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<number | null>(null);
@@ -67,12 +62,18 @@ export default function AdminLeaveRequests() {
       if (cachedRequests && cachedRequests.length > 0) {
         setRequests(cachedRequests);
         setUsingCache(true);
-        Alert.alert(
-          "Offline",
-          "Menampilkan pengajuan izin terakhir yang tersimpan",
-        );
+        showModal({
+          title: "Offline",
+          message: "Menampilkan pengajuan izin terakhir yang tersimpan",
+          buttonText: "Tutup",
+        });
       } else {
-        Alert.alert("Error", "Gagal memuat pengajuan izin");
+        showModal({
+          title: "Error",
+          message: "Gagal memuat pengajuan izin",
+          isError: true,
+          buttonText: "Tutup",
+        });
       }
     } finally {
       setLoading(false);
@@ -110,15 +111,18 @@ export default function AdminLeaveRequests() {
       });
       setNoteMap(prev => ({...prev, [id]: ""}));
       await loadRequests();
-      Alert.alert(
-        "Sukses",
-        `Pengajuan berhasil di-${action === "APPROVED" ? "setujui" : "tolak"}`,
-      );
+      showModal({
+        title: "Sukses",
+        message: `Pengajuan berhasil di-${action === "APPROVED" ? "setujui" : "tolak"}`,
+        buttonText: "OK",
+      });
     } catch (error: any) {
-      Alert.alert(
-        "Gagal",
-        error.response?.data?.message || "Gagal memproses pengajuan",
-      );
+      showModal({
+        title: "Gagal",
+        message: error.response?.data?.message || "Gagal memproses pengajuan",
+        isError: true,
+        buttonText: "Tutup",
+      });
     } finally {
       setUpdatingId(null);
     }

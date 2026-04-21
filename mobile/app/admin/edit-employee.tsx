@@ -12,7 +12,6 @@ import {
 import {Ionicons} from "@expo/vector-icons";
 import * as Location from "expo-location";
 import {useRouter, useLocalSearchParams} from "expo-router";
-import {SuccessModal} from "../../src/components/ui/SuccessModal";
 import {useAuth} from "../../src/contexts/AuthContext";
 import {getUserById, updateUser} from "../../src/services/api";
 
@@ -24,6 +23,7 @@ import {Button} from "../../src/components/ui/Button";
 import {Input} from "../../src/components/ui/Input";
 import {MapPicker} from "../../src/components/ui/MapPicker";
 import {useResponsive} from "../../src/hooks/useResponsive";
+import {useGlobalModal} from "../../src/contexts/GlobalModalContext";
 
 type SalaryType = "HOURLY" | "DAILY" | "WEEKLY" | "MONTHLY";
 
@@ -42,6 +42,7 @@ export default function EditEmployee() {
   const {id} = useLocalSearchParams();
   const router = useRouter();
   const {isDesktop, isWeb} = useResponsive();
+  const {showModal} = useGlobalModal();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showMapPicker, setShowMapPicker] = useState(false);
@@ -126,7 +127,12 @@ export default function EditEmployee() {
       }
     } catch (error) {
       console.error(error);
-      Alert.alert("Error", "Gagal memuat data karyawan");
+      showModal({
+        title: "Error",
+        message: "Gagal memuat data karyawan",
+        isError: true,
+        buttonText: "Tutup",
+      });
       router.back();
     } finally {
       setLoading(false);
@@ -180,12 +186,14 @@ export default function EditEmployee() {
     return Object.keys(newErrors).length === 0;
   };
 
-  // Success Modal State
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
-
   const handleSave = async () => {
     if (!validateForm()) {
-      Alert.alert("Validasi Gagal", "Mohon periksa inputan yang merah");
+      showModal({
+        title: "Validasi Gagal",
+        message: "Mohon periksa inputan yang merah",
+        isError: true,
+        buttonText: "Tutup",
+      });
       return;
     }
 
@@ -210,21 +218,24 @@ export default function EditEmployee() {
             : null,
         isActive,
       });
-      setShowSuccessModal(true);
+      showModal({
+        title: "Sukses",
+        message: "Data karyawan telah berhasil disimpan.",
+        buttonText: "OK, Kembali ke List",
+        onPrimaryPress: () => router.back(),
+      });
     } catch (error: any) {
       console.error("Edit employee error:", error);
-      Alert.alert(
-        "Gagal",
-        error.response?.data?.message || error.message || "Terjadi kesalahan",
-      );
+      showModal({
+        title: "Gagal",
+        message:
+          error.response?.data?.message || error.message || "Terjadi kesalahan",
+        isError: true,
+        buttonText: "Tutup",
+      });
     } finally {
       setSaving(false);
     }
-  };
-
-  const handleSuccessClose = () => {
-    setShowSuccessModal(false);
-    router.back();
   };
 
   const salaryTypes: {value: SalaryType; label: string}[] = [
@@ -527,13 +538,6 @@ export default function EditEmployee() {
 
         <View style={{height: 40}} />
       </ScrollView>
-
-      <SuccessModal
-        visible={showSuccessModal}
-        message="Data karyawan telah berhasil disimpan."
-        onClose={handleSuccessClose}
-        buttonText="OK, Kembali ke List"
-      />
 
       {/* Map Picker Modal */}
       <Modal visible={showMapPicker} animationType="slide" transparent={true}>

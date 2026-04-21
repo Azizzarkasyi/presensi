@@ -1,12 +1,5 @@
 import {useEffect, useState} from "react";
-import {
-  View,
-  FlatList,
-  StyleSheet,
-  Alert,
-  Text,
-  TouchableOpacity,
-} from "react-native";
+import {View, FlatList, StyleSheet, Text, TouchableOpacity} from "react-native";
 import {Ionicons} from "@expo/vector-icons";
 import {useRouter} from "expo-router";
 import {useAuth} from "../../src/contexts/AuthContext";
@@ -21,6 +14,7 @@ import {Card} from "../../src/components/ui/Card";
 import {Button} from "../../src/components/ui/Button";
 import {Badge} from "../../src/components/ui/Badge";
 import {Input} from "../../src/components/ui/Input";
+import {useGlobalModal} from "../../src/contexts/GlobalModalContext";
 
 interface Employee {
   id: number;
@@ -35,6 +29,7 @@ export default function AdminEmployees() {
   const {user} = useAuth();
   const router = useRouter();
   const {isDesktop, isWeb} = useResponsive();
+  const {showModal} = useGlobalModal();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchText, setSearchText] = useState("");
@@ -61,12 +56,18 @@ export default function AdminEmployees() {
       if (cachedEmployees && cachedEmployees.length > 0) {
         setEmployees(cachedEmployees);
         setUsingCache(true);
-        Alert.alert(
-          "Offline",
-          "Menampilkan data karyawan terakhir yang tersimpan",
-        );
+        showModal({
+          title: "Offline",
+          message: "Menampilkan data karyawan terakhir yang tersimpan",
+          buttonText: "Tutup",
+        });
       } else {
-        Alert.alert("Error", "Gagal memuat data karyawan");
+        showModal({
+          title: "Error",
+          message: "Gagal memuat data karyawan",
+          isError: true,
+          buttonText: "Tutup",
+        });
       }
     } finally {
       setLoading(false);
@@ -74,25 +75,30 @@ export default function AdminEmployees() {
   };
 
   const handleDelete = (id: number, name: string) => {
-    Alert.alert("Hapus Karyawan", `Yakin ingin menghapus ${name}?`, [
-      {text: "Batal", style: "cancel"},
-      {
-        text: "Hapus",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await deleteUser(id);
-            Alert.alert("Sukses", "Karyawan berhasil dihapus");
-            loadEmployees();
-          } catch (error: any) {
-            Alert.alert(
-              "Gagal",
-              error.response?.data?.message || "Terjadi kesalahan",
-            );
-          }
-        },
+    showModal({
+      title: "Hapus Karyawan",
+      message: `Yakin ingin menghapus ${name}?`,
+      buttonText: "Hapus",
+      secondaryButtonText: "Batal",
+      onPrimaryPress: async () => {
+        try {
+          await deleteUser(id);
+          showModal({
+            title: "Sukses",
+            message: "Karyawan berhasil dihapus",
+            buttonText: "OK",
+          });
+          loadEmployees();
+        } catch (error: any) {
+          showModal({
+            title: "Gagal",
+            message: error.response?.data?.message || "Terjadi kesalahan",
+            isError: true,
+            buttonText: "Tutup",
+          });
+        }
       },
-    ]);
+    });
   };
 
   const formatCurrency = (amount: number) => {

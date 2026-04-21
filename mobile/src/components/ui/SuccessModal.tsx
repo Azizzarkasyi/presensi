@@ -114,7 +114,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   iconContainerError: {
-    backgroundColor: theme.colors.error + "20",
+    backgroundColor: theme.colors.status.error + "20",
   },
   icon: {
     fontSize: 24,

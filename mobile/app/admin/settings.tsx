@@ -1,4 +1,4 @@
-import {View, Text, StyleSheet, ScrollView, Alert, Modal} from "react-native";
+import {View, Text, StyleSheet, ScrollView, Modal} from "react-native";
 import * as Location from "expo-location";
 import {useEffect, useState} from "react";
 import {Ionicons} from "@expo/vector-icons";
@@ -14,15 +14,15 @@ import {ScreenHeader} from "../../src/components/ui/ScreenHeader";
 import {Card} from "../../src/components/ui/Card";
 import {Button} from "../../src/components/ui/Button";
 import {Input} from "../../src/components/ui/Input";
-import {SuccessModal} from "../../src/components/ui/SuccessModal";
 import {MapPicker} from "../../src/components/ui/MapPicker";
+import {useGlobalModal} from "../../src/contexts/GlobalModalContext";
 
 export default function AdminSettings() {
   const {user} = useAuth();
   const router = useRouter();
   const {isDesktop, isWeb} = useResponsive();
+  const {showModal} = useGlobalModal();
   const [loading, setLoading] = useState(false);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showMapPicker, setShowMapPicker] = useState(false);
   const [usingCache, setUsingCache] = useState(false);
   const [config, setConfig] = useState<any>({
@@ -56,10 +56,11 @@ export default function AdminSettings() {
       if (cachedConfig) {
         setConfig(prev => ({...prev, ...cachedConfig}));
         setUsingCache(true);
-        Alert.alert(
-          "Offline",
-          "Menampilkan pengaturan terakhir yang tersimpan",
-        );
+        showModal({
+          title: "Offline",
+          message: "Menampilkan pengaturan terakhir yang tersimpan",
+          buttonText: "Tutup",
+        });
       }
     }
   };
@@ -68,16 +69,23 @@ export default function AdminSettings() {
     setLoading(true);
     try {
       await updateCompanyConfig(config);
-      setShowSuccessModal(true);
+      showModal({
+        title: "Berhasil",
+        message: "Pengaturan perusahaan berhasil diperbarui.",
+        buttonText: "OK",
+      });
     } catch (error: any) {
       console.error("Save config error:", error);
-      Alert.alert(
-        "Gagal",
-        error.response?.data?.message ||
+      showModal({
+        title: "Gagal",
+        message:
+          error.response?.data?.message ||
           error.response?.data?.error ||
           error.message ||
           "Gagal menyimpan pengaturan",
-      );
+        isError: true,
+        buttonText: "Tutup",
+      });
     } finally {
       setLoading(false);
     }
@@ -243,13 +251,6 @@ export default function AdminSettings() {
           <View style={{height: 40}} />
         </View>
       </ScrollView>
-
-      <SuccessModal
-        visible={showSuccessModal}
-        message="Pengaturan perusahaan berhasil diperbarui."
-        onClose={() => setShowSuccessModal(false)}
-        buttonText="OK"
-      />
 
       {/* Map Picker Modal */}
       <Modal visible={showMapPicker} animationType="slide" transparent={true}>

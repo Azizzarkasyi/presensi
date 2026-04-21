@@ -1,5 +1,5 @@
 import {useEffect, useMemo, useState} from "react";
-import {View, FlatList, StyleSheet, Alert, Text} from "react-native";
+import {View, FlatList, StyleSheet, Text} from "react-native";
 import {Ionicons} from "@expo/vector-icons";
 import {useRouter} from "expo-router";
 import {getAttendanceReport} from "../../src/services/api";
@@ -11,6 +11,7 @@ import {Card} from "../../src/components/ui/Card";
 import {Badge} from "../../src/components/ui/Badge";
 import {Input} from "../../src/components/ui/Input";
 import {Button} from "../../src/components/ui/Button";
+import {useGlobalModal} from "../../src/contexts/GlobalModalContext";
 
 interface AttendanceRecord {
   id: number;
@@ -23,6 +24,7 @@ interface AttendanceRecord {
 
 export default function AdminAttendance() {
   const router = useRouter();
+  const {showModal} = useGlobalModal();
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchText, setSearchText] = useState("");
@@ -47,7 +49,12 @@ export default function AdminAttendance() {
       setRecords(res.data.data || []);
     } catch (error) {
       console.error("Error:", error);
-      Alert.alert("Error", "Gagal memuat data absensi");
+      showModal({
+        title: "Error",
+        message: "Gagal memuat data absensi",
+        isError: true,
+        buttonText: "Tutup",
+      });
     } finally {
       setLoading(false);
     }
@@ -102,7 +109,12 @@ export default function AdminAttendance() {
       setRecords(res.data.data || []);
     } catch (error) {
       console.error("Error:", error);
-      Alert.alert("Error", "Gagal memuat data absensi");
+      showModal({
+        title: "Error",
+        message: "Gagal memuat data absensi",
+        isError: true,
+        buttonText: "Tutup",
+      });
     } finally {
       setLoading(false);
     }

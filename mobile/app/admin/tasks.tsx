@@ -1,5 +1,5 @@
 import {useEffect, useState} from "react";
-import {View, FlatList, StyleSheet, Alert, Modal, Text} from "react-native";
+import {View, FlatList, StyleSheet, Modal, Text} from "react-native";
 import {Ionicons} from "@expo/vector-icons";
 import {useRouter} from "expo-router";
 import {useAuth} from "../../src/contexts/AuthContext";
@@ -14,6 +14,7 @@ import {Card} from "../../src/components/ui/Card";
 import {Button} from "../../src/components/ui/Button";
 import {Input} from "../../src/components/ui/Input";
 import {Badge} from "../../src/components/ui/Badge";
+import {useGlobalModal} from "../../src/contexts/GlobalModalContext";
 
 interface Task {
   id: number;
@@ -33,6 +34,7 @@ interface Employee {
 export default function AdminTasks() {
   const {user} = useAuth();
   const {isDesktop, isWeb} = useResponsive();
+  const {showModal} = useGlobalModal();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [showModal, setShowModal] = useState(false);
@@ -71,19 +73,30 @@ export default function AdminTasks() {
         setTasks(cachedTasks || []);
         setEmployees(cachedEmployees || []);
         setUsingCache(true);
-        Alert.alert(
-          "Offline",
-          "Menampilkan data tugas terakhir yang tersimpan",
-        );
+        showModal({
+          title: "Offline",
+          message: "Menampilkan data tugas terakhir yang tersimpan",
+          buttonText: "Tutup",
+        });
       } else {
-        Alert.alert("Error", "Gagal memuat data tugas");
+        showModal({
+          title: "Error",
+          message: "Gagal memuat data tugas",
+          isError: true,
+          buttonText: "Tutup",
+        });
       }
     }
   };
 
   const handleCreateTask = async () => {
     if (!title || !description || !selectedEmployee) {
-      Alert.alert("Error", "Semua field harus diisi");
+      showModal({
+        title: "Error",
+        message: "Semua field harus diisi",
+        isError: true,
+        buttonText: "Tutup",
+      });
       return;
     }
 
@@ -99,13 +112,20 @@ export default function AdminTasks() {
       setDescription("");
       setSelectedEmployee(null);
       loadData();
-      Alert.alert("Sukses", "Tugas berhasil ditambahkan");
+      showModal({
+        title: "Sukses",
+        message: "Tugas berhasil ditambahkan",
+        buttonText: "OK",
+      });
     } catch (error: any) {
       console.error("Create task error:", error);
-      Alert.alert(
-        "Gagal",
-        error.response?.data?.message || error.message || "Terjadi kesalahan",
-      );
+      showModal({
+        title: "Gagal",
+        message:
+          error.response?.data?.message || error.message || "Terjadi kesalahan",
+        isError: true,
+        buttonText: "Tutup",
+      });
     } finally {
       setLoading(false);
     }

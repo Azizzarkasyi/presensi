@@ -4,7 +4,6 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   Platform,
   Modal,
   ScrollView,
@@ -14,6 +13,7 @@ import * as Location from "expo-location";
 import {useRouter} from "expo-router";
 import {useAuth} from "../../src/contexts/AuthContext";
 import {useResponsive} from "../../src/hooks/useResponsive";
+import {useGlobalModal} from "../../src/contexts/GlobalModalContext";
 import {
   clockIn,
   clockOut,
@@ -26,13 +26,13 @@ import {
   getFaceStatus,
 } from "../../src/services/api";
 import FaceCamera from "../../src/components/FaceCamera";
-import {SuccessModal} from "../../src/components/ui/SuccessModal";
 import {theme} from "../../src/constants/theme";
 
 export default function UserDashboard() {
   const {user, logout} = useAuth();
   const router = useRouter();
   const {isDesktop, isTablet, isWeb} = useResponsive();
+  const {showModal} = useGlobalModal();
   const [todayAttendance, setTodayAttendance] = useState<any>(null);
   const [todayBreaks, setTodayBreaks] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -41,11 +41,6 @@ export default function UserDashboard() {
     "clockIn" | "clockOut" | "breakStart" | "breakEnd" | "register"
   >("clockIn");
   const [faceRegistered, setFaceRegistered] = useState(false);
-  const [modalConfig, setModalConfig] = useState({
-    visible: false,
-    isError: false,
-    message: "",
-  });
   // Shift detection handled server-side; no local shift selection needed
 
   useEffect(() => {
@@ -100,11 +95,12 @@ export default function UserDashboard() {
       if (cameraMode === "clockIn" || cameraMode === "clockOut") {
         const {status} = await Location.requestForegroundPermissionsAsync();
         if (status !== "granted") {
-          setModalConfig({
-            visible: true,
-            isError: true,
+          showModal({
+            title: "Error",
             message:
               "Izin akses lokasi (GPS) diperlukan untuk melakukan absen.",
+            isError: true,
+            buttonText: "Tutup",
           });
           setLoading(false);
           return;
@@ -129,11 +125,12 @@ export default function UserDashboard() {
         try {
           location = await Promise.race([locationPromise, timeoutPromise]);
         } catch (err) {
-          setModalConfig({
-            visible: true,
-            isError: true,
+          showModal({
+            title: "Error",
             message:
               "Gagal mendapatkan lokasi, pastikan GPS aktif dan sinyal bagus.",
+            isError: true,
+            buttonText: "Tutup",
           });
           setLoading(false);
           return;
@@ -162,10 +159,11 @@ export default function UserDashboard() {
           OFFICE_LON,
         );
         if (distance > OFFICE_RADIUS) {
-          setModalConfig({
-            visible: true,
-            isError: true,
+          showModal({
+            title: "Error",
             message: "Anda di luar jangkauan lokasi kantor.",
+            isError: true,
+            buttonText: "Tutup",
           });
           setLoading(false);
           return;
@@ -189,43 +187,43 @@ export default function UserDashboard() {
       switch (cameraMode) {
         case "register":
           await registerFace(formData);
-          setModalConfig({
-            visible: true,
-            isError: false,
+          showModal({
+            title: "Sukses",
             message: "Wajah berhasil didaftarkan!",
+            buttonText: "Tutup",
           });
           setFaceRegistered(true);
           break;
         case "clockIn":
           await clockIn(formData);
-          setModalConfig({
-            visible: true,
-            isError: false,
+          showModal({
+            title: "Sukses",
             message: `Clock-in berhasil!`,
+            buttonText: "Tutup",
           });
           break;
         case "clockOut":
           await clockOut(formData);
-          setModalConfig({
-            visible: true,
-            isError: false,
+          showModal({
+            title: "Sukses",
             message: `Clock-out berhasil!`,
+            buttonText: "Tutup",
           });
           break;
         case "breakStart":
           await startBreak(formData);
-          setModalConfig({
-            visible: true,
-            isError: false,
+          showModal({
+            title: "Sukses",
             message: "Istirahat dimulai!",
+            buttonText: "Tutup",
           });
           break;
         case "breakEnd":
           await endBreak(formData);
-          setModalConfig({
-            visible: true,
-            isError: false,
+          showModal({
+            title: "Sukses",
             message: "Istirahat selesai!",
+            buttonText: "Tutup",
           });
           break;
       }
@@ -237,7 +235,12 @@ export default function UserDashboard() {
         error.response?.data?.error ||
         error.message ||
         "Terjadi kesalahan saat memproses data.";
-      setModalConfig({visible: true, isError: true, message: errorMsg});
+      showModal({
+        title: "Gagal",
+        message: errorMsg,
+        isError: true,
+        buttonText: "Tutup",
+      });
     } finally {
       setLoading(false);
     }
@@ -540,14 +543,6 @@ export default function UserDashboard() {
             onCancel={() => setShowCamera(false)}
           />
         </Modal>
-
-        <SuccessModal
-          visible={modalConfig.visible}
-          isError={modalConfig.isError}
-          message={modalConfig.message}
-          buttonText="Tutup"
-          onClose={() => setModalConfig({...modalConfig, visible: false})}
-        />
       </ScrollView>
     </View>
   );

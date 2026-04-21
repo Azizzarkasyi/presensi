@@ -21,6 +21,7 @@ import {Ionicons} from "@expo/vector-icons";
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showTenantModal, setShowTenantModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -251,14 +252,34 @@ export default function Login() {
 
           <View style={styles.formGroup}>
             <Text style={styles.label}>Password</Text>
-            <TextInput
-              style={[styles.input, isWeb && styles.inputWeb]}
-              placeholder="Masukkan password"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              placeholderTextColor={theme.colors.text.light}
-            />
+            <View style={styles.passwordFieldWrap}>
+              <TextInput
+                style={[
+                  styles.input,
+                  styles.passwordInput,
+                  isWeb && styles.inputWeb,
+                ]}
+                placeholder="Masukkan password"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+                placeholderTextColor={theme.colors.text.light}
+              />
+              <TouchableOpacity
+                style={styles.eyeButton}
+                onPress={() => setShowPassword(prev => !prev)}
+                accessibilityRole="button"
+                accessibilityLabel={
+                  showPassword ? "Sembunyikan password" : "Tampilkan password"
+                }
+              >
+                <Ionicons
+                  name={showPassword ? "eye-off-outline" : "eye-outline"}
+                  size={20}
+                  color={theme.colors.text.light}
+                />
+              </TouchableOpacity>
+            </View>
           </View>
 
           <TouchableOpacity
@@ -511,6 +532,21 @@ const styles = StyleSheet.create({
   },
   inputWeb: {
     outlineStyle: "none" as any,
+  },
+  passwordFieldWrap: {
+    position: "relative",
+    justifyContent: "center",
+  },
+  passwordInput: {
+    paddingRight: 52,
+  },
+  eyeButton: {
+    position: "absolute",
+    right: 14,
+    top: 0,
+    bottom: 0,
+    justifyContent: "center",
+    alignItems: "center",
   },
   button: {
     backgroundColor: theme.colors.primary,

@@ -4,8 +4,6 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  Alert,
-  Platform,
   ScrollView,
   Modal,
 } from "react-native";
@@ -27,6 +25,7 @@ import {useResponsive} from "../../src/hooks/useResponsive";
 import {ScreenHeader} from "../../src/components/ui/ScreenHeader";
 import {theme} from "../../src/constants/theme";
 import {Card} from "../../src/components/ui/Card";
+import {useGlobalModal} from "../../src/contexts/GlobalModalContext";
 
 interface Tenant {
   id: number;
@@ -74,6 +73,7 @@ export default function SuperAdminDashboard() {
   const {user, logout} = useAuth();
   const router = useRouter();
   const {isDesktop, isTablet, isWeb} = useResponsive();
+  const {showModal} = useGlobalModal();
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -119,7 +119,12 @@ export default function SuperAdminDashboard() {
       }
     } catch (error) {
       console.error("Error loading tenants:", error);
-      Alert.alert("Error", "Gagal memuat data perusahaan");
+      showModal({
+        title: "Error",
+        message: "Gagal memuat data perusahaan",
+        isError: true,
+        buttonText: "Tutup",
+      });
     } finally {
       setLoading(false);
     }
@@ -148,7 +153,12 @@ export default function SuperAdminDashboard() {
       setDetailTenant(data);
     } catch (error) {
       console.error("Error loading tenant detail:", error);
-      Alert.alert("Error", "Gagal memuat detail perusahaan");
+      showModal({
+        title: "Error",
+        message: "Gagal memuat detail perusahaan",
+        isError: true,
+        buttonText: "Tutup",
+      });
     } finally {
       setDetailLoading(false);
     }
@@ -157,58 +167,82 @@ export default function SuperAdminDashboard() {
   const handleToggleTenantStatus = async (tenant: Tenant) => {
     const nextAction = tenant.isActive ? "menonaktifkan" : "mengaktifkan";
 
-    if (
-      Platform.OS === "web" &&
-      !window.confirm(`Yakin ${nextAction} perusahaan ini?`)
-    ) {
-      return;
-    }
+    const executeToggle = async () => {
+      setToggleLoadingId(tenant.id);
+      try {
+        if (tenant.isActive) {
+          await deactivateTenant(tenant.id);
+        } else {
+          await activateTenant(tenant.id);
+        }
+        await loadTenants();
+        if (detailTenant?.id === tenant.id) {
+          await openDetail(tenant);
+        }
+      } catch (error: any) {
+        const msg =
+          error.response?.data?.message || `Gagal ${nextAction} perusahaan`;
+        showModal({
+          title: "Error",
+          message: msg,
+          isError: true,
+          buttonText: "Tutup",
+        });
+      } finally {
+        setToggleLoadingId(null);
+      }
+    };
 
-    setToggleLoadingId(tenant.id);
-    try {
-      if (tenant.isActive) {
-        await deactivateTenant(tenant.id);
-      } else {
-        await activateTenant(tenant.id);
-      }
-      await loadTenants();
-      if (detailTenant?.id === tenant.id) {
-        await openDetail(tenant);
-      }
-    } catch (error: any) {
-      const msg =
-        error.response?.data?.message || `Gagal ${nextAction} perusahaan`;
-      Alert.alert("Error", msg);
-    } finally {
-      setToggleLoadingId(null);
-    }
+    showModal({
+      title: tenant.isActive ? "Nonaktifkan Perusahaan" : "Aktifkan Perusahaan",
+      message: `Yakin ${nextAction} perusahaan ini?`,
+      buttonText: tenant.isActive ? "Nonaktifkan" : "Aktifkan",
+      secondaryButtonText: "Batal",
+      isError: tenant.isActive,
+      onPrimaryPress: executeToggle,
+    });
   };
 
   const handleResetPassword = async () => {
     if (!detailTenant) return;
 
-    if (
-      Platform.OS === "web" &&
-      !window.confirm(
-        "Reset password admin perusahaan ini? Password baru akan ditampilkan sekali.",
-      )
-    ) {
-      return;
-    }
+    const executeReset = async () => {
+      setResetLoading(true);
+      try {
+        const res = await resetTenantAdminPassword(detailTenant.id);
+        const password =
+          res.data?.data?.temporaryPassword ||
+          res.data?.temporaryPassword ||
+          "";
+        setTemporaryPassword(password);
+        showModal({
+          title: "Berhasil",
+          message: "Password admin berhasil direset",
+          buttonText: "Lihat Password",
+        });
+      } catch (error: any) {
+        const msg =
+          error.response?.data?.message || "Gagal reset password admin";
+        showModal({
+          title: "Error",
+          message: msg,
+          isError: true,
+          buttonText: "Tutup",
+        });
+      } finally {
+        setResetLoading(false);
+      }
+    };
 
-    setResetLoading(true);
-    try {
-      const res = await resetTenantAdminPassword(detailTenant.id);
-      const password =
-        res.data?.data?.temporaryPassword || res.data?.temporaryPassword || "";
-      setTemporaryPassword(password);
-      Alert.alert("Berhasil", "Password admin berhasil direset");
-    } catch (error: any) {
-      const msg = error.response?.data?.message || "Gagal reset password admin";
-      Alert.alert("Error", msg);
-    } finally {
-      setResetLoading(false);
-    }
+    showModal({
+      title: "Reset Password Admin",
+      message:
+        "Reset password admin perusahaan ini? Password baru akan ditampilkan sekali.",
+      buttonText: "Reset",
+      secondaryButtonText: "Batal",
+      isError: true,
+      onPrimaryPress: executeReset,
+    });
   };
 
   const saveEdit = async (id: number) => {
@@ -219,7 +253,12 @@ export default function SuperAdminDashboard() {
       loadTenants();
     } catch (error: any) {
       const msg = error.response?.data?.message || "Gagal mengedit";
-      Alert.alert("Error", msg);
+      showModal({
+        title: "Error",
+        message: msg,
+        isError: true,
+        buttonText: "Tutup",
+      });
     }
   };
 
@@ -228,25 +267,24 @@ export default function SuperAdminDashboard() {
       await deleteTenant(id);
       loadTenants();
     } catch (error) {
-      Alert.alert("Error", "Gagal menghapus perusahaan");
+      showModal({
+        title: "Error",
+        message: "Gagal menghapus perusahaan",
+        isError: true,
+        buttonText: "Tutup",
+      });
     }
   };
 
   const confirmDelete = (id: number) => {
-    if (Platform.OS === "web") {
-      if (
-        window.confirm(
-          "Hapus perusahaan ini secara permanen beserta seluruh datanya?",
-        )
-      ) {
-        executeDelete(id);
-      }
-    } else {
-      Alert.alert("Konfirmasi", "Hapus perusahaan ini?", [
-        {text: "Batal", style: "cancel"},
-        {text: "Hapus", style: "destructive", onPress: () => executeDelete(id)},
-      ]);
-    }
+    showModal({
+      title: "Konfirmasi Hapus",
+      message: "Hapus perusahaan ini secara permanen beserta seluruh datanya?",
+      buttonText: "Hapus",
+      secondaryButtonText: "Batal",
+      isError: true,
+      onPrimaryPress: () => executeDelete(id),
+    });
   };
 
   return (

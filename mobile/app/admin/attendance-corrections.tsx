@@ -1,5 +1,5 @@
 import {useEffect, useMemo, useState} from "react";
-import {View, Text, StyleSheet, FlatList, Alert} from "react-native";
+import {View, Text, StyleSheet, FlatList} from "react-native";
 import {Ionicons} from "@expo/vector-icons";
 import {useRouter} from "expo-router";
 import {
@@ -14,6 +14,7 @@ import {Card} from "../../src/components/ui/Card";
 import {Badge} from "../../src/components/ui/Badge";
 import {Button} from "../../src/components/ui/Button";
 import {Input} from "../../src/components/ui/Input";
+import {useGlobalModal} from "../../src/contexts/GlobalModalContext";
 
 interface CorrectionItem {
   id: number;
@@ -30,6 +31,7 @@ interface CorrectionItem {
 export default function AdminAttendanceCorrections() {
   const router = useRouter();
   const {isDesktop, isWeb} = useResponsive();
+  const {showModal} = useGlobalModal();
   const [items, setItems] = useState<CorrectionItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<
@@ -62,12 +64,18 @@ export default function AdminAttendanceCorrections() {
       if (cachedItems && cachedItems.length > 0) {
         setItems(cachedItems);
         setUsingCache(true);
-        Alert.alert(
-          "Offline",
-          "Menampilkan data koreksi terakhir yang tersimpan",
-        );
+        showModal({
+          title: "Offline",
+          message: "Menampilkan data koreksi terakhir yang tersimpan",
+          buttonText: "Tutup",
+        });
       } else {
-        Alert.alert("Error", "Gagal memuat data koreksi absensi");
+        showModal({
+          title: "Error",
+          message: "Gagal memuat data koreksi absensi",
+          isError: true,
+          buttonText: "Tutup",
+        });
       }
     } finally {
       setLoading(false);
@@ -121,15 +129,18 @@ export default function AdminAttendanceCorrections() {
       });
       setReviewNoteMap(prev => ({...prev, [id]: ""}));
       await loadItems();
-      Alert.alert(
-        "Sukses",
-        `Koreksi berhasil di-${action === "APPROVED" ? "setujui" : "tolak"}`,
-      );
+      showModal({
+        title: "Sukses",
+        message: `Koreksi berhasil di-${action === "APPROVED" ? "setujui" : "tolak"}`,
+        buttonText: "OK",
+      });
     } catch (error: any) {
-      Alert.alert(
-        "Gagal",
-        error.response?.data?.message || "Gagal memproses koreksi",
-      );
+      showModal({
+        title: "Gagal",
+        message: error.response?.data?.message || "Gagal memproses koreksi",
+        isError: true,
+        buttonText: "Tutup",
+      });
     } finally {
       setUpdatingId(null);
     }

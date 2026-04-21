@@ -1,10 +1,11 @@
-import { Request, Response } from 'express';
-import bcrypt from 'bcryptjs';
-import jwt, { SignOptions } from 'jsonwebtoken';
-import { getPublicPrisma, getTenantPrisma } from '../prisma/tenant-prisma';
+import {Request, Response} from "express";
+import bcrypt from "bcryptjs";
+import jwt, {SignOptions} from "jsonwebtoken";
+import {getPublicPrisma, getTenantPrisma} from "../prisma/tenant-prisma";
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
-const JWT_EXPIRES_IN = (process.env.JWT_EXPIRES_IN || '7d') as jwt.SignOptions['expiresIn'];
+const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
+const JWT_EXPIRES_IN = (process.env.JWT_EXPIRES_IN ||
+  "7d") as jwt.SignOptions["expiresIn"];
 
 interface TenantUser {
   tenantId: number;
@@ -26,6 +27,22 @@ interface TenantUser {
   };
 }
 
+const normalizeEmail = (value: string) => value.trim().toLowerCase();
+
+const findUserByEmail = async (
+  tenantPrisma: ReturnType<typeof getTenantPrisma>,
+  email: string,
+) => {
+  return tenantPrisma.user.findFirst({
+    where: {
+      email: {
+        equals: email,
+        mode: "insensitive",
+      },
+    },
+  });
+};
+
 /**
  * Auto-lookup login - find user across all tenants by email
  * No need to select company first
@@ -36,35 +53,44 @@ interface TenantUser {
  */
 export async function autoLogin(req: Request, res: Response) {
   try {
-    const { email, password } = req.body;
+    const {email, password} = req.body;
+    const normalizedEmail = normalizeEmail(email || "");
 
-    if (!email || !password) {
+    if (!normalizedEmail || !password) {
       return res.status(400).json({
         success: false,
-        message: 'Email dan password harus diisi',
+        message: "Email dan password harus diisi",
       });
     }
 
     const publicPrisma = getPublicPrisma();
 
     // 1. Check if user is Super Admin
-    const superAdmin = await publicPrisma.superAdmin.findUnique({
-      where: { email },
+    const superAdmin = await publicPrisma.superAdmin.findFirst({
+      where: {
+        email: {
+          equals: normalizedEmail,
+          mode: "insensitive",
+        },
+      },
     });
 
     if (superAdmin) {
-      const isPasswordValid = await bcrypt.compare(password, superAdmin.password);
+      const isPasswordValid = await bcrypt.compare(
+        password,
+        superAdmin.password,
+      );
       if (isPasswordValid) {
         // Generate JWT for Super Admin
         const token = jwt.sign(
           {
             id: superAdmin.id,
             email: superAdmin.email,
-            role: 'SUPER_ADMIN',
+            role: "SUPER_ADMIN",
             isSuperAdmin: true,
           },
           JWT_SECRET,
-          { expiresIn: JWT_EXPIRES_IN }
+          {expiresIn: JWT_EXPIRES_IN},
         );
 
         return res.json({
@@ -75,7 +101,7 @@ export async function autoLogin(req: Request, res: Response) {
               id: superAdmin.id,
               email: superAdmin.email,
               name: superAdmin.name,
-              role: 'SUPER_ADMIN',
+              role: "SUPER_ADMIN",
               photo: null,
             },
             isSuperAdmin: true,
@@ -85,32 +111,31 @@ export async function autoLogin(req: Request, res: Response) {
         });
       }
       // If password invalid for Super Admin, we could stop here or continue checking tenants.
-      // For security/UX, usually unique email implies we stop, but if they have same email for standard user, 
+      // For security/UX, usually unique email implies we stop, but if they have same email for standard user,
       // we might want to allow that? For now, let's treat Super Admin as exclusive.
       return res.status(401).json({
         success: false,
-        message: 'Password salah (Super Admin)',
+        message: "Password salah (Super Admin)",
       });
     }
 
     // 2. Standard User Login (Check all tenants)
     // Get all active tenants
     const tenants = await publicPrisma.tenant.findMany({
-      where: { isActive: true },
+      where: {isActive: true},
     });
 
     // ... (rest of the existing logic)
 
     // Search for user in each tenant schema
     const foundUsers: TenantUser[] = [];
+    const inactiveTenantMatches: TenantUser[] = [];
 
     for (const tenant of tenants) {
       try {
         const tenantPrisma = getTenantPrisma(tenant.schemaName);
 
-        const user = await tenantPrisma.user.findUnique({
-          where: { email },
-        });
+        const user = await findUserByEmail(tenantPrisma, normalizedEmail);
 
         if (user) {
           foundUsers.push({
@@ -139,11 +164,57 @@ export async function autoLogin(req: Request, res: Response) {
       }
     }
 
+    // Also check inactive tenants so we can show a clearer message instead of "email not found"
+    const inactiveTenants = await publicPrisma.tenant.findMany({
+      where: {isActive: false},
+    });
+
+    for (const tenant of inactiveTenants) {
+      try {
+        const tenantPrisma = getTenantPrisma(tenant.schemaName);
+        const user = await findUserByEmail(tenantPrisma, normalizedEmail);
+
+        if (user) {
+          inactiveTenantMatches.push({
+            tenantId: tenant.id,
+            tenantName: tenant.name,
+            schemaName: tenant.schemaName,
+            user: {
+              id: user.id,
+              email: user.email,
+              password: user.password,
+              name: user.name,
+              role: user.role,
+              isActive: user.isActive,
+              photo: user.photo || undefined,
+              faceRegistered: user.faceRegistered,
+              salaryType: user.salaryType,
+              salary: user.salary,
+              startWorkTime: user.startWorkTime,
+              endWorkTime: user.endWorkTime,
+            },
+          });
+        }
+      } catch (err) {
+        console.error(
+          `Error checking inactive tenant ${tenant.schemaName}:`,
+          err,
+        );
+      }
+    }
+
     // No user found in any tenant
     if (foundUsers.length === 0) {
+      if (inactiveTenantMatches.length > 0) {
+        return res.status(403).json({
+          success: false,
+          message: "Akun ditemukan tetapi perusahaan sedang nonaktif",
+        });
+      }
+
       return res.status(401).json({
         success: false,
-        message: 'Email tidak ditemukan',
+        message: "Email tidak ditemukan",
       });
     }
 
@@ -152,7 +223,7 @@ export async function autoLogin(req: Request, res: Response) {
       return res.status(200).json({
         success: true,
         requireTenantSelection: true,
-        message: 'Email terdaftar di beberapa perusahaan, pilih salah satu',
+        message: "Email terdaftar di beberapa perusahaan, pilih salah satu",
         data: {
           tenants: foundUsers.map(fu => ({
             tenantId: fu.tenantId,
@@ -168,15 +239,18 @@ export async function autoLogin(req: Request, res: Response) {
     if (!foundUser.user.isActive) {
       return res.status(403).json({
         success: false,
-        message: 'Akun tidak aktif',
+        message: "Akun tidak aktif",
       });
     }
 
-    const isPasswordValid = await bcrypt.compare(password, foundUser.user.password);
+    const isPasswordValid = await bcrypt.compare(
+      password,
+      foundUser.user.password,
+    );
     if (!isPasswordValid) {
       return res.status(401).json({
         success: false,
-        message: 'Password salah',
+        message: "Password salah",
       });
     }
 
@@ -189,7 +263,7 @@ export async function autoLogin(req: Request, res: Response) {
         tenantId: foundUser.tenantId,
       },
       JWT_SECRET,
-      { expiresIn: JWT_EXPIRES_IN }
+      {expiresIn: JWT_EXPIRES_IN},
     );
 
     res.json({
@@ -215,10 +289,10 @@ export async function autoLogin(req: Request, res: Response) {
       },
     });
   } catch (error) {
-    console.error('Auto login error:', error);
+    console.error("Auto login error:", error);
     res.status(500).json({
       success: false,
-      message: 'Terjadi kesalahan server',
+      message: "Terjadi kesalahan server",
     });
   }
 }
@@ -228,12 +302,13 @@ export async function autoLogin(req: Request, res: Response) {
  */
 export async function loginWithTenant(req: Request, res: Response) {
   try {
-    const { email, password, tenantId } = req.body;
+    const {email, password, tenantId} = req.body;
+    const normalizedEmail = normalizeEmail(email || "");
 
-    if (!email || !password || !tenantId) {
+    if (!normalizedEmail || !password || !tenantId) {
       return res.status(400).json({
         success: false,
-        message: 'Email, password, dan tenantId harus diisi',
+        message: "Email, password, dan tenantId harus diisi",
       });
     }
 
@@ -241,33 +316,31 @@ export async function loginWithTenant(req: Request, res: Response) {
 
     // Get the tenant
     const tenant = await publicPrisma.tenant.findUnique({
-      where: { id: Number(tenantId) },
+      where: {id: Number(tenantId)},
     });
 
     if (!tenant || !tenant.isActive) {
       return res.status(404).json({
         success: false,
-        message: 'Perusahaan tidak ditemukan atau tidak aktif',
+        message: "Perusahaan tidak ditemukan atau tidak aktif",
       });
     }
 
     // Get user from tenant schema
     const tenantPrisma = getTenantPrisma(tenant.schemaName);
-    const user = await tenantPrisma.user.findUnique({
-      where: { email },
-    });
+    const user = await findUserByEmail(tenantPrisma, normalizedEmail);
 
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: 'Email tidak ditemukan di perusahaan ini',
+        message: "Email tidak ditemukan di perusahaan ini",
       });
     }
 
     if (!user.isActive) {
       return res.status(403).json({
         success: false,
-        message: 'Akun tidak aktif',
+        message: "Akun tidak aktif",
       });
     }
 
@@ -275,7 +348,7 @@ export async function loginWithTenant(req: Request, res: Response) {
     if (!isPasswordValid) {
       return res.status(401).json({
         success: false,
-        message: 'Password salah',
+        message: "Password salah",
       });
     }
 
@@ -288,7 +361,7 @@ export async function loginWithTenant(req: Request, res: Response) {
         tenantId: tenant.id,
       },
       JWT_SECRET,
-      { expiresIn: JWT_EXPIRES_IN }
+      {expiresIn: JWT_EXPIRES_IN},
     );
 
     res.json({
@@ -314,10 +387,10 @@ export async function loginWithTenant(req: Request, res: Response) {
       },
     });
   } catch (error) {
-    console.error('Login with tenant error:', error);
+    console.error("Login with tenant error:", error);
     res.status(500).json({
       success: false,
-      message: 'Terjadi kesalahan server',
+      message: "Terjadi kesalahan server",
     });
   }
 }

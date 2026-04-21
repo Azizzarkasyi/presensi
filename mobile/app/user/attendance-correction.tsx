@@ -9,7 +9,7 @@ import {Card} from "../../src/components/ui/Card";
 import {Button} from "../../src/components/ui/Button";
 import {Input} from "../../src/components/ui/Input";
 import {theme} from "../../src/constants/theme";
-import {SuccessModal} from "../../src/components/ui/SuccessModal";
+import {useGlobalModal} from "../../src/contexts/GlobalModalContext";
 
 export default function AttendanceCorrectionRequest() {
   const router = useRouter();
@@ -20,6 +20,7 @@ export default function AttendanceCorrectionRequest() {
     clockOut?: string;
   }>();
   const {isDesktop, isWeb} = useResponsive();
+  const {showModal} = useGlobalModal();
   const [requestedClockIn, setRequestedClockIn] = useState(
     String(params.clockIn || ""),
   );
@@ -28,12 +29,6 @@ export default function AttendanceCorrectionRequest() {
   );
   const [reason, setReason] = useState("");
   const [loading, setLoading] = useState(false);
-  const [modal, setModal] = useState({
-    visible: false,
-    isError: false,
-    message: "",
-  });
-
   const attendanceId = Number(params.id || 0);
 
   const formattedDate = useMemo(() => {
@@ -49,28 +44,31 @@ export default function AttendanceCorrectionRequest() {
 
   const handleSubmit = async () => {
     if (!attendanceId) {
-      setModal({
-        visible: true,
-        isError: true,
+      showModal({
+        title: "Error",
         message: "Data absensi tidak valid.",
+        isError: true,
+        buttonText: "Tutup",
       });
       return;
     }
 
     if (!reason.trim()) {
-      setModal({
-        visible: true,
-        isError: true,
+      showModal({
+        title: "Error",
         message: "Alasan koreksi wajib diisi.",
+        isError: true,
+        buttonText: "Tutup",
       });
       return;
     }
 
     if (!requestedClockIn.trim() && !requestedClockOut.trim()) {
-      setModal({
-        visible: true,
-        isError: true,
+      showModal({
+        title: "Error",
         message: "Minimal salah satu jam koreksi harus diisi.",
+        isError: true,
+        buttonText: "Tutup",
       });
       return;
     }
@@ -82,20 +80,21 @@ export default function AttendanceCorrectionRequest() {
         requestedClockIn: requestedClockIn.trim() || undefined,
         requestedClockOut: requestedClockOut.trim() || undefined,
       });
-      setModal({
-        visible: true,
-        isError: false,
+      showModal({
+        title: "Sukses",
         message:
           "Pengajuan koreksi berhasil dikirim dan menunggu persetujuan admin.",
+        buttonText: "Ke Riwayat",
       });
     } catch (error: any) {
-      setModal({
-        visible: true,
-        isError: true,
+      showModal({
+        title: "Gagal",
         message:
           error.response?.data?.message ||
           error.message ||
           "Gagal mengajukan koreksi absensi",
+        isError: true,
+        buttonText: "Tutup",
       });
     } finally {
       setLoading(false);
@@ -183,19 +182,6 @@ export default function AttendanceCorrectionRequest() {
           </Card>
         </View>
       </ScrollView>
-
-      <SuccessModal
-        visible={modal.visible}
-        isError={modal.isError}
-        message={modal.message}
-        buttonText={modal.isError ? "Tutup" : "Ke Riwayat"}
-        onClose={() => {
-          setModal(prev => ({...prev, visible: false}));
-          if (!modal.isError) {
-            router.replace("/user/history");
-          }
-        }}
-      />
     </View>
   );
 }
