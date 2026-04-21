@@ -148,6 +148,38 @@ setTimeout(async () => {
         .catch(() => {});
       await prisma
         .$executeRawUnsafe(
+          `DO $$
+          BEGIN
+            IF EXISTS (
+              SELECT 1
+              FROM information_schema.columns
+              WHERE table_schema = '${tenant.schemaName}'
+                AND table_name = 'Attendance'
+                AND column_name = 'leaveApprovalStatus'
+                AND data_type = 'character varying'
+            ) THEN
+              ALTER TABLE "${tenant.schemaName}"."Attendance"
+                ALTER COLUMN "leaveApprovalStatus" TYPE "${tenant.schemaName}"."LeaveApprovalStatus"
+                USING "leaveApprovalStatus"::text::"${tenant.schemaName}"."LeaveApprovalStatus";
+            END IF;
+
+            IF EXISTS (
+              SELECT 1
+              FROM information_schema.columns
+              WHERE table_schema = '${tenant.schemaName}'
+                AND table_name = 'Attendance'
+                AND column_name = 'correctionStatus'
+                AND data_type = 'character varying'
+            ) THEN
+              ALTER TABLE "${tenant.schemaName}"."Attendance"
+                ALTER COLUMN "correctionStatus" TYPE "${tenant.schemaName}"."CorrectionStatus"
+                USING "correctionStatus"::text::"${tenant.schemaName}"."CorrectionStatus";
+            END IF;
+          END $$;`,
+        )
+        .catch(() => {});
+      await prisma
+        .$executeRawUnsafe(
           `ALTER TABLE "${tenant.schemaName}"."User" ALTER COLUMN "startWorkTime" TYPE VARCHAR(255)`,
         )
         .catch(() => {});

@@ -49,6 +49,37 @@ async function main() {
       await ensureAttendanceEnums(schemaName);
 
       await prisma.$executeRawUnsafe(`
+        DO $$
+        BEGIN
+          IF EXISTS (
+            SELECT 1
+            FROM information_schema.columns
+            WHERE table_schema = '${schemaName}'
+              AND table_name = 'Attendance'
+              AND column_name = 'leaveApprovalStatus'
+              AND data_type = 'character varying'
+          ) THEN
+            ALTER TABLE "${schemaName}"."Attendance"
+              ALTER COLUMN "leaveApprovalStatus" TYPE "${schemaName}"."LeaveApprovalStatus"
+              USING "leaveApprovalStatus"::text::"${schemaName}"."LeaveApprovalStatus";
+          END IF;
+
+          IF EXISTS (
+            SELECT 1
+            FROM information_schema.columns
+            WHERE table_schema = '${schemaName}'
+              AND table_name = 'Attendance'
+              AND column_name = 'correctionStatus'
+              AND data_type = 'character varying'
+          ) THEN
+            ALTER TABLE "${schemaName}"."Attendance"
+              ALTER COLUMN "correctionStatus" TYPE "${schemaName}"."CorrectionStatus"
+              USING "correctionStatus"::text::"${schemaName}"."CorrectionStatus";
+          END IF;
+        END $$;
+      `);
+
+      await prisma.$executeRawUnsafe(`
         ALTER TABLE "${schemaName}"."Attendance"
         ADD COLUMN IF NOT EXISTS "leaveApprovalStatus" "${schemaName}"."LeaveApprovalStatus" NOT NULL DEFAULT 'PENDING',
         ADD COLUMN IF NOT EXISTS "leaveReviewNote" TEXT,
