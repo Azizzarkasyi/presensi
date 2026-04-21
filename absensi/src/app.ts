@@ -120,6 +120,34 @@ setTimeout(async () => {
     for (const tenant of tenants) {
       await prisma
         .$executeRawUnsafe(
+          `DO $$
+          BEGIN
+            IF NOT EXISTS (
+              SELECT 1 FROM pg_type t
+              JOIN pg_namespace n ON n.oid = t.typnamespace
+              WHERE t.typname = 'LeaveApprovalStatus' AND n.nspname = '${tenant.schemaName}'
+            ) THEN
+              CREATE TYPE "${tenant.schemaName}"."LeaveApprovalStatus" AS ENUM ('PENDING', 'APPROVED', 'REJECTED');
+            END IF;
+          END $$;`,
+        )
+        .catch(() => {});
+      await prisma
+        .$executeRawUnsafe(
+          `DO $$
+          BEGIN
+            IF NOT EXISTS (
+              SELECT 1 FROM pg_type t
+              JOIN pg_namespace n ON n.oid = t.typnamespace
+              WHERE t.typname = 'CorrectionStatus' AND n.nspname = '${tenant.schemaName}'
+            ) THEN
+              CREATE TYPE "${tenant.schemaName}"."CorrectionStatus" AS ENUM ('NONE', 'PENDING', 'APPROVED', 'REJECTED');
+            END IF;
+          END $$;`,
+        )
+        .catch(() => {});
+      await prisma
+        .$executeRawUnsafe(
           `ALTER TABLE "${tenant.schemaName}"."User" ALTER COLUMN "startWorkTime" TYPE VARCHAR(255)`,
         )
         .catch(() => {});
@@ -136,14 +164,14 @@ setTimeout(async () => {
       await prisma
         .$executeRawUnsafe(
           `ALTER TABLE "${tenant.schemaName}"."Attendance"
-          ADD COLUMN IF NOT EXISTS "leaveApprovalStatus" VARCHAR(255) NOT NULL DEFAULT 'PENDING',
-          ADD COLUMN IF NOT EXISTS "leaveReviewNote" VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS "leaveApprovalStatus" "${tenant.schemaName}"."LeaveApprovalStatus" NOT NULL DEFAULT 'PENDING',
+          ADD COLUMN IF NOT EXISTS "leaveReviewNote" TEXT,
           ADD COLUMN IF NOT EXISTS "leaveReviewedAt" TIMESTAMP(3),
-          ADD COLUMN IF NOT EXISTS "correctionStatus" VARCHAR(255) NOT NULL DEFAULT 'NONE',
-          ADD COLUMN IF NOT EXISTS "correctionReason" VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS "correctionStatus" "${tenant.schemaName}"."CorrectionStatus" NOT NULL DEFAULT 'NONE',
+          ADD COLUMN IF NOT EXISTS "correctionReason" TEXT,
           ADD COLUMN IF NOT EXISTS "correctionRequestedClockIn" TIMESTAMP(3),
           ADD COLUMN IF NOT EXISTS "correctionRequestedClockOut" TIMESTAMP(3),
-          ADD COLUMN IF NOT EXISTS "correctionReviewNote" VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS "correctionReviewNote" TEXT,
           ADD COLUMN IF NOT EXISTS "correctionRequestedAt" TIMESTAMP(3),
           ADD COLUMN IF NOT EXISTS "correctionReviewedAt" TIMESTAMP(3)`,
         )
