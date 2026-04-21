@@ -16,7 +16,7 @@ export default function LeaveRequest() {
   const router = useRouter();
   const { isDesktop, isWeb } = useResponsive();
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
+  const [modalConfig, setModalConfig] = useState({ visible: false, isError: false, message: '' });
   
   const [status, setStatus] = useState<'SICK' | 'LEAVE'>('SICK');
   const [description, setDescription] = useState('');
@@ -57,7 +57,7 @@ export default function LeaveRequest() {
 
   const handleSubmit = async () => {
     if (!photoUri) {
-      Alert.alert('Peringatan', 'Anda wajib melampirkan foto / surat bukti!');
+      setModalConfig({ visible: true, isError: true, message: 'Anda wajib melampirkan foto / surat bukti!' });
       return;
     }
 
@@ -92,19 +92,22 @@ export default function LeaveRequest() {
       }
 
       await requestLeave(formData);
-      setSuccess(true);
+      setModalConfig({ visible: true, isError: false, message: 'Pengajuan Izin / Sakit Anda telah berhasil dicatat.' });
     } catch (error: any) {
       console.error('Request leave error:', error);
       const msg = error.response?.data?.message || error.message || 'Gagal mengajukan izin';
-      Alert.alert('Gagal', msg);
+      setModalConfig({ visible: true, isError: true, message: msg });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCloseSuccess = () => {
-    setSuccess(false);
-    router.replace('/user');
+  const handleCloseModal = () => {
+    const wasSuccess = !modalConfig.isError;
+    setModalConfig(prev => ({ ...prev, visible: false }));
+    if (wasSuccess) {
+      router.replace('/user');
+    }
   };
 
   return (
@@ -177,11 +180,11 @@ export default function LeaveRequest() {
       </ScrollView>
 
       <SuccessModal
-        visible={success}
-        title="Berhasil Terkirim"
-        message="Pengajuan Izin / Sakit Anda telah berhasil dicatat."
-        buttonText="Ke Dashboard"
-        onClose={handleCloseSuccess}
+        visible={modalConfig.visible}
+        isError={modalConfig.isError}
+        message={modalConfig.message}
+        buttonText={modalConfig.isError ? "Tutup" : "Ke Dashboard"}
+        onClose={handleCloseModal}
       />
     </View>
   );

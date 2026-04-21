@@ -10,6 +10,7 @@ import {
   registerFace, verifyFace, getFaceStatus 
 } from '../../src/services/api';
 import FaceCamera from '../../src/components/FaceCamera';
+import { SuccessModal } from '../../src/components/ui/SuccessModal';
 import { theme } from '../../src/constants/theme';
 
 export default function UserDashboard() {
@@ -22,6 +23,7 @@ export default function UserDashboard() {
   const [showCamera, setShowCamera] = useState(false);
   const [cameraMode, setCameraMode] = useState<'clockIn' | 'clockOut' | 'breakStart' | 'breakEnd' | 'register'>('clockIn');
   const [faceRegistered, setFaceRegistered] = useState(false);
+  const [modalConfig, setModalConfig] = useState({ visible: false, isError: false, message: '' });
 
   useEffect(() => {
     loadData();
@@ -73,7 +75,7 @@ export default function UserDashboard() {
       if (cameraMode === 'clockIn' || cameraMode === 'clockOut') {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted') {
-          Alert.alert('Izin Ditolak', 'Izin akses lokasi (GPS) diperlukan untuk melakukan absen.');
+          setModalConfig({ visible: true, isError: true, message: 'Izin akses lokasi (GPS) diperlukan untuk melakukan absen.' });
           setLoading(false);
           return;
         }
@@ -110,31 +112,31 @@ export default function UserDashboard() {
       switch (cameraMode) {
         case 'register':
           await registerFace(formData);
-          Alert.alert('Berhasil', 'Wajah berhasil didaftarkan!');
+          setModalConfig({ visible: true, isError: false, message: 'Wajah berhasil didaftarkan!' });
           setFaceRegistered(true);
           break;
         case 'clockIn':
           await clockIn(formData);
-          Alert.alert('Berhasil', 'Clock-in berhasil!');
+          setModalConfig({ visible: true, isError: false, message: 'Clock-in berhasil!' });
           break;
         case 'clockOut':
           await clockOut(formData);
-          Alert.alert('Berhasil', 'Clock-out berhasil!');
+          setModalConfig({ visible: true, isError: false, message: 'Clock-out berhasil!' });
           break;
         case 'breakStart':
           await startBreak(formData);
-          Alert.alert('Berhasil', 'Istirahat dimulai!');
+          setModalConfig({ visible: true, isError: false, message: 'Istirahat dimulai!' });
           break;
         case 'breakEnd':
           await endBreak(formData);
-          Alert.alert('Berhasil', 'Istirahat selesai!');
+          setModalConfig({ visible: true, isError: false, message: 'Istirahat selesai!' });
           break;
       }
       loadData();
     } catch (error: any) {
       console.error('Action error:', error);
       const errorMsg = error.response?.data?.message || error.response?.data?.error || error.message || 'Terjadi kesalahan saat memproses data.';
-      Alert.alert('Gagal', errorMsg);
+      setModalConfig({ visible: true, isError: true, message: errorMsg });
     } finally {
       setLoading(false);
     }
@@ -328,6 +330,23 @@ export default function UserDashboard() {
             ))}
           </View>
         )}
+
+        {/* Modal Kamera */}
+        <Modal visible={showCamera} animationType="slide">
+          <FaceCamera
+            mode={cameraMode === 'register' ? 'register' : 'verify'}
+            onFaceDetected={handleFaceDetected}
+            onCancel={() => setShowCamera(false)}
+          />
+        </Modal>
+
+        <SuccessModal
+          visible={modalConfig.visible}
+          isError={modalConfig.isError}
+          message={modalConfig.message}
+          buttonText="Tutup"
+          onClose={() => setModalConfig({ ...modalConfig, visible: false })}
+        />
       </ScrollView>
     </View>
   );

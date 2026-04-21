@@ -8,16 +8,20 @@ interface SuccessModalProps {
   title?: string;
   message: string;
   buttonText?: string;
+  isError?: boolean;
   onClose: () => void;
 }
 
 export const SuccessModal: React.FC<SuccessModalProps> = ({
   visible,
-  title = 'Berhasil!',
+  title,
   message,
   buttonText = 'OK',
+  isError = false,
   onClose,
 }) => {
+  const displayTitle = title || (isError ? 'Gagal' : 'Berhasil!');
+  
   return (
     <Modal
       visible={visible}
@@ -27,17 +31,18 @@ export const SuccessModal: React.FC<SuccessModalProps> = ({
     >
       <View style={styles.overlay}>
         <View style={styles.content}>
-          <View style={styles.iconContainer}>
-            <Text style={styles.icon}>✅</Text>
+          <View style={[styles.iconContainer, isError && styles.iconContainerError]}>
+            <Text style={styles.icon}>{isError ? '❌' : '✅'}</Text>
           </View>
           
-          <Text style={styles.title}>{title}</Text>
+          <Text style={styles.title}>{displayTitle}</Text>
           <Text style={styles.message}>{message}</Text>
           
           <Button 
             title={buttonText}
             onPress={onClose}
             size="md"
+            variant={isError ? 'danger' : 'primary'}
             style={{ width: '100%' }}
           />
         </View>
@@ -57,7 +62,7 @@ const styles = StyleSheet.create({
   content: {
     backgroundColor: theme.colors.card,
     width: '100%',
-    maxWidth: 320, // Limit width to prevent it from being too big
+    maxWidth: 320,
     padding: 20,
     borderRadius: 16,
     alignItems: 'center',
@@ -71,6 +76,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
+  },
+  iconContainerError: {
+    backgroundColor: theme.colors.error + '20',
   },
   icon: {
     fontSize: 24,

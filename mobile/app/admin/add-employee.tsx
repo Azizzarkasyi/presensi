@@ -22,7 +22,7 @@ export default function AddEmployee() {
   const router = useRouter();
   const { isDesktop } = useResponsive();
   const [loading, setLoading] = useState(false);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [modalConfig, setModalConfig] = useState({ visible: false, isError: false, message: '' });
   const [showMapPicker, setShowMapPicker] = useState(false);
   
   // Form State
@@ -104,18 +104,21 @@ export default function AddEmployee() {
         workRadius: workRadius ? Number(workRadius) : undefined,
       });
       
-      setShowSuccessModal(true);
+      setModalConfig({ visible: true, isError: false, message: 'Data Karyawan berhasil disimpan.' });
     } catch (error: any) {
       console.error('Save employee error:', error);
-      Alert.alert('Gagal', error.response?.data?.message || error.message || 'Terjadi kesalahan');
+      setModalConfig({ visible: true, isError: true, message: error.response?.data?.message || error.message || 'Terjadi kesalahan' });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSuccessClose = () => {
-    setShowSuccessModal(false);
-    router.back();
+  const handleModalClose = () => {
+    const wasSuccess = !modalConfig.isError;
+    setModalConfig({ ...modalConfig, visible: false });
+    if (wasSuccess) {
+      router.back();
+    }
   };
 
   const salaryTypes: { value: SalaryType; label: string }[] = [
@@ -308,10 +311,11 @@ export default function AddEmployee() {
       </ScrollView>
 
       <SuccessModal 
-        visible={showSuccessModal}
-        message="Data karyawan telah berhasil disimpan."
-        onClose={handleSuccessClose}
-        buttonText="OK, Kembali ke List"
+        visible={modalConfig.visible}
+        isError={modalConfig.isError}
+        message={modalConfig.message}
+        onClose={handleModalClose}
+        buttonText={modalConfig.isError ? "Tutup" : "OK, Kembali ke List"}
       />
 
       {/* Map Picker Modal */}
