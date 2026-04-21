@@ -62,21 +62,32 @@ const findUserByEmail = async (
 ) => {
   const normalizedEmail = normalizeEmail(email);
 
-  const user = await tenantPrisma.user.findFirst({
-    where: {
-      email: {
-        equals: normalizedEmail,
-        mode: "insensitive",
-      },
-    },
-  });
-
-  if (user) {
-    return user;
-  }
-
   const rawMatches = await tenantPrisma.$queryRawUnsafe<any[]>(
-    'SELECT * FROM "User" WHERE LOWER(TRIM("email")) = LOWER(TRIM($1)) LIMIT 1',
+    `
+      SELECT
+        "id",
+        "email",
+        "password",
+        "name",
+        "role",
+        "photo",
+        "faceDescriptor",
+        "faceRegistered",
+        "isActive",
+        "createdAt",
+        "updatedAt",
+        "salaryType",
+        "salary",
+        "startWorkTime",
+        "endWorkTime",
+        "latePenalty",
+        "workLatitude",
+        "workLongitude",
+        "workRadius"
+      FROM "User"
+      WHERE LOWER(TRIM("email")) = LOWER(TRIM($1))
+      LIMIT 1
+    `,
     normalizedEmail,
   );
 
