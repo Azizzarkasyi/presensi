@@ -45,7 +45,7 @@ export default function UserDashboard() {
     isError: false,
     message: "",
   });
-  const [shift, setShift] = useState(1); // 1 = shift 1, 2 = shift 2
+  // Shift detection handled server-side; no local shift selection needed
 
   useEffect(() => {
     loadData();
@@ -82,10 +82,8 @@ export default function UserDashboard() {
 
   const handleFaceAction = (
     mode: "clockIn" | "clockOut" | "breakStart" | "breakEnd" | "register",
-    selectedShift?: number,
   ) => {
     setCameraMode(mode);
-    if (selectedShift) setShift(selectedShift);
     setShowCamera(true);
   };
 
@@ -182,7 +180,6 @@ export default function UserDashboard() {
         formData.append("latitude", currentLat.toString());
       if (currentLon !== null)
         formData.append("longitude", currentLon.toString());
-      formData.append("shift", shift.toString());
       // Convert photo URI to blob for upload
       const response = await fetch(photoUri);
       const blob = await response.blob();
@@ -203,7 +200,7 @@ export default function UserDashboard() {
           setModalConfig({
             visible: true,
             isError: false,
-            message: `Clock-in shift ${shift} berhasil!`,
+            message: `Clock-in berhasil!`,
           });
           break;
         case "clockOut":
@@ -211,7 +208,7 @@ export default function UserDashboard() {
           setModalConfig({
             visible: true,
             isError: false,
-            message: `Clock-out shift ${shift} berhasil!`,
+            message: `Clock-out berhasil!`,
           });
           break;
         case "breakStart":
@@ -402,65 +399,31 @@ export default function UserDashboard() {
             {/* Action Buttons */}
             <View style={styles.buttonRow}>
               {canClockIn && (
-                <>
-                  <TouchableOpacity
-                    style={[
-                      styles.clockButton,
-                      styles.clockInBtn,
-                      loading && styles.buttonDisabled,
-                    ]}
-                    onPress={() => handleFaceAction("clockIn", 1)}
-                    disabled={loading}
-                  >
-                    <Text style={styles.clockButtonText}>
-                      🔓 Clock In Shift 1
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.clockButton,
-                      styles.clockInBtn,
-                      loading && styles.buttonDisabled,
-                    ]}
-                    onPress={() => handleFaceAction("clockIn", 2)}
-                    disabled={loading}
-                  >
-                    <Text style={styles.clockButtonText}>
-                      🔓 Clock In Shift 2
-                    </Text>
-                  </TouchableOpacity>
-                </>
+                <TouchableOpacity
+                  style={[
+                    styles.clockButton,
+                    styles.clockInBtn,
+                    loading && styles.buttonDisabled,
+                  ]}
+                  onPress={() => handleFaceAction("clockIn")}
+                  disabled={loading}
+                >
+                  <Text style={styles.clockButtonText}>🔓 Clock In</Text>
+                </TouchableOpacity>
               )}
 
               {canClockOut && !hasActiveBreak && (
-                <>
-                  <TouchableOpacity
-                    style={[
-                      styles.clockButton,
-                      styles.clockOutBtn,
-                      loading && styles.buttonDisabled,
-                    ]}
-                    onPress={() => handleFaceAction("clockOut", 1)}
-                    disabled={loading}
-                  >
-                    <Text style={styles.clockButtonText}>
-                      🔒 Clock Out Shift 1
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.clockButton,
-                      styles.clockOutBtn,
-                      loading && styles.buttonDisabled,
-                    ]}
-                    onPress={() => handleFaceAction("clockOut", 2)}
-                    disabled={loading}
-                  >
-                    <Text style={styles.clockButtonText}>
-                      🔒 Clock Out Shift 2
-                    </Text>
-                  </TouchableOpacity>
-                </>
+                <TouchableOpacity
+                  style={[
+                    styles.clockButton,
+                    styles.clockOutBtn,
+                    loading && styles.buttonDisabled,
+                  ]}
+                  onPress={() => handleFaceAction("clockOut")}
+                  disabled={loading}
+                >
+                  <Text style={styles.clockButtonText}>🔒 Clock Out</Text>
+                </TouchableOpacity>
               )}
             </View>
 
