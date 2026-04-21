@@ -1,13 +1,20 @@
-import { Request, Response } from 'express';
+import {Request, Response} from "express";
 
-function getDistanceFromLatLonInM(lat1: number, lon1: number, lat2: number, lon2: number) {
+function getDistanceFromLatLonInM(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number,
+) {
   const R = 6371; // Radius of the earth in km
   const dLat = deg2rad(lat2 - lat1);
   const dLon = deg2rad(lon2 - lon1);
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    Math.cos(deg2rad(lat1)) *
+      Math.cos(deg2rad(lat2)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   const d = R * c; // Distance in km
   return d * 1000; // Distance in meters
@@ -17,7 +24,6 @@ function deg2rad(deg: number) {
   return deg * (Math.PI / 180);
 }
 
-
 /**
  * Clock In
  */
@@ -25,25 +31,29 @@ export const clockIn = async (req: Request, res: Response) => {
   try {
     const prisma = req.prisma!;
     const userId = req.user!.id;
-    const { status, latitude, longitude, faceVerified } = req.body;
+    const {status, latitude, longitude, faceVerified} = req.body;
     const photo = req.file ? req.file.filename : null;
 
     // Check if user has face registered
     const user = await prisma.user.findUnique({
-      where: { id: userId },
+      where: {id: userId},
     });
 
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'User not found',
+        message: "User not found",
       });
     }
 
-    if (user.faceRegistered && faceVerified !== 'true' && faceVerified !== true) {
+    if (
+      user.faceRegistered &&
+      faceVerified !== "true" &&
+      faceVerified !== true
+    ) {
       return res.status(400).json({
         success: false,
-        message: 'Face verification required for clock in',
+        message: "Face verification required for clock in",
       });
     }
 
@@ -62,7 +72,7 @@ export const clockIn = async (req: Request, res: Response) => {
     if (existingAttendance) {
       return res.status(400).json({
         success: false,
-        message: 'Attendance already recorded for today',
+        message: "Attendance already recorded for today",
       });
     }
 
@@ -79,7 +89,8 @@ export const clockIn = async (req: Request, res: Response) => {
       if (!latitude || !longitude) {
         return res.status(400).json({
           success: false,
-          message: 'Akses ditolak: Sistem memerlukan lokasi (GPS) untuk memvalidasi absensi Anda.',
+          message:
+            "Akses ditolak: Sistem memerlukan lokasi (GPS) untuk memvalidasi absensi Anda.",
         });
       }
 
@@ -87,7 +98,7 @@ export const clockIn = async (req: Request, res: Response) => {
         parseFloat(latitude),
         parseFloat(longitude),
         targetLatitude,
-        targetLongitude
+        targetLongitude,
       );
 
       if (distance > targetRadius) {
@@ -98,51 +109,69 @@ export const clockIn = async (req: Request, res: Response) => {
       }
     }
 
-    const workStartTime = user.startWorkTime || '09:00';
-    const isFLEX = workStartTime.toUpperCase() === 'FLEX';
+    const workStartTime = user.startWorkTime || "09:00";
+    const isFLEX = workStartTime.toUpperCase() === "FLEX";
     const lateThreshold = config?.lateThresholdMinutes || 15;
 
     // Determine status - check if late
     const now = new Date();
-    
-    let attendanceStatus = status || 'PRESENT';
-    if (attendanceStatus === 'PRESENT' && !isFLEX) {
+
+    let attendanceStatus = status || "PRESENT";
+    if (attendanceStatus === "PRESENT" && !isFLEX) {
       try {
-        const shiftTimes = workStartTime.split(',').map(s => s.trim()).filter(s => s);
-        
-        let closestShiftTime = new Date(today);
-        let smallestDiff = Infinity;
+        const shiftTimes = workStartTime
+          .split(",")
+          .map(s => s.trim())
+          .filter(s => s);
+        if (shiftTimes.length === 0) shiftTimes.push("09:00");
 
-        // Ensure we default to 09:00 if parsing array goes wrong
-        if (shiftTimes.length === 0) shiftTimes.push('09:00');
-
+        // Cek apakah absen masuk pada window salah satu shift
+        let foundOnTimeShift = false;
         for (const st of shiftTimes) {
-          const parts = st.split(':');
+          const parts = st.split(":");
           if (parts.length === 2) {
             const sh = parseInt(parts[0], 10);
             const sm = parseInt(parts[1], 10);
             if (!isNaN(sh) && !isNaN(sm)) {
               const shiftDate = new Date(today);
               shiftDate.setHours(sh, sm, 0, 0);
-              const diff = Math.abs(now.getTime() - shiftDate.getTime());
-              if (diff < smallestDiff) {
-                smallestDiff = diff;
-                closestShiftTime = shiftDate;
+              const shiftStart = new Date(shiftDate);
+              const shiftEnd = new Date(shiftDate);
+              shiftEnd.setMinutes(shiftEnd.getMinutes() + lateThreshold);
+              if (now >= shiftStart && now <= shiftEnd) {
+                foundOnTimeShift = true;
+                break;
               }
             }
           }
         }
-
-        // Add late threshold to the closest shift
-        closestShiftTime.setMinutes(closestShiftTime.getMinutes() + lateThreshold);
-        
-        if (now > closestShiftTime) {
-          attendanceStatus = 'LATE';
+        if (!foundOnTimeShift) {
+          // Jika tidak ada shift yang cocok, cek apakah sudah lewat semua shift + lateThreshold
+          let allShiftEnd = shiftTimes
+            .map(st => {
+              const parts = st.split(":");
+              if (parts.length === 2) {
+                const sh = parseInt(parts[0], 10);
+                const sm = parseInt(parts[1], 10);
+                if (!isNaN(sh) && !isNaN(sm)) {
+                  const shiftDate = new Date(today);
+                  shiftDate.setHours(sh, sm, 0, 0);
+                  shiftDate.setMinutes(shiftDate.getMinutes() + lateThreshold);
+                  return shiftDate;
+                }
+              }
+              return null;
+            })
+            .filter(Boolean);
+          const lastShiftEnd =
+            allShiftEnd.length > 0 ? allShiftEnd[allShiftEnd.length - 1] : null;
+          if (lastShiftEnd && now > lastShiftEnd) {
+            attendanceStatus = "LATE";
+          }
         }
       } catch (err) {
-        console.error('Shift logic error:', err);
-        // Fallback safely to LATE if computation crashes, just to save the record
-        attendanceStatus = 'LATE'; 
+        console.error("Shift logic error:", err);
+        attendanceStatus = "LATE";
       }
     }
 
@@ -160,15 +189,15 @@ export const clockIn = async (req: Request, res: Response) => {
 
     res.status(201).json({
       success: true,
-      message: 'Clock in successful',
+      message: "Clock in successful",
       data: attendance,
-      isLate: attendanceStatus === 'LATE',
+      isLate: attendanceStatus === "LATE",
     });
   } catch (error) {
-    console.error('Clock in error:', error);
+    console.error("Clock in error:", error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error',
+      message: "Internal server error",
     });
   }
 };
@@ -180,20 +209,20 @@ export const requestLeave = async (req: Request, res: Response) => {
   try {
     const prisma = req.prisma!;
     const userId = req.user!.id;
-    const { status, date, description } = req.body;
+    const {status, date, description} = req.body;
     const photo = req.file ? req.file.filename : null;
 
-    if (!['SICK', 'LEAVE'].includes(status)) {
+    if (!["SICK", "LEAVE"].includes(status)) {
       return res.status(400).json({
         success: false,
-        message: 'Status harus SICK atau LEAVE',
+        message: "Status harus SICK atau LEAVE",
       });
     }
 
     if (!photo) {
       return res.status(400).json({
         success: false,
-        message: 'Dokumen / Foto Surat wajib dilampirkan',
+        message: "Dokumen / Foto Surat wajib dilampirkan",
       });
     }
 
@@ -213,7 +242,7 @@ export const requestLeave = async (req: Request, res: Response) => {
     if (existingAttendance) {
       return res.status(400).json({
         success: false,
-        message: 'Kehadiran/Izin sudah tercatat untuk tanggal tersebut',
+        message: "Kehadiran/Izin sudah tercatat untuk tanggal tersebut",
       });
     }
 
@@ -233,14 +262,14 @@ export const requestLeave = async (req: Request, res: Response) => {
 
     res.status(201).json({
       success: true,
-      message: 'Pengajuan Izin berhasil dicatat',
+      message: "Pengajuan Izin berhasil dicatat",
       data: attendance,
     });
   } catch (error) {
-    console.error('Request leave error:', error);
+    console.error("Request leave error:", error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error',
+      message: "Internal server error",
     });
   }
 };
@@ -252,41 +281,46 @@ export const clockOut = async (req: Request, res: Response) => {
   try {
     const prisma = req.prisma!;
     const userId = req.user!.id;
-    const { faceVerified, latitude, longitude } = req.body;
+    const {faceVerified, latitude, longitude} = req.body;
     const photo = req.file ? req.file.filename : null;
 
     // Check if user has face registered
     const user = await prisma.user.findUnique({
-      where: { id: userId },
+      where: {id: userId},
     });
 
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'User not found',
+        message: "User not found",
       });
     }
 
-    if (user.faceRegistered && faceVerified !== 'true' && faceVerified !== true) {
+    if (
+      user.faceRegistered &&
+      faceVerified !== "true" &&
+      faceVerified !== true
+    ) {
       return res.status(400).json({
         success: false,
-        message: 'Face verification required for clock out',
+        message: "Face verification required for clock out",
       });
     }
 
     // Get config to validate distance for clock out too
     const config = await prisma.companyConfig.findFirst();
-    
+
     // Tentukan referensi lokasi untuk pulang
     const targetLatitude = user.workLatitude ?? config?.officeLatitude;
     const targetLongitude = user.workLongitude ?? config?.officeLongitude;
     const targetRadius = user.workRadius ?? config?.allowedRadiusMeters ?? 50;
-    
+
     if (targetLatitude && targetLongitude) {
       if (!latitude || !longitude) {
         return res.status(400).json({
           success: false,
-          message: 'Akses ditolak: Sistem memerlukan lokasi (GPS) untuk memvalidasi absensi pulang Anda.',
+          message:
+            "Akses ditolak: Sistem memerlukan lokasi (GPS) untuk memvalidasi absensi pulang Anda.",
         });
       }
 
@@ -294,7 +328,7 @@ export const clockOut = async (req: Request, res: Response) => {
         parseFloat(latitude),
         parseFloat(longitude),
         targetLatitude,
-        targetLongitude
+        targetLongitude,
       );
 
       if (distance > targetRadius) {
@@ -320,7 +354,7 @@ export const clockOut = async (req: Request, res: Response) => {
     if (!attendance) {
       return res.status(400).json({
         success: false,
-        message: 'No active check-in found or already clocked out',
+        message: "No active check-in found or already clocked out",
       });
     }
 
@@ -336,12 +370,12 @@ export const clockOut = async (req: Request, res: Response) => {
     if (activeBreak) {
       return res.status(400).json({
         success: false,
-        message: 'Please end your break before clocking out',
+        message: "Please end your break before clocking out",
       });
     }
 
     const updatedAttendance = await prisma.attendance.update({
-      where: { id: attendance.id },
+      where: {id: attendance.id},
       data: {
         clockOut: new Date(),
         clockOutPhoto: photo,
@@ -350,14 +384,14 @@ export const clockOut = async (req: Request, res: Response) => {
 
     res.json({
       success: true,
-      message: 'Clock out successful',
+      message: "Clock out successful",
       data: updatedAttendance,
     });
   } catch (error) {
-    console.error('Clock out error:', error);
+    console.error("Clock out error:", error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error',
+      message: "Internal server error",
     });
   }
 };
@@ -369,19 +403,19 @@ export const getHistory = async (req: Request, res: Response) => {
   try {
     const prisma = req.prisma!;
     const userId = req.user!.id;
-    const { page = 1, limit = 20 } = req.query;
+    const {page = 1, limit = 20} = req.query;
 
     const skip = (Number(page) - 1) * Number(limit);
 
     const [history, total] = await Promise.all([
       prisma.attendance.findMany({
-        where: { userId },
-        orderBy: { date: 'desc' },
-        include: { breaks: true },
+        where: {userId},
+        orderBy: {date: "desc"},
+        include: {breaks: true},
         skip,
         take: Number(limit),
       }),
-      prisma.attendance.count({ where: { userId } }),
+      prisma.attendance.count({where: {userId}}),
     ]);
 
     res.json({
@@ -395,10 +429,10 @@ export const getHistory = async (req: Request, res: Response) => {
       },
     });
   } catch (error) {
-    console.error('Get history error:', error);
+    console.error("Get history error:", error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error',
+      message: "Internal server error",
     });
   }
 };
@@ -419,7 +453,7 @@ export const getTodayAttendance = async (req: Request, res: Response) => {
         userId,
         date: today,
       },
-      include: { breaks: true },
+      include: {breaks: true},
     });
 
     res.json({
@@ -427,10 +461,10 @@ export const getTodayAttendance = async (req: Request, res: Response) => {
       data: attendance,
     });
   } catch (error) {
-    console.error('Get today attendance error:', error);
+    console.error("Get today attendance error:", error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error',
+      message: "Internal server error",
     });
   }
 };
@@ -442,7 +476,7 @@ export const getStatistics = async (req: Request, res: Response) => {
   try {
     const prisma = req.prisma!;
     const userId = req.user!.id;
-    const { month, year } = req.query;
+    const {month, year} = req.query;
 
     const targetMonth = month ? Number(month) - 1 : new Date().getMonth();
     const targetYear = year ? Number(year) : new Date().getFullYear();
@@ -458,17 +492,20 @@ export const getStatistics = async (req: Request, res: Response) => {
           lte: endDate,
         },
       },
-      include: { breaks: true },
+      include: {breaks: true},
     });
 
     const stats = {
       totalDays: attendances.length,
-      present: attendances.filter((a) => a.status === 'PRESENT').length,
-      late: attendances.filter((a) => a.status === 'LATE').length,
-      absent: attendances.filter((a) => a.status === 'ABSENT').length,
-      sick: attendances.filter((a) => a.status === 'SICK').length,
-      leave: attendances.filter((a) => a.status === 'LEAVE').length,
-      totalBreakMinutes: attendances.reduce((sum, a) => sum + a.totalBreakMinutes, 0),
+      present: attendances.filter(a => a.status === "PRESENT").length,
+      late: attendances.filter(a => a.status === "LATE").length,
+      absent: attendances.filter(a => a.status === "ABSENT").length,
+      sick: attendances.filter(a => a.status === "SICK").length,
+      leave: attendances.filter(a => a.status === "LEAVE").length,
+      totalBreakMinutes: attendances.reduce(
+        (sum, a) => sum + a.totalBreakMinutes,
+        0,
+      ),
     };
 
     res.json({
@@ -480,10 +517,10 @@ export const getStatistics = async (req: Request, res: Response) => {
       },
     });
   } catch (error) {
-    console.error('Get statistics error:', error);
+    console.error("Get statistics error:", error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error',
+      message: "Internal server error",
     });
   }
 };
@@ -499,7 +536,7 @@ export const getAllTodayAttendance = async (req: Request, res: Response) => {
     today.setHours(0, 0, 0, 0);
 
     const attendances = await prisma.attendance.findMany({
-      where: { date: today },
+      where: {date: today},
       include: {
         user: {
           select: {
@@ -511,7 +548,7 @@ export const getAllTodayAttendance = async (req: Request, res: Response) => {
         },
         breaks: true,
       },
-      orderBy: { clockIn: 'asc' },
+      orderBy: {clockIn: "asc"},
     });
 
     res.json({
@@ -519,10 +556,10 @@ export const getAllTodayAttendance = async (req: Request, res: Response) => {
       data: attendances,
     });
   } catch (error) {
-    console.error('Get all today attendance error:', error);
+    console.error("Get all today attendance error:", error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error',
+      message: "Internal server error",
     });
   }
 };
@@ -533,7 +570,7 @@ export const getAllTodayAttendance = async (req: Request, res: Response) => {
 export const getAttendanceReport = async (req: Request, res: Response) => {
   try {
     const prisma = req.prisma!;
-    const { startDate, endDate, userId } = req.query;
+    const {startDate, endDate, userId} = req.query;
 
     const where: any = {};
 
@@ -561,7 +598,7 @@ export const getAttendanceReport = async (req: Request, res: Response) => {
         },
         breaks: true,
       },
-      orderBy: [{ date: 'desc' }, { clockIn: 'asc' }],
+      orderBy: [{date: "desc"}, {clockIn: "asc"}],
     });
 
     res.json({
@@ -569,10 +606,10 @@ export const getAttendanceReport = async (req: Request, res: Response) => {
       data: attendances,
     });
   } catch (error) {
-    console.error('Get attendance report error:', error);
+    console.error("Get attendance report error:", error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error',
+      message: "Internal server error",
     });
   }
 };
