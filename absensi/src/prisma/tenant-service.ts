@@ -1,8 +1,9 @@
-import { PrismaClient } from '@prisma/client';
-import { getPublicPrisma, getTenantPrisma } from './tenant-prisma';
-import bcrypt from 'bcryptjs';
-import { exec } from 'child_process';
-import { promisify } from 'util';
+import {PrismaClient} from "@prisma/client";
+import {getPublicPrisma, getTenantPrisma} from "./tenant-prisma";
+import bcrypt from "bcryptjs";
+import {randomBytes} from "crypto";
+import {exec} from "child_process";
+import {promisify} from "util";
 
 const execAsync = promisify(exec);
 const SALT_ROUNDS = 10;
@@ -21,9 +22,57 @@ export class TenantService {
    * Get all tenants
    */
   async getAllTenants() {
-    return this.publicPrisma.tenant.findMany({
-      orderBy: { createdAt: 'desc' },
+    const tenants = await this.publicPrisma.tenant.findMany({
+      orderBy: {createdAt: "desc"},
     });
+
+    return Promise.all(
+      tenants.map(async tenant => {
+        try {
+          const tenantPrisma = getTenantPrisma(tenant.schemaName);
+          const [admin, userCount, activeUserCount, leaderCount] =
+            await Promise.all([
+              tenantPrisma.user.findFirst({
+                where: {role: "ADMIN"},
+                select: {
+                  id: true,
+                  email: true,
+                  name: true,
+                  role: true,
+                  isActive: true,
+                },
+              }),
+              tenantPrisma.user.count(),
+              tenantPrisma.user.count({where: {isActive: true}}),
+              tenantPrisma.user.count({where: {role: "LEADER"}}),
+            ]);
+
+          return {
+            ...tenant,
+            adminName: admin?.name || "-",
+            adminEmail: admin?.email || "-",
+            adminIsActive: admin?.isActive ?? false,
+            userCount,
+            activeUserCount,
+            leaderCount,
+          };
+        } catch (error) {
+          console.error(
+            `Failed to load tenant summary for ${tenant.schemaName}:`,
+            error,
+          );
+          return {
+            ...tenant,
+            adminName: "-",
+            adminEmail: "-",
+            adminIsActive: false,
+            userCount: 0,
+            activeUserCount: 0,
+            leaderCount: 0,
+          };
+        }
+      }),
+    );
   }
 
   /**
@@ -31,8 +80,85 @@ export class TenantService {
    */
   async getTenantById(id: number) {
     return this.publicPrisma.tenant.findUnique({
-      where: { id },
+      where: {id},
     });
+  }
+
+  /**
+   * Get detailed tenant data including admin account and employees
+   */
+  async getTenantDetails(id: number) {
+    const tenant = await this.getTenantById(id);
+    if (!tenant) {
+      return null;
+    }
+
+    const tenantPrisma = getTenantPrisma(tenant.schemaName);
+
+    const [adminAccount, companyConfig, users] = await Promise.all([
+      tenantPrisma.user.findFirst({
+        where: {role: "ADMIN"},
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          isActive: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      }),
+      tenantPrisma.companyConfig.findFirst({
+        select: {
+          id: true,
+          companyName: true,
+          maxBreakMinutesPerDay: true,
+          lateThresholdMinutes: true,
+          overtimeRateMultiplier: true,
+          officeLatitude: true,
+          officeLongitude: true,
+          allowedRadiusMeters: true,
+          updatedAt: true,
+        },
+      }),
+      tenantPrisma.user.findMany({
+        orderBy: [{role: "asc"}, {name: "asc"}],
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          isActive: true,
+          faceRegistered: true,
+          salaryType: true,
+          salary: true,
+          startWorkTime: true,
+          endWorkTime: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      }),
+    ]);
+
+    const roleCounts = users.reduce(
+      (acc, user) => {
+        if (user.role === "ADMIN") acc.admin += 1;
+        if (user.role === "LEADER") acc.leader += 1;
+        if (user.role === "USER") acc.user += 1;
+        if (user.isActive) acc.active += 1;
+        return acc;
+      },
+      {admin: 0, leader: 0, user: 0, active: 0},
+    );
+
+    return {
+      ...tenant,
+      adminAccount,
+      companyConfig,
+      employees: users,
+      employeeCount: users.length,
+      roleCounts,
+    };
   }
 
   /**
@@ -40,7 +166,7 @@ export class TenantService {
    */
   async getTenantBySchema(schemaName: string) {
     return this.publicPrisma.tenant.findUnique({
-      where: { schemaName },
+      where: {schemaName},
     });
   }
 
@@ -57,7 +183,7 @@ export class TenantService {
     const tenant = await this.publicPrisma.tenant.create({
       data: {
         name: data.name,
-        schemaName: 'temp_placeholder',
+        schemaName: "temp_placeholder",
       },
     });
 
@@ -65,8 +191,8 @@ export class TenantService {
 
     // Update with actual schema name
     await this.publicPrisma.tenant.update({
-      where: { id: tenant.id },
-      data: { schemaName },
+      where: {id: tenant.id},
+      data: {schemaName},
     });
 
     // Create the schema and tables
@@ -82,7 +208,7 @@ export class TenantService {
     // Create default company config
     await this.createDefaultConfig(schemaName, data.name);
 
-    return { ...tenant, schemaName };
+    return {...tenant, schemaName};
   }
 
   /**
@@ -90,7 +216,9 @@ export class TenantService {
    */
   private async provisionTenantSchema(schemaName: string) {
     // Create the schema
-    await this.publicPrisma.$executeRawUnsafe(`CREATE SCHEMA IF NOT EXISTS "${schemaName}"`);
+    await this.publicPrisma.$executeRawUnsafe(
+      `CREATE SCHEMA IF NOT EXISTS "${schemaName}"`,
+    );
 
     // Create enums in tenant schema
     await this.createEnums(schemaName);
@@ -104,17 +232,20 @@ export class TenantService {
    */
   private async createEnums(schemaName: string) {
     const enums = [
-      { name: 'Role', values: ['ADMIN', 'LEADER', 'USER'] },
-      { name: 'SalaryType', values: ['HOURLY', 'DAILY', 'WEEKLY', 'MONTHLY'] },
-      { name: 'AttendanceStatus', values: ['PRESENT', 'LATE', 'ABSENT', 'SICK', 'LEAVE', 'ALPHA'] },
-      { name: 'TaskStatus', values: ['PENDING', 'IN_PROGRESS', 'DONE'] },
-      { name: 'PaymentStatus', values: ['PENDING', 'PAID'] },
+      {name: "Role", values: ["ADMIN", "LEADER", "USER"]},
+      {name: "SalaryType", values: ["HOURLY", "DAILY", "WEEKLY", "MONTHLY"]},
+      {
+        name: "AttendanceStatus",
+        values: ["PRESENT", "LATE", "ABSENT", "SICK", "LEAVE", "ALPHA"],
+      },
+      {name: "TaskStatus", values: ["PENDING", "IN_PROGRESS", "DONE"]},
+      {name: "PaymentStatus", values: ["PENDING", "PAID"]},
     ];
 
     for (const enumDef of enums) {
-      const values = enumDef.values.map(v => `'${v}'`).join(', ');
+      const values = enumDef.values.map(v => `'${v}'`).join(", ");
       await this.publicPrisma.$executeRawUnsafe(
-        `DO $$ BEGIN CREATE TYPE "${schemaName}"."${enumDef.name}" AS ENUM (${values}); EXCEPTION WHEN duplicate_object THEN null; END $$;`
+        `DO $$ BEGIN CREATE TYPE "${schemaName}"."${enumDef.name}" AS ENUM (${values}); EXCEPTION WHEN duplicate_object THEN null; END $$;`,
       );
     }
   }
@@ -160,7 +291,8 @@ export class TenantService {
         "latePenalty" DOUBLE PRECISION NOT NULL DEFAULT 0,
         "workLatitude" DOUBLE PRECISION,
         "workLongitude" DOUBLE PRECISION,
-        "workRadius" INTEGER
+        "workRadius" INTEGER,
+        "workLocations" JSONB
       )
     `);
 
@@ -242,7 +374,7 @@ export class TenantService {
    */
   private async createTenantAdmin(
     schemaName: string,
-    data: { email: string; password: string; name: string }
+    data: {email: string; password: string; name: string},
   ) {
     const hashedPassword = await bcrypt.hash(data.password, SALT_ROUNDS);
     const prisma = getTenantPrisma(schemaName);
@@ -252,7 +384,7 @@ export class TenantService {
         email: data.email,
         password: hashedPassword,
         name: data.name,
-        role: 'ADMIN',
+        role: "ADMIN",
         isActive: true,
       },
     });
@@ -265,15 +397,15 @@ export class TenantService {
     const prisma = getTenantPrisma(schemaName);
 
     const existing = await prisma.companyConfig.findFirst();
-    
+
     if (existing) {
       await prisma.companyConfig.update({
-        where: { id: existing.id },
-        data: { companyName },
+        where: {id: existing.id},
+        data: {companyName},
       });
     } else {
       await prisma.companyConfig.create({
-        data: { companyName },
+        data: {companyName},
       });
     }
   }
@@ -281,10 +413,10 @@ export class TenantService {
   /**
    * Update a tenant
    */
-  async updateTenant(id: number, data: { name: string }) {
+  async updateTenant(id: number, data: {name: string}) {
     const tenant = await this.publicPrisma.tenant.update({
-      where: { id },
-      data: { name: data.name },
+      where: {id},
+      data: {name: data.name},
     });
 
     // Also update company name in tenant's config
@@ -293,12 +425,12 @@ export class TenantService {
       const config = await tenantPrisma.companyConfig.findFirst();
       if (config) {
         await tenantPrisma.companyConfig.update({
-          where: { id: config.id },
-          data: { companyName: data.name },
+          where: {id: config.id},
+          data: {companyName: data.name},
         });
       }
     } catch (e) {
-      console.error('Failed to update tenant company config name', e);
+      console.error("Failed to update tenant company config name", e);
     }
 
     return tenant;
@@ -310,17 +442,17 @@ export class TenantService {
   async deleteTenant(id: number) {
     const tenant = await this.getTenantById(id);
     if (!tenant) {
-      throw new Error('Tenant not found');
+      throw new Error("Tenant not found");
     }
 
     // Drop the schema
     await this.publicPrisma.$executeRawUnsafe(
-      `DROP SCHEMA IF EXISTS "${tenant.schemaName}" CASCADE`
+      `DROP SCHEMA IF EXISTS "${tenant.schemaName}" CASCADE`,
     );
 
     // Delete tenant record
     await this.publicPrisma.tenant.delete({
-      where: { id },
+      where: {id},
     });
 
     return tenant;
@@ -331,8 +463,8 @@ export class TenantService {
    */
   async deactivateTenant(id: number) {
     return this.publicPrisma.tenant.update({
-      where: { id },
-      data: { isActive: false },
+      where: {id},
+      data: {isActive: false},
     });
   }
 
@@ -341,9 +473,45 @@ export class TenantService {
    */
   async activateTenant(id: number) {
     return this.publicPrisma.tenant.update({
-      where: { id },
-      data: { isActive: true },
+      where: {id},
+      data: {isActive: true},
     });
+  }
+
+  /**
+   * Reset tenant admin password and return a temporary password
+   */
+  async resetTenantAdminPassword(id: number, password?: string) {
+    const tenant = await this.getTenantById(id);
+    if (!tenant) {
+      throw new Error("Tenant not found");
+    }
+
+    const tenantPrisma = getTenantPrisma(tenant.schemaName);
+    const admin = await tenantPrisma.user.findFirst({
+      where: {role: "ADMIN"},
+      select: {id: true, email: true, name: true},
+    });
+
+    if (!admin) {
+      throw new Error("Admin user not found");
+    }
+
+    const temporaryPassword =
+      password ||
+      `${randomBytes(4).toString("hex")}${Math.floor(Date.now() % 1000)}`;
+    const hashedPassword = await bcrypt.hash(temporaryPassword, SALT_ROUNDS);
+
+    await tenantPrisma.user.update({
+      where: {id: admin.id},
+      data: {password: hashedPassword},
+    });
+
+    return {
+      tenant,
+      admin,
+      temporaryPassword,
+    };
   }
 }
 

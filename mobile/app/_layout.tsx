@@ -4,6 +4,8 @@ import {useEffect} from "react";
 import {AuthProvider} from "../src/contexts/AuthContext";
 import {GlobalModalProvider} from "../src/contexts/GlobalModalContext";
 import {GlobalModal} from "../src/components/GlobalModal";
+import {WebInstallPrompt} from "../src/components/WebInstallPrompt";
+import {WebOfflineBanner} from "../src/components/WebOfflineBanner";
 import {
   useFonts,
   PlusJakartaSans_400Regular,
@@ -35,6 +37,8 @@ export default function RootLayout() {
       <GlobalModalProvider>
         <Slot />
         <GlobalModal />
+        <WebInstallPrompt />
+        <WebOfflineBanner />
       </GlobalModalProvider>
     </AuthProvider>
   );

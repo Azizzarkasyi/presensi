@@ -24,6 +24,133 @@ function deg2rad(deg: number) {
   return deg * (Math.PI / 180);
 }
 
+function parseTimeOnDate(date: Date, timeText: string) {
+  const [hourText, minuteText] = timeText.split(":").map(value => value.trim());
+  const hour = Number(hourText);
+  const minute = Number(minuteText);
+
+  if (Number.isNaN(hour) || Number.isNaN(minute)) {
+    return null;
+  }
+
+  const result = new Date(date);
+  result.setHours(hour, minute, 0, 0);
+  return result;
+}
+
+type WorkLocation = {
+  latitude: number;
+  longitude: number;
+  radius: number;
+};
+
+function normalizeWorkLocation(
+  value: unknown,
+  defaultRadius: number,
+): WorkLocation | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const location = value as {
+    latitude?: unknown;
+    longitude?: unknown;
+    radius?: unknown;
+  };
+
+  const latitude = Number(location.latitude);
+  const longitude = Number(location.longitude);
+  const radiusValue =
+    location.radius === undefined || location.radius === null
+      ? defaultRadius
+      : Number(location.radius);
+
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    return null;
+  }
+
+  const radius =
+    Number.isFinite(radiusValue) && radiusValue > 0
+      ? radiusValue
+      : defaultRadius;
+
+  return {
+    latitude,
+    longitude,
+    radius,
+  };
+}
+
+function getAllowedWorkLocations(user: any, config: any): WorkLocation[] {
+  const defaultRadius = config?.allowedRadiusMeters ?? 50;
+
+  const configuredLocations = Array.isArray(user.workLocations)
+    ? user.workLocations
+        .map((location: unknown) =>
+          normalizeWorkLocation(location, defaultRadius),
+        )
+        .filter(
+          (location: WorkLocation | null): location is WorkLocation =>
+            location !== null,
+        )
+    : [];
+
+  if (configuredLocations.length > 0) {
+    return configuredLocations;
+  }
+
+  const legacyLocation = normalizeWorkLocation(
+    {
+      latitude: user.workLatitude,
+      longitude: user.workLongitude,
+      radius: user.workRadius,
+    },
+    defaultRadius,
+  );
+
+  if (legacyLocation) {
+    return [legacyLocation];
+  }
+
+  const officeLocation = normalizeWorkLocation(
+    {
+      latitude: config?.officeLatitude,
+      longitude: config?.officeLongitude,
+      radius: config?.allowedRadiusMeters,
+    },
+    defaultRadius,
+  );
+
+  return officeLocation ? [officeLocation] : [];
+}
+
+function isWithinAnyAllowedLocation(
+  latitude: number,
+  longitude: number,
+  locations: WorkLocation[],
+) {
+  let nearest: {distance: number; radius: number} | null = null;
+
+  for (const location of locations) {
+    const distance = getDistanceFromLatLonInM(
+      latitude,
+      longitude,
+      location.latitude,
+      location.longitude,
+    );
+
+    if (distance <= location.radius) {
+      return {allowed: true, nearest: {distance, radius: location.radius}};
+    }
+
+    if (!nearest || distance < nearest.distance) {
+      nearest = {distance, radius: location.radius};
+    }
+  }
+
+  return {allowed: false, nearest};
+}
+
 /**
  * Clock In
  */
@@ -79,13 +206,10 @@ export const clockIn = async (req: Request, res: Response) => {
     // Get company config for late threshold and location rules
     const config = await prisma.companyConfig.findFirst();
 
-    // Tentukan referensi lokasi (Utamakan setelan per-user, lalu jatuh ke opsi global perusahaan)
-    const targetLatitude = user.workLatitude ?? config?.officeLatitude;
-    const targetLongitude = user.workLongitude ?? config?.officeLongitude;
-    const targetRadius = user.workRadius ?? config?.allowedRadiusMeters ?? 50;
+    const allowedLocations = getAllowedWorkLocations(user, config);
 
     // Validasi radius lokasi jika referensi lokasi ditemukan
-    if (targetLatitude && targetLongitude) {
+    if (allowedLocations.length > 0) {
       if (!latitude || !longitude) {
         return res.status(400).json({
           success: false,
@@ -94,17 +218,29 @@ export const clockIn = async (req: Request, res: Response) => {
         });
       }
 
-      const distance = getDistanceFromLatLonInM(
-        parseFloat(latitude),
-        parseFloat(longitude),
-        targetLatitude,
-        targetLongitude,
-      );
+      const currentLatitude = parseFloat(latitude);
+      const currentLongitude = parseFloat(longitude);
 
-      if (distance > targetRadius) {
+      if (Number.isNaN(currentLatitude) || Number.isNaN(currentLongitude)) {
         return res.status(400).json({
           success: false,
-          message: `Absen ditolak: Anda berada di luar radius lokasi kerja (Jarak: ${Math.round(distance)}m, Maksimal: ${targetRadius}m).`,
+          message: "Akses ditolak: Koordinat lokasi tidak valid.",
+        });
+      }
+
+      const validation = isWithinAnyAllowedLocation(
+        currentLatitude,
+        currentLongitude,
+        allowedLocations,
+      );
+
+      if (!validation.allowed) {
+        const nearestDistance = validation.nearest?.distance ?? 0;
+        const nearestRadius =
+          validation.nearest?.radius ?? allowedLocations[0].radius;
+        return res.status(400).json({
+          success: false,
+          message: `Absen ditolak: Anda berada di luar semua radius lokasi kerja (Jarak terdekat: ${Math.round(nearestDistance)}m, Maksimal: ${nearestRadius}m).`,
         });
       }
     }
@@ -255,6 +391,7 @@ export const requestLeave = async (req: Request, res: Response) => {
         userId,
         date: targetDate,
         status: status,
+        leaveApprovalStatus: "PENDING",
         clockInPhoto: photo, // Repurpose for Document URL
         clockOutPhoto: safeDesc, // Repurpose for Keterangan Text
       },
@@ -267,6 +404,322 @@ export const requestLeave = async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error("Request leave error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
+/**
+ * Admin: Get leave requests
+ */
+export const getLeaveRequests = async (req: Request, res: Response) => {
+  try {
+    const prisma = req.prisma!;
+    const {status = "PENDING"} = req.query;
+
+    const where: any = {
+      status: {
+        in: ["SICK", "LEAVE"],
+      },
+    };
+
+    if (status && status !== "ALL") {
+      where.leaveApprovalStatus = status;
+    }
+
+    const requests = await prisma.attendance.findMany({
+      where,
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+          },
+        },
+      },
+      orderBy: [{date: "desc"}, {createdAt: "desc"}],
+    });
+
+    res.json({
+      success: true,
+      data: requests,
+    });
+  } catch (error) {
+    console.error("Get leave requests error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
+/**
+ * Admin: Approve or reject leave request
+ */
+export const reviewLeaveRequest = async (req: Request, res: Response) => {
+  try {
+    const prisma = req.prisma!;
+    const id = Number(req.params.id);
+    const {action, note} = req.body;
+
+    if (!["APPROVED", "REJECTED"].includes(action)) {
+      return res.status(400).json({
+        success: false,
+        message: "Action harus APPROVED atau REJECTED",
+      });
+    }
+
+    const request = await prisma.attendance.findUnique({
+      where: {id},
+    });
+
+    if (!request) {
+      return res.status(404).json({
+        success: false,
+        message: "Leave request not found",
+      });
+    }
+
+    if (!["SICK", "LEAVE"].includes(request.status)) {
+      return res.status(400).json({
+        success: false,
+        message: "Record ini bukan pengajuan izin/sakit",
+      });
+    }
+
+    const updated = await prisma.attendance.update({
+      where: {id},
+      data: {
+        leaveApprovalStatus: action,
+        leaveReviewNote: note ? String(note).substring(0, 250) : null,
+        leaveReviewedAt: new Date(),
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    res.json({
+      success: true,
+      message: `Leave request ${action.toLowerCase()} successfully`,
+      data: updated,
+    });
+  } catch (error) {
+    console.error("Review leave request error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
+/**
+ * User: Request attendance correction
+ */
+export const requestAttendanceCorrection = async (
+  req: Request,
+  res: Response,
+) => {
+  try {
+    const prisma = req.prisma!;
+    const userId = req.user!.id;
+    const id = Number(req.params.id);
+    const {correctionReason, requestedClockIn, requestedClockOut} = req.body;
+
+    if (!correctionReason || (!requestedClockIn && !requestedClockOut)) {
+      return res.status(400).json({
+        success: false,
+        message: "Alasan koreksi dan minimal satu jam koreksi wajib diisi",
+      });
+    }
+
+    const attendance = await prisma.attendance.findUnique({
+      where: {id},
+    });
+
+    if (!attendance) {
+      return res.status(404).json({
+        success: false,
+        message: "Attendance not found",
+      });
+    }
+
+    if (attendance.userId !== userId) {
+      return res.status(403).json({
+        success: false,
+        message: "Anda tidak bisa mengajukan koreksi untuk data orang lain",
+      });
+    }
+
+    if (attendance.correctionStatus === "PENDING") {
+      return res.status(400).json({
+        success: false,
+        message: "Koreksi sebelumnya masih menunggu persetujuan admin",
+      });
+    }
+
+    const requestedClockInDate = requestedClockIn
+      ? parseTimeOnDate(attendance.date, String(requestedClockIn))
+      : null;
+    const requestedClockOutDate = requestedClockOut
+      ? parseTimeOnDate(attendance.date, String(requestedClockOut))
+      : null;
+
+    if (
+      (requestedClockIn && !requestedClockInDate) ||
+      (requestedClockOut && !requestedClockOutDate)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Format jam harus HH:MM",
+      });
+    }
+
+    const updated = await prisma.attendance.update({
+      where: {id},
+      data: {
+        correctionStatus: "PENDING",
+        correctionReason: String(correctionReason).substring(0, 250),
+        correctionRequestedClockIn: requestedClockInDate,
+        correctionRequestedClockOut: requestedClockOutDate,
+        correctionRequestedAt: new Date(),
+        correctionReviewedAt: null,
+        correctionReviewNote: null,
+      },
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Pengajuan koreksi absensi berhasil dikirim",
+      data: updated,
+    });
+  } catch (error) {
+    console.error("Request attendance correction error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
+/**
+ * Admin: Get attendance corrections
+ */
+export const getAttendanceCorrections = async (req: Request, res: Response) => {
+  try {
+    const prisma = req.prisma!;
+    const {status = "PENDING"} = req.query;
+
+    const where: any = {
+      correctionStatus: status === "ALL" ? {not: "NONE"} : status,
+    };
+
+    const corrections = await prisma.attendance.findMany({
+      where,
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+          },
+        },
+      },
+      orderBy: [{correctionRequestedAt: "desc"}, {updatedAt: "desc"}],
+    });
+
+    res.json({
+      success: true,
+      data: corrections,
+    });
+  } catch (error) {
+    console.error("Get attendance corrections error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
+/**
+ * Admin: Review attendance correction
+ */
+export const reviewAttendanceCorrection = async (
+  req: Request,
+  res: Response,
+) => {
+  try {
+    const prisma = req.prisma!;
+    const id = Number(req.params.id);
+    const {action, note} = req.body;
+
+    if (!["APPROVED", "REJECTED"].includes(action)) {
+      return res.status(400).json({
+        success: false,
+        message: "Action harus APPROVED atau REJECTED",
+      });
+    }
+
+    const attendance = await prisma.attendance.findUnique({
+      where: {id},
+    });
+
+    if (!attendance) {
+      return res.status(404).json({
+        success: false,
+        message: "Attendance not found",
+      });
+    }
+
+    if (attendance.correctionStatus !== "PENDING") {
+      return res.status(400).json({
+        success: false,
+        message: "Tidak ada pengajuan koreksi yang menunggu",
+      });
+    }
+
+    const updated = await prisma.attendance.update({
+      where: {id},
+      data: {
+        correctionStatus: action,
+        correctionReviewNote: note ? String(note).substring(0, 250) : null,
+        correctionReviewedAt: new Date(),
+        ...(action === "APPROVED" && attendance.correctionRequestedClockIn
+          ? {clockIn: attendance.correctionRequestedClockIn}
+          : {}),
+        ...(action === "APPROVED" && attendance.correctionRequestedClockOut
+          ? {clockOut: attendance.correctionRequestedClockOut}
+          : {}),
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    res.json({
+      success: true,
+      message: `Attendance correction ${action.toLowerCase()} successfully`,
+      data: updated,
+    });
+  } catch (error) {
+    console.error("Review attendance correction error:", error);
     res.status(500).json({
       success: false,
       message: "Internal server error",
@@ -310,12 +763,9 @@ export const clockOut = async (req: Request, res: Response) => {
     // Get config to validate distance for clock out too
     const config = await prisma.companyConfig.findFirst();
 
-    // Tentukan referensi lokasi untuk pulang
-    const targetLatitude = user.workLatitude ?? config?.officeLatitude;
-    const targetLongitude = user.workLongitude ?? config?.officeLongitude;
-    const targetRadius = user.workRadius ?? config?.allowedRadiusMeters ?? 50;
+    const allowedLocations = getAllowedWorkLocations(user, config);
 
-    if (targetLatitude && targetLongitude) {
+    if (allowedLocations.length > 0) {
       if (!latitude || !longitude) {
         return res.status(400).json({
           success: false,
@@ -324,17 +774,29 @@ export const clockOut = async (req: Request, res: Response) => {
         });
       }
 
-      const distance = getDistanceFromLatLonInM(
-        parseFloat(latitude),
-        parseFloat(longitude),
-        targetLatitude,
-        targetLongitude,
-      );
+      const currentLatitude = parseFloat(latitude);
+      const currentLongitude = parseFloat(longitude);
 
-      if (distance > targetRadius) {
+      if (Number.isNaN(currentLatitude) || Number.isNaN(currentLongitude)) {
         return res.status(400).json({
           success: false,
-          message: `Pulang ditolak: Anda berada di luar radius lokasi kerja (Jarak: ${Math.round(distance)}m, Maksimal: ${targetRadius}m).`,
+          message: "Akses ditolak: Koordinat lokasi tidak valid.",
+        });
+      }
+
+      const validation = isWithinAnyAllowedLocation(
+        currentLatitude,
+        currentLongitude,
+        allowedLocations,
+      );
+
+      if (!validation.allowed) {
+        const nearestDistance = validation.nearest?.distance ?? 0;
+        const nearestRadius =
+          validation.nearest?.radius ?? allowedLocations[0].radius;
+        return res.status(400).json({
+          success: false,
+          message: `Pulang ditolak: Anda berada di luar semua radius lokasi kerja (Jarak terdekat: ${Math.round(nearestDistance)}m, Maksimal: ${nearestRadius}m).`,
         });
       }
     }

@@ -9,6 +9,7 @@ import {
   Modal,
   ScrollView,
 } from "react-native";
+import {Ionicons} from "@expo/vector-icons";
 import * as Location from "expo-location";
 import {useRouter} from "expo-router";
 import {useAuth} from "../../src/contexts/AuthContext";
@@ -253,6 +254,19 @@ export default function UserDashboard() {
   const canStartBreak =
     todayAttendance?.clockIn && !todayAttendance?.clockOut && !hasActiveBreak;
   const canEndBreak = hasActiveBreak;
+  const attendanceLabel = todayAttendance
+    ? todayAttendance.status === "LATE"
+      ? "Hari ini terlambat"
+      : todayAttendance.status === "PRESENT"
+        ? "Hari ini hadir"
+        : "Status absensi tersedia"
+    : "Belum ada absensi hari ini";
+  const clockInLabel = todayAttendance?.clockIn
+    ? new Date(todayAttendance.clockIn).toLocaleTimeString("id-ID")
+    : "-";
+  const clockOutLabel = todayAttendance?.clockOut
+    ? new Date(todayAttendance.clockOut).toLocaleTimeString("id-ID")
+    : "-";
 
   const menuItems = [
     {icon: "📋", title: "Riwayat", route: "/user/history"},
@@ -302,15 +316,57 @@ export default function UserDashboard() {
       {/* Main Content */}
       <ScrollView style={[styles.main, isDesktop && styles.mainDesktop]}>
         <View style={styles.header}>
-          <Text style={[styles.title, isDesktop && styles.titleDesktop]}>
-            Dashboard
-          </Text>
+          <View>
+            <Text style={[styles.title, isDesktop && styles.titleDesktop]}>
+              Dashboard
+            </Text>
+            <Text style={styles.subtitle}>{attendanceLabel}</Text>
+          </View>
           {!isDesktop && (
             <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
               <Text style={styles.logoutText}>Logout</Text>
             </TouchableOpacity>
           )}
         </View>
+
+        {isWeb && isDesktop && (
+          <View style={styles.heroBar}>
+            <View style={styles.heroTextBlock}>
+              <View style={styles.heroBadge}>
+                <Ionicons
+                  name="phone-portrait-outline"
+                  size={14}
+                  color="#fff"
+                />
+                <Text style={styles.heroBadgeText}>Web Ready</Text>
+              </View>
+              <Text style={styles.heroTitle}>
+                Absensi harian yang siap dipakai langsung dari browser.
+              </Text>
+              <Text style={styles.heroSubtitle}>
+                Cek status hari ini, ajukan izin, lihat slip gaji, dan akses
+                seluruh fitur tanpa pindah aplikasi.
+              </Text>
+            </View>
+
+            <View style={styles.heroStats}>
+              <View style={styles.heroStatCard}>
+                <Text style={styles.heroStatLabel}>Masuk</Text>
+                <Text style={styles.heroStatValue}>{clockInLabel}</Text>
+              </View>
+              <View style={styles.heroStatCard}>
+                <Text style={styles.heroStatLabel}>Pulang</Text>
+                <Text style={styles.heroStatValue}>{clockOutLabel}</Text>
+              </View>
+              <View style={styles.heroStatCard}>
+                <Text style={styles.heroStatLabel}>Istirahat</Text>
+                <Text style={styles.heroStatValue}>
+                  {todayBreaks?.totalBreakMinutes || 0} mnt
+                </Text>
+              </View>
+            </View>
+          </View>
+        )}
 
         {/* Face Registration Alert */}
         {!faceRegistered && (
@@ -327,6 +383,14 @@ export default function UserDashboard() {
         <View style={[styles.content, isDesktop && styles.contentDesktop]}>
           {/* User Card */}
           <View style={[styles.userCard, isDesktop && styles.userCardDesktop]}>
+            <View style={styles.userCardTopRow}>
+              <Ionicons name="person-circle-outline" size={28} color="#fff" />
+              <View style={styles.userCardPill}>
+                <Text style={styles.userCardPillText}>
+                  {faceRegistered ? "Wajah Terdaftar" : "Belum Terdaftar"}
+                </Text>
+              </View>
+            </View>
             <Text style={styles.userName}>{user?.name}</Text>
             <Text style={styles.userEmail}>{user?.email}</Text>
             {faceRegistered && (
@@ -347,22 +411,8 @@ export default function UserDashboard() {
 
             {todayAttendance ? (
               <View>
-                <Text style={styles.timeText}>
-                  Masuk:{" "}
-                  {todayAttendance.clockIn
-                    ? new Date(todayAttendance.clockIn).toLocaleTimeString(
-                        "id-ID",
-                      )
-                    : "-"}
-                </Text>
-                <Text style={styles.timeText}>
-                  Pulang:{" "}
-                  {todayAttendance.clockOut
-                    ? new Date(todayAttendance.clockOut).toLocaleTimeString(
-                        "id-ID",
-                      )
-                    : "-"}
-                </Text>
+                <Text style={styles.timeText}>Masuk: {clockInLabel}</Text>
+                <Text style={styles.timeText}>Pulang: {clockOutLabel}</Text>
                 <Text style={styles.timeText}>
                   Total Istirahat: {todayBreaks?.totalBreakMinutes || 0} menit
                 </Text>
@@ -544,8 +594,64 @@ const styles = StyleSheet.create({
   },
   title: {fontSize: 24, fontWeight: "bold", color: "#1e293b"},
   titleDesktop: {fontSize: 28},
+  subtitle: {fontSize: 14, color: theme.colors.text.secondary, marginTop: 4},
   logoutBtn: {padding: 8},
   logoutText: {color: theme.colors.status.error, fontWeight: "600"},
+  heroBar: {
+    backgroundColor: "#0f172a",
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 18,
+    flexDirection: "row",
+    alignItems: "stretch",
+    gap: 16,
+  },
+  heroTextBlock: {flex: 1},
+  heroBadge: {
+    flexDirection: "row",
+    alignSelf: "flex-start",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: "rgba(59,130,246,0.22)",
+    marginBottom: 12,
+  },
+  heroBadgeText: {color: "#fff", fontSize: 12, fontWeight: "700"},
+  heroTitle: {
+    color: "#fff",
+    fontSize: 24,
+    fontWeight: "800",
+    lineHeight: 30,
+    maxWidth: 560,
+  },
+  heroSubtitle: {
+    color: "#cbd5e1",
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 8,
+    maxWidth: 640,
+  },
+  heroStats: {
+    flexDirection: "row",
+    gap: 12,
+    flexWrap: "wrap",
+    justifyContent: "flex-end",
+    alignItems: "stretch",
+    minWidth: 320,
+  },
+  heroStatCard: {
+    minWidth: 96,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderColor: "rgba(255,255,255,0.12)",
+    borderWidth: 1,
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+  },
+  heroStatLabel: {color: "#94a3b8", fontSize: 12, marginBottom: 4},
+  heroStatValue: {color: "#fff", fontSize: 16, fontWeight: "700"},
   faceRegisterAlert: {
     backgroundColor: "#fef3c7",
     padding: 12,
@@ -568,6 +674,19 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   userCardDesktop: {flex: 1, marginBottom: 0},
+  userCardTopRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  userCardPill: {
+    backgroundColor: "rgba(255,255,255,0.18)",
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  userCardPillText: {color: "#fff", fontSize: 12, fontWeight: "700"},
   userName: {fontSize: 22, fontWeight: "bold", color: "#fff"},
   userEmail: {fontSize: 14, color: "#bfdbfe", marginTop: 4},
   faceRegisteredBadge: {

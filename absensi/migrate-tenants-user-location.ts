@@ -1,13 +1,13 @@
-import { PrismaClient } from '@prisma/client';
+import {PrismaClient} from "@prisma/client";
 
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('Starting user geolocation migration for active tenants...');
+  console.log("Starting user geolocation migration for active tenants...");
 
   // 1. Get all active tenants
   const tenants = await prisma.tenant.findMany({
-    where: { isActive: true },
+    where: {isActive: true},
   });
 
   console.log(`Found ${tenants.length} active tenants.`);
@@ -21,7 +21,8 @@ async function main() {
         ALTER TABLE "${schemaName}"."User"
         ADD COLUMN IF NOT EXISTS "workLatitude" DOUBLE PRECISION,
         ADD COLUMN IF NOT EXISTS "workLongitude" DOUBLE PRECISION,
-        ADD COLUMN IF NOT EXISTS "workRadius" INTEGER;
+        ADD COLUMN IF NOT EXISTS "workRadius" INTEGER,
+        ADD COLUMN IF NOT EXISTS "workLocations" JSONB;
       `);
       console.log(`Successfully migrated ${schemaName}.`);
     } catch (error) {
@@ -29,11 +30,11 @@ async function main() {
     }
   }
 
-  console.log('Migration complete.');
+  console.log("Migration complete.");
 }
 
 main()
-  .catch((e) => {
+  .catch(e => {
     console.error(e);
     process.exit(1);
   })

@@ -7,6 +7,7 @@ import {
   Text,
   Modal,
 } from "react-native";
+import {Ionicons} from "@expo/vector-icons";
 import * as Location from "expo-location";
 import {useState} from "react";
 import {useRouter} from "expo-router";
@@ -25,10 +26,19 @@ import {useResponsive} from "../../src/hooks/useResponsive";
 
 type SalaryType = "HOURLY" | "DAILY" | "WEEKLY" | "MONTHLY";
 type RoleType = "USER" | "ADMIN" | "LEADER";
+type WorkLocationItem = {
+  id: string;
+  latitude: string;
+  longitude: string;
+  radius: string;
+};
+
+const createLocationId = () =>
+  `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
 export default function AddEmployee() {
   const router = useRouter();
-  const {isDesktop} = useResponsive();
+  const {isDesktop, isWeb} = useResponsive();
   const [loading, setLoading] = useState(false);
   const [modalConfig, setModalConfig] = useState({
     visible: false,
@@ -49,9 +59,7 @@ export default function AddEmployee() {
   const [latePenalty, setLatePenalty] = useState("0");
 
   // Location Override State
-  const [workLatitude, setWorkLatitude] = useState("");
-  const [workLongitude, setWorkLongitude] = useState("");
-  const [workRadius, setWorkRadius] = useState("");
+  const [workLocations, setWorkLocations] = useState<WorkLocationItem[]>([]);
 
   // Validation State
   const [errors, setErrors] = useState<{[key: string]: string}>({});
@@ -71,12 +79,20 @@ export default function AddEmployee() {
 
     if (latePenalty && isNaN(Number(latePenalty)))
       newErrors.latePenalty = "Denda harus angka";
-    if (workRadius && isNaN(Number(workRadius)))
-      newErrors.workRadius = "Radius harus angka";
-    if (workLatitude && isNaN(Number(workLatitude)))
-      newErrors.workLatitude = "Koordinat salah";
-    if (workLongitude && isNaN(Number(workLongitude)))
-      newErrors.workLongitude = "Koordinat salah";
+
+    workLocations.forEach((location, index) => {
+      if (
+        isNaN(Number(location.latitude)) ||
+        isNaN(Number(location.longitude))
+      ) {
+        newErrors[`location-${index}`] = "Koordinat lokasi harus valid";
+      }
+      if (!location.radius || isNaN(Number(location.radius))) {
+        newErrors[`location-radius-${index}`] = "Radius harus angka";
+      } else if (Number(location.radius) <= 0) {
+        newErrors[`location-radius-${index}`] = "Radius harus lebih dari 0";
+      }
+    });
 
     const timeRegex =
       /^([01]?[0-9]|2[0-3]):[0-5][0-9](,\s*([01]?[0-9]|2[0-3]):[0-5][0-9])*$/;
@@ -119,9 +135,14 @@ export default function AddEmployee() {
         startWorkTime,
         endWorkTime,
         latePenalty: Number(latePenalty) || 0,
-        workLatitude: workLatitude ? Number(workLatitude) : undefined,
-        workLongitude: workLongitude ? Number(workLongitude) : undefined,
-        workRadius: workRadius ? Number(workRadius) : undefined,
+        workLocations:
+          workLocations.length > 0
+            ? workLocations.map(location => ({
+                latitude: Number(location.latitude),
+                longitude: Number(location.longitude),
+                radius: Number(location.radius) || 50,
+              }))
+            : undefined,
       });
 
       setModalConfig({
@@ -166,6 +187,43 @@ export default function AddEmployee() {
   return (
     <View style={styles.container}>
       <ScreenHeader title="Tambah Karyawan" />
+
+      {isWeb && isDesktop && (
+        <View style={styles.heroPanel}>
+          <View style={styles.heroTextBlock}>
+            <View style={styles.heroBadge}>
+              <Ionicons name="person-add-outline" size={14} color="#fff" />
+              <Text style={styles.heroBadgeText}>Employee Setup</Text>
+            </View>
+            <Text style={styles.heroTitle}>
+              Tambahkan karyawan dari browser dengan alur yang lebih jelas.
+            </Text>
+            <Text style={styles.heroSubtitle}>
+              Atur role, jam kerja, lokasi, dan radius absen dalam satu layar
+              tanpa keluar dari web.
+            </Text>
+          </View>
+
+          <View style={styles.heroStats}>
+            <View style={styles.heroStatCard}>
+              <Text style={styles.heroStatLabel}>Role</Text>
+              <Text style={styles.heroStatValue}>{role}</Text>
+            </View>
+            <View style={styles.heroStatCard}>
+              <Text style={styles.heroStatLabel}>Jam Masuk</Text>
+              <Text style={styles.heroStatValue}>{startWorkTime}</Text>
+            </View>
+            <View style={styles.heroStatCard}>
+              <Text style={styles.heroStatLabel}>Jam Pulang</Text>
+              <Text style={styles.heroStatValue}>{endWorkTime || "-"}</Text>
+            </View>
+            <View style={styles.heroStatCard}>
+              <Text style={styles.heroStatLabel}>Lokasi</Text>
+              <Text style={styles.heroStatValue}>{workLocations.length}</Text>
+            </View>
+          </View>
+        </View>
+      )}
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
@@ -328,19 +386,12 @@ export default function AddEmployee() {
             📍 Lokasi Kerja Khusus (Opsional)
           </Text>
           <Text style={styles.hintText}>
-            Isi area ini jika karyawan memiliki pembatasan radius absen terpisah
-            dari kantor pusat.
+            Tambahkan satu atau lebih titik lokasi kerja dari peta. Setiap titik
+            punya radius absen sendiri.
           </Text>
 
           <View style={{marginTop: theme.spacing.md}}>
-            {workLatitude && workLongitude ? (
-              <View style={{marginBottom: 16}}>
-                <Text style={styles.label}>Koordinat Khusus Tersimpan</Text>
-                <Text style={{color: theme.colors.text.secondary}}>
-                  {workLatitude}, {workLongitude}
-                </Text>
-              </View>
-            ) : (
+            {workLocations.length === 0 ? (
               <View style={{marginBottom: 16}}>
                 <Text
                   style={{color: theme.colors.text.light, fontStyle: "italic"}}
@@ -348,25 +399,55 @@ export default function AddEmployee() {
                   Belum ada lokasi khusus, akan mengikuti pusat
                 </Text>
               </View>
+            ) : (
+              <View style={{gap: 12, marginBottom: 16}}>
+                {workLocations.map((location, index) => (
+                  <View key={location.id} style={styles.locationCard}>
+                    <View style={styles.rowBetween}>
+                      <Text style={styles.label}>Titik {index + 1}</Text>
+                      <TouchableOpacity
+                        onPress={() =>
+                          setWorkLocations(prev =>
+                            prev.filter(item => item.id !== location.id),
+                          )
+                        }
+                      >
+                        <Text style={styles.removeLocationText}>Hapus</Text>
+                      </TouchableOpacity>
+                    </View>
+                    <Text style={styles.locationValue}>
+                      {location.latitude}, {location.longitude}
+                    </Text>
+                    <Input
+                      label="Radius Titik Ini (meter)"
+                      value={location.radius}
+                      onChangeText={text => {
+                        setWorkLocations(prev =>
+                          prev.map(item =>
+                            item.id === location.id
+                              ? {...item, radius: text}
+                              : item,
+                          ),
+                        );
+                        setErrors({
+                          ...errors,
+                          [`location-radius-${index}`]: "",
+                        });
+                      }}
+                      keyboardType="numeric"
+                      placeholder="Contoh: 50"
+                      error={errors[`location-radius-${index}`]}
+                    />
+                  </View>
+                ))}
+              </View>
             )}
 
             <Button
-              title="🗺️ Pilih via Peta Interaktif"
+              title="🗺️ Tambah Titik via Peta Interaktif"
               variant="outline"
               onPress={() => setShowMapPicker(true)}
               style={{marginBottom: 16}}
-            />
-
-            <Input
-              label="Radius Individual (meter)"
-              value={workRadius}
-              onChangeText={text => {
-                setWorkRadius(text);
-                setErrors({...errors, workRadius: ""});
-              }}
-              keyboardType="numeric"
-              placeholder="Contoh: 50"
-              error={errors.workRadius}
             />
           </View>
         </Card>
@@ -400,14 +481,19 @@ export default function AddEmployee() {
             ]}
           >
             <MapPicker
-              initialLatitude={workLatitude ? parseFloat(workLatitude) : null}
-              initialLongitude={
-                workLongitude ? parseFloat(workLongitude) : null
-              }
+              initialLatitude={null}
+              initialLongitude={null}
               onClose={() => setShowMapPicker(false)}
               onSelect={(lat, lng) => {
-                setWorkLatitude(lat.toString());
-                setWorkLongitude(lng.toString());
+                setWorkLocations(prev => [
+                  ...prev,
+                  {
+                    id: createLocationId(),
+                    latitude: lat.toString(),
+                    longitude: lng.toString(),
+                    radius: "50",
+                  },
+                ]);
                 setShowMapPicker(false);
               }}
             />
@@ -423,6 +509,62 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.background,
   },
+  heroPanel: {
+    backgroundColor: "#0f172a",
+    borderRadius: 20,
+    padding: 20,
+    marginHorizontal: theme.spacing.lg,
+    marginTop: theme.spacing.lg,
+    flexDirection: "row",
+    alignItems: "stretch",
+    gap: 16 as any,
+  },
+  heroTextBlock: {flex: 1},
+  heroBadge: {
+    flexDirection: "row",
+    alignSelf: "flex-start",
+    alignItems: "center",
+    gap: 6 as any,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: "rgba(59,130,246,0.22)",
+    marginBottom: 12,
+  },
+  heroBadgeText: {color: "#fff", fontSize: 12, fontWeight: "700"},
+  heroTitle: {
+    color: "#fff",
+    fontSize: 22,
+    lineHeight: 28,
+    fontWeight: "800",
+    maxWidth: 620,
+  },
+  heroSubtitle: {
+    color: "#cbd5e1",
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 8,
+    maxWidth: 680,
+  },
+  heroStats: {
+    flexDirection: "row",
+    gap: 12 as any,
+    flexWrap: "wrap",
+    justifyContent: "flex-end",
+    alignItems: "stretch",
+    minWidth: 320,
+  },
+  heroStatCard: {
+    minWidth: 100,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderColor: "rgba(255,255,255,0.12)",
+    borderWidth: 1,
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+  },
+  heroStatLabel: {color: "#94a3b8", fontSize: 12, marginBottom: 4},
+  heroStatValue: {color: "#fff", fontSize: 16, fontWeight: "800"},
   scrollContent: {
     padding: theme.spacing.lg,
   },
@@ -440,6 +582,11 @@ const styles = StyleSheet.create({
     color: theme.colors.text.secondary,
     marginBottom: 8,
     marginLeft: 2,
+  },
+  rowBetween: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   optionContainer: {
     flexDirection: "row",
@@ -462,6 +609,23 @@ const styles = StyleSheet.create({
     color: theme.colors.text.light,
     marginTop: -8,
     marginLeft: 4,
+  },
+  locationCard: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 14,
+    padding: 14,
+    backgroundColor: "#fff",
+  },
+  locationValue: {
+    color: theme.colors.text.secondary,
+    marginBottom: 10,
+    marginTop: -2,
+  },
+  removeLocationText: {
+    color: theme.colors.error,
+    fontSize: 12,
+    fontWeight: "700",
   },
   submitBtn: {
     marginTop: theme.spacing.sm,

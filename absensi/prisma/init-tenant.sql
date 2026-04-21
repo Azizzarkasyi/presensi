@@ -62,7 +62,8 @@ CREATE TABLE IF NOT EXISTS tenant_X."User" (
     "latePenalty" DOUBLE PRECISION NOT NULL DEFAULT 0,
     "workLatitude" DOUBLE PRECISION,
     "workLongitude" DOUBLE PRECISION,
-    "workRadius" INTEGER
+    "workRadius" INTEGER,
+    "workLocations" JSONB
 );
 
 -- 5. Buat tabel Attendance

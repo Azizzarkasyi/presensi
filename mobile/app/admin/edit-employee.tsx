@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Modal,
 } from "react-native";
+import {Ionicons} from "@expo/vector-icons";
 import * as Location from "expo-location";
 import {useRouter, useLocalSearchParams} from "expo-router";
 import {SuccessModal} from "../../src/components/ui/SuccessModal";
@@ -27,11 +28,20 @@ import {useResponsive} from "../../src/hooks/useResponsive";
 type SalaryType = "HOURLY" | "DAILY" | "WEEKLY" | "MONTHLY";
 
 type RoleType = "USER" | "ADMIN" | "LEADER";
+type WorkLocationItem = {
+  id: string;
+  latitude: string;
+  longitude: string;
+  radius: string;
+};
+
+const createLocationId = () =>
+  `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
 export default function EditEmployee() {
   const {id} = useLocalSearchParams();
   const router = useRouter();
-  const {isDesktop} = useResponsive();
+  const {isDesktop, isWeb} = useResponsive();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showMapPicker, setShowMapPicker] = useState(false);
@@ -48,9 +58,7 @@ export default function EditEmployee() {
   const [isActive, setIsActive] = useState(true);
 
   // Location Override State
-  const [workLatitude, setWorkLatitude] = useState("");
-  const [workLongitude, setWorkLongitude] = useState("");
-  const [workRadius, setWorkRadius] = useState("");
+  const [workLocations, setWorkLocations] = useState<WorkLocationItem[]>([]);
 
   // Validation
   const [errors, setErrors] = useState<{[key: string]: string}>({});
@@ -72,10 +80,50 @@ export default function EditEmployee() {
       setStartWorkTime(user.startWorkTime || "09:00");
       setEndWorkTime(user.endWorkTime || "17:00");
       setLatePenalty(user.latePenalty?.toString() || "0");
-      setWorkLatitude(user.workLatitude?.toString() || "");
-      setWorkLongitude(user.workLongitude?.toString() || "");
-      setWorkRadius(user.workRadius?.toString() || "");
       setIsActive(user.isActive);
+
+      const savedLocations = Array.isArray(user.workLocations)
+        ? user.workLocations
+        : [];
+      const normalizedLocations = savedLocations
+        .map((location: any) => {
+          const latitude = Number(location?.latitude);
+          const longitude = Number(location?.longitude);
+          if (Number.isNaN(latitude) || Number.isNaN(longitude)) {
+            return null;
+          }
+
+          const radiusValue =
+            location?.radius !== undefined && location?.radius !== null
+              ? Number(location.radius)
+              : 50;
+
+          return {
+            id: createLocationId(),
+            latitude: latitude.toString(),
+            longitude: longitude.toString(),
+            radius:
+              !Number.isNaN(radiusValue) && radiusValue > 0
+                ? radiusValue.toString()
+                : "50",
+          };
+        })
+        .filter(Boolean) as WorkLocationItem[];
+
+      if (normalizedLocations.length > 0) {
+        setWorkLocations(normalizedLocations);
+      } else if (user.workLatitude && user.workLongitude) {
+        setWorkLocations([
+          {
+            id: createLocationId(),
+            latitude: user.workLatitude.toString(),
+            longitude: user.workLongitude.toString(),
+            radius: user.workRadius?.toString() || "50",
+          },
+        ]);
+      } else {
+        setWorkLocations([]);
+      }
     } catch (error) {
       console.error(error);
       Alert.alert("Error", "Gagal memuat data karyawan");
@@ -96,12 +144,17 @@ export default function EditEmployee() {
 
     if (latePenalty && isNaN(Number(latePenalty)))
       newErrors.latePenalty = "Denda harus angka";
-    if (workRadius && isNaN(Number(workRadius)))
-      newErrors.workRadius = "Radius harus angka";
-    if (workLatitude && isNaN(Number(workLatitude)))
-      newErrors.workLatitude = "Koordinat salah";
-    if (workLongitude && isNaN(Number(workLongitude)))
-      newErrors.workLongitude = "Koordinat salah";
+
+    workLocations.forEach((location, index) => {
+      if (isNaN(Number(location.latitude)) || isNaN(Number(location.longitude))) {
+        newErrors[`location-${index}`] = "Koordinat lokasi harus valid";
+      }
+      if (!location.radius || isNaN(Number(location.radius))) {
+        newErrors[`location-radius-${index}`] = "Radius harus angka";
+      } else if (Number(location.radius) <= 0) {
+        newErrors[`location-radius-${index}`] = "Radius harus lebih dari 0";
+      }
+    });
 
     const timeRegex =
       /^([01]?[0-9]|2[0-3]):[0-5][0-9](,\s*([01]?[0-9]|2[0-3]):[0-5][0-9])*$/;
@@ -144,9 +197,14 @@ export default function EditEmployee() {
         startWorkTime,
         endWorkTime,
         latePenalty: Number(latePenalty) || 0,
-        workLatitude: workLatitude ? Number(workLatitude) : null,
-        workLongitude: workLongitude ? Number(workLongitude) : null,
-        workRadius: workRadius ? Number(workRadius) : null,
+        workLocations:
+          workLocations.length > 0
+            ? workLocations.map(location => ({
+                latitude: Number(location.latitude),
+                longitude: Number(location.longitude),
+                radius: Number(location.radius) || 50,
+              }))
+            : null,
         isActive,
       });
       setShowSuccessModal(true);
@@ -191,6 +249,45 @@ export default function EditEmployee() {
     <View style={styles.container}>
       <ScreenHeader title="Edit Karyawan" />
 
+      {isWeb && isDesktop && (
+        <View style={styles.heroPanel}>
+          <View style={styles.heroTextBlock}>
+            <View style={styles.heroBadge}>
+              <Ionicons name="create-outline" size={14} color="#fff" />
+              <Text style={styles.heroBadgeText}>Employee Edit</Text>
+            </View>
+            <Text style={styles.heroTitle}>
+              Perbarui data karyawan dengan tampilan yang konsisten.
+            </Text>
+            <Text style={styles.heroSubtitle}>
+              Edit role, jam kerja, status aktif, dan radius lokasi tanpa keluar
+              dari web admin.
+            </Text>
+          </View>
+
+          <View style={styles.heroStats}>
+            <View style={styles.heroStatCard}>
+              <Text style={styles.heroStatLabel}>Status</Text>
+              <Text style={styles.heroStatValue}>
+                {isActive ? "Aktif" : "Non-Aktif"}
+              </Text>
+            </View>
+            <View style={styles.heroStatCard}>
+              <Text style={styles.heroStatLabel}>Role</Text>
+              <Text style={styles.heroStatValue}>{role}</Text>
+            </View>
+            <View style={styles.heroStatCard}>
+              <Text style={styles.heroStatLabel}>Jam Masuk</Text>
+              <Text style={styles.heroStatValue}>{startWorkTime}</Text>
+            </View>
+            <View style={styles.heroStatCard}>
+              <Text style={styles.heroStatLabel}>Lokasi</Text>
+              <Text style={styles.heroStatValue}>{workLocations.length}</Text>
+            </View>
+          </View>
+        </View>
+      )}
+
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -200,46 +297,66 @@ export default function EditEmployee() {
           <View style={styles.rowBetween}>
             <Text style={styles.sectionTitleNoMargin}>Status Akun</Text>
             <Button
-              title={isActive ? "Aktif" : "Non-Aktif"}
-              variant={isActive ? "success" : "secondary"}
+              Tambahkan satu atau lebih titik lokasi kerja dari peta. Setiap titik
+              punya radius absen sendiri.
               size="sm"
               onPress={() => setIsActive(!isActive)}
             />
-          </View>
-        </Card>
-
-        {/* Basic Information Section */}
-        <Card style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>👤 Informasi Dasar</Text>
-          <Input
-            label="Nama Lengkap"
-            value={name}
-            onChangeText={text => {
-              setName(text);
-              setErrors({...errors, name: ""});
-            }}
-            error={errors.name}
-          />
-          <Input
+              {workLocations.length === 0 ? (
+                <View style={{marginBottom: 16}}>
+                  <Text
+                    style={{color: theme.colors.text.light, fontStyle: "italic"}}
+                  >
+                    Belum ada lokasi khusus, akan mengikuti pusat
+                  </Text>
+                </View>
+              ) : (
+                <View style={{gap: 12, marginBottom: 16}}>
+                  {workLocations.map((location, index) => (
+                    <View key={location.id} style={styles.locationCard}>
+                      <View style={styles.rowBetween}>
+                        <Text style={styles.label}>Titik {index + 1}</Text>
+                        <TouchableOpacity
+                          onPress={() =>
+                            setWorkLocations(prev =>
+                              prev.filter(item => item.id !== location.id),
+                            )
+                          }
+                        >
+                          <Text style={styles.removeLocationText}>Hapus</Text>
+                        </TouchableOpacity>
+                      </View>
+                      <Text style={styles.locationValue}>
+                        {location.latitude}, {location.longitude}
+                      </Text>
+                      <Input
+                        label="Radius Titik Ini (meter)"
+                        value={location.radius}
+                        onChangeText={text => {
+                          setWorkLocations(prev =>
+                            prev.map(item =>
+                              item.id === location.id
+                                ? {...item, radius: text}
+                                : item,
+                            ),
+                          );
+                          setErrors({...errors, [`location-radius-${index}`]: ""});
+                        }}
+                        keyboardType="numeric"
+                        placeholder="Contoh: 50"
+                        error={errors[`location-radius-${index}`]}
+                      />
+                    </View>
+                  ))}
+                </View>
+              )}
             label="Email"
             value={email}
-            onChangeText={text => {
+                title="🗺️ Tambah Titik via Peta Interaktif"
               setEmail(text);
               setErrors({...errors, email: ""});
             }}
             keyboardType="email-address"
-            autoCapitalize="none"
-            error={errors.email}
-          />
-
-          <Text style={styles.label}>Role / Jabatan</Text>
-          <View style={styles.salaryTypeContainer}>
-            {roles.map(r => (
-              <Button
-                key={r.value}
-                title={r.label}
-                variant={role === r.value ? "primary" : "outline"}
-                onPress={() => setRole(r.value)}
                 style={[
                   styles.salaryTypeBtn,
                   role !== r.value && {borderColor: theme.colors.border},
@@ -352,19 +469,12 @@ export default function EditEmployee() {
             📍 Lokasi Kerja Khusus (Opsional)
           </Text>
           <Text style={styles.hintText}>
-            Isi area ini jika karyawan memiliki pembatasan radius absen terpisah
-            dari kantor pusat.
+            Tambahkan satu atau lebih titik lokasi kerja dari peta. Setiap titik
+            punya radius absen sendiri.
           </Text>
 
           <View style={{marginTop: theme.spacing.md}}>
-            {workLatitude && workLongitude ? (
-              <View style={{marginBottom: 16}}>
-                <Text style={styles.label}>Koordinat Khusus Tersimpan</Text>
-                <Text style={{color: theme.colors.text.secondary}}>
-                  {workLatitude}, {workLongitude}
-                </Text>
-              </View>
-            ) : (
+            {workLocations.length === 0 ? (
               <View style={{marginBottom: 16}}>
                 <Text
                   style={{color: theme.colors.text.light, fontStyle: "italic"}}
@@ -372,25 +482,52 @@ export default function EditEmployee() {
                   Belum ada lokasi khusus, akan mengikuti pusat
                 </Text>
               </View>
+            ) : (
+              <View style={{gap: 12, marginBottom: 16}}>
+                {workLocations.map((location, index) => (
+                  <View key={location.id} style={styles.locationCard}>
+                    <View style={styles.rowBetween}>
+                      <Text style={styles.label}>Titik {index + 1}</Text>
+                      <TouchableOpacity
+                        onPress={() =>
+                          setWorkLocations(prev =>
+                            prev.filter(item => item.id !== location.id),
+                          )
+                        }
+                      >
+                        <Text style={styles.removeLocationText}>Hapus</Text>
+                      </TouchableOpacity>
+                    </View>
+                    <Text style={styles.locationValue}>
+                      {location.latitude}, {location.longitude}
+                    </Text>
+                    <Input
+                      label="Radius Titik Ini (meter)"
+                      value={location.radius}
+                      onChangeText={text => {
+                        setWorkLocations(prev =>
+                          prev.map(item =>
+                            item.id === location.id
+                              ? {...item, radius: text}
+                              : item,
+                          ),
+                        );
+                        setErrors({...errors, [`location-radius-${index}`]: ""});
+                      }}
+                      keyboardType="numeric"
+                      placeholder="Contoh: 50"
+                      error={errors[`location-radius-${index}`]}
+                    />
+                  </View>
+                ))}
+              </View>
             )}
 
             <Button
-              title="🗺️ Pilih via Peta Interaktif"
+              title="🗺️ Tambah Titik via Peta Interaktif"
               variant="outline"
               onPress={() => setShowMapPicker(true)}
               style={{marginBottom: 16}}
-            />
-
-            <Input
-              label="Radius Individual (meter)"
-              value={workRadius}
-              onChangeText={text => {
-                setWorkRadius(text);
-                setErrors({...errors, workRadius: ""});
-              }}
-              keyboardType="numeric"
-              placeholder="Contoh: 50"
-              error={errors.workRadius}
             />
           </View>
         </Card>
@@ -423,14 +560,19 @@ export default function EditEmployee() {
             ]}
           >
             <MapPicker
-              initialLatitude={workLatitude ? parseFloat(workLatitude) : null}
-              initialLongitude={
-                workLongitude ? parseFloat(workLongitude) : null
-              }
+              initialLatitude={null}
+              initialLongitude={null}
               onClose={() => setShowMapPicker(false)}
               onSelect={(lat, lng) => {
-                setWorkLatitude(lat.toString());
-                setWorkLongitude(lng.toString());
+                setWorkLocations(prev => [
+                  ...prev,
+                  {
+                    id: createLocationId(),
+                    latitude: lat.toString(),
+                    longitude: lng.toString(),
+                    radius: "50",
+                  },
+                ]);
                 setShowMapPicker(false);
               }}
             />
@@ -446,6 +588,62 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.background,
   },
+  heroPanel: {
+    backgroundColor: "#0f172a",
+    borderRadius: 20,
+    padding: 20,
+    marginHorizontal: theme.spacing.lg,
+    marginTop: theme.spacing.lg,
+    flexDirection: "row",
+    alignItems: "stretch",
+    gap: 16 as any,
+  },
+  heroTextBlock: {flex: 1},
+  heroBadge: {
+    flexDirection: "row",
+    alignSelf: "flex-start",
+    alignItems: "center",
+    gap: 6 as any,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: "rgba(59,130,246,0.22)",
+    marginBottom: 12,
+  },
+  heroBadgeText: {color: "#fff", fontSize: 12, fontWeight: "700"},
+  heroTitle: {
+    color: "#fff",
+    fontSize: 22,
+    lineHeight: 28,
+    fontWeight: "800",
+    maxWidth: 620,
+  },
+  heroSubtitle: {
+    color: "#cbd5e1",
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 8,
+    maxWidth: 680,
+  },
+  heroStats: {
+    flexDirection: "row",
+    gap: 12 as any,
+    flexWrap: "wrap",
+    justifyContent: "flex-end",
+    alignItems: "stretch",
+    minWidth: 320,
+  },
+  heroStatCard: {
+    minWidth: 100,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderColor: "rgba(255,255,255,0.12)",
+    borderWidth: 1,
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+  },
+  heroStatLabel: {color: "#94a3b8", fontSize: 12, marginBottom: 4},
+  heroStatValue: {color: "#fff", fontSize: 16, fontWeight: "800"},
   center: {
     justifyContent: "center",
     alignItems: "center",
@@ -496,6 +694,23 @@ const styles = StyleSheet.create({
     color: theme.colors.text.light,
     marginTop: -8,
     marginLeft: 4,
+  },
+  locationCard: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 14,
+    padding: 14,
+    backgroundColor: "#fff",
+  },
+  locationValue: {
+    color: theme.colors.text.secondary,
+    marginBottom: 10,
+    marginTop: -2,
+  },
+  removeLocationText: {
+    color: theme.colors.error,
+    fontSize: 12,
+    fontWeight: "700",
   },
   submitBtn: {
     marginTop: theme.spacing.sm,

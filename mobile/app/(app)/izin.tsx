@@ -102,7 +102,7 @@ export default function LeaveRequest() {
       await requestLeave(formData);
       showModal({
         isError: false,
-        message: "Pengajuan Izin / Sakit Anda telah berhasil dicatat.",
+        message: "Pengajuan berhasil dicatat dan menunggu persetujuan admin.",
         title: "Berhasil Terkirim",
         buttonText: "Ke Dashboard",
         onClose: () => router.replace("/"),

@@ -1,36 +1,37 @@
-import { Request, Response } from 'express';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-import { getPublicPrisma } from '../prisma/tenant-prisma';
-import { tenantService } from '../prisma/tenant-service';
+import {Request, Response} from "express";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import {getPublicPrisma} from "../prisma/tenant-prisma";
+import {tenantService} from "../prisma/tenant-service";
 
 const SALT_ROUNDS = 10;
-const JWT_SECRET = process.env.JWT_SECRET || 'super-admin-secret';
-const JWT_EXPIRES_IN = (process.env.JWT_EXPIRES_IN || '7d') as jwt.SignOptions['expiresIn'];
+const JWT_SECRET = process.env.JWT_SECRET || "super-admin-secret";
+const JWT_EXPIRES_IN = (process.env.JWT_EXPIRES_IN ||
+  "7d") as jwt.SignOptions["expiresIn"];
 
 /**
  * Super Admin Login
  */
 export async function superAdminLogin(req: Request, res: Response) {
   try {
-    const { email, password } = req.body;
+    const {email, password} = req.body;
 
     if (!email || !password) {
       return res.status(400).json({
         success: false,
-        message: 'Email and password are required',
+        message: "Email and password are required",
       });
     }
 
     const prisma = getPublicPrisma();
     const superAdmin = await prisma.superAdmin.findUnique({
-      where: { email },
+      where: {email},
     });
 
     if (!superAdmin) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid credentials',
+        message: "Invalid credentials",
       });
     }
 
@@ -38,7 +39,7 @@ export async function superAdminLogin(req: Request, res: Response) {
     if (!isPasswordValid) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid credentials',
+        message: "Invalid credentials",
       });
     }
 
@@ -47,11 +48,11 @@ export async function superAdminLogin(req: Request, res: Response) {
       {
         id: superAdmin.id,
         email: superAdmin.email,
-        role: 'SUPER_ADMIN',
+        role: "SUPER_ADMIN",
         isSuperAdmin: true,
       },
       JWT_SECRET,
-      { expiresIn: JWT_EXPIRES_IN }
+      {expiresIn: JWT_EXPIRES_IN},
     );
 
     res.json({
@@ -62,15 +63,15 @@ export async function superAdminLogin(req: Request, res: Response) {
           id: superAdmin.id,
           email: superAdmin.email,
           name: superAdmin.name,
-          role: 'SUPER_ADMIN',
+          role: "SUPER_ADMIN",
         },
       },
     });
   } catch (error) {
-    console.error('Super admin login error:', error);
+    console.error("Super admin login error:", error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error',
+      message: "Internal server error",
     });
   }
 }
@@ -81,16 +82,16 @@ export async function superAdminLogin(req: Request, res: Response) {
 export async function getTenants(req: Request, res: Response) {
   try {
     const tenants = await tenantService.getAllTenants();
-    
+
     res.json({
       success: true,
       data: tenants,
     });
   } catch (error) {
-    console.error('Get tenants error:', error);
+    console.error("Get tenants error:", error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error',
+      message: "Internal server error",
     });
   }
 }
@@ -101,12 +102,12 @@ export async function getTenants(req: Request, res: Response) {
 export async function getTenantById(req: Request, res: Response) {
   try {
     const id = parseInt(req.params.id as string, 10);
-    const tenant = await tenantService.getTenantById(id);
-    
+    const tenant = await tenantService.getTenantDetails(id);
+
     if (!tenant) {
       return res.status(404).json({
         success: false,
-        message: 'Tenant not found',
+        message: "Tenant not found",
       });
     }
 
@@ -115,10 +116,63 @@ export async function getTenantById(req: Request, res: Response) {
       data: tenant,
     });
   } catch (error) {
-    console.error('Get tenant error:', error);
+    console.error("Get tenant error:", error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error',
+      message: "Internal server error",
+    });
+  }
+}
+
+/**
+ * Reset tenant admin password
+ */
+export async function resetTenantAdminPassword(req: Request, res: Response) {
+  try {
+    const id = parseInt(req.params.id as string, 10);
+    const {password} = req.body;
+
+    if (password && String(password).length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: "Password minimal 6 karakter",
+      });
+    }
+
+    const result = await tenantService.resetTenantAdminPassword(
+      id,
+      password ? String(password) : undefined,
+    );
+
+    res.json({
+      success: true,
+      message: "Password admin tenant berhasil direset",
+      data: {
+        tenant: result.tenant,
+        admin: result.admin,
+        temporaryPassword: result.temporaryPassword,
+      },
+    });
+  } catch (error: any) {
+    console.error("Reset tenant admin password error:", error);
+
+    if (error.message === "Tenant not found") {
+      return res.status(404).json({
+        success: false,
+        message: "Tenant not found",
+      });
+    }
+
+    if (error.message === "Admin user not found") {
+      return res.status(404).json({
+        success: false,
+        message: "Admin user not found",
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
     });
   }
 }
@@ -128,12 +182,12 @@ export async function getTenantById(req: Request, res: Response) {
  */
 export async function createTenant(req: Request, res: Response) {
   try {
-    const { name, adminEmail, adminPassword, adminName } = req.body;
+    const {name, adminEmail, adminPassword, adminName} = req.body;
 
     if (!name || !adminEmail || !adminPassword || !adminName) {
       return res.status(400).json({
         success: false,
-        message: 'Name, adminEmail, adminPassword, and adminName are required',
+        message: "Name, adminEmail, adminPassword, and adminName are required",
       });
     }
 
@@ -146,22 +200,22 @@ export async function createTenant(req: Request, res: Response) {
 
     res.status(201).json({
       success: true,
-      message: 'Tenant created successfully with admin user',
+      message: "Tenant created successfully with admin user",
       data: tenant,
     });
   } catch (error: any) {
-    console.error('Create tenant error:', error);
-    
-    if (error.code === 'P2002') {
+    console.error("Create tenant error:", error);
+
+    if (error.code === "P2002") {
       return res.status(400).json({
         success: false,
-        message: 'Tenant name already exists',
+        message: "Tenant name already exists",
       });
     }
-    
+
     res.status(500).json({
       success: false,
-      message: 'Internal server error',
+      message: "Internal server error",
     });
   }
 }
@@ -172,35 +226,35 @@ export async function createTenant(req: Request, res: Response) {
 export async function updateTenant(req: Request, res: Response) {
   try {
     const id = parseInt(req.params.id as string, 10);
-    const { name } = req.body;
+    const {name} = req.body;
 
     if (!name) {
       return res.status(400).json({
         success: false,
-        message: 'Tenant name is required',
+        message: "Tenant name is required",
       });
     }
 
-    const tenant = await tenantService.updateTenant(id, { name });
+    const tenant = await tenantService.updateTenant(id, {name});
 
     res.json({
       success: true,
-      message: 'Tenant updated successfully',
+      message: "Tenant updated successfully",
       data: tenant,
     });
   } catch (error: any) {
-    console.error('Update tenant error:', error);
-    
-    if (error.code === 'P2002') {
+    console.error("Update tenant error:", error);
+
+    if (error.code === "P2002") {
       return res.status(400).json({
         success: false,
-        message: 'Tenant name already exists',
+        message: "Tenant name already exists",
       });
     }
-    
+
     res.status(500).json({
       success: false,
-      message: 'Internal server error',
+      message: "Internal server error",
     });
   }
 }
@@ -211,27 +265,27 @@ export async function updateTenant(req: Request, res: Response) {
 export async function deleteTenant(req: Request, res: Response) {
   try {
     const id = parseInt(req.params.id as string, 10);
-    
+
     const tenant = await tenantService.deleteTenant(id);
 
     res.json({
       success: true,
-      message: 'Tenant deleted successfully',
+      message: "Tenant deleted successfully",
       data: tenant,
     });
   } catch (error: any) {
-    console.error('Delete tenant error:', error);
-    
-    if (error.message === 'Tenant not found') {
+    console.error("Delete tenant error:", error);
+
+    if (error.message === "Tenant not found") {
       return res.status(404).json({
         success: false,
-        message: 'Tenant not found',
+        message: "Tenant not found",
       });
     }
-    
+
     res.status(500).json({
       success: false,
-      message: 'Internal server error',
+      message: "Internal server error",
     });
   }
 }
@@ -242,19 +296,19 @@ export async function deleteTenant(req: Request, res: Response) {
 export async function deactivateTenant(req: Request, res: Response) {
   try {
     const id = parseInt(req.params.id as string, 10);
-    
+
     const tenant = await tenantService.deactivateTenant(id);
 
     res.json({
       success: true,
-      message: 'Tenant deactivated successfully',
+      message: "Tenant deactivated successfully",
       data: tenant,
     });
   } catch (error) {
-    console.error('Deactivate tenant error:', error);
+    console.error("Deactivate tenant error:", error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error',
+      message: "Internal server error",
     });
   }
 }
@@ -265,19 +319,19 @@ export async function deactivateTenant(req: Request, res: Response) {
 export async function activateTenant(req: Request, res: Response) {
   try {
     const id = parseInt(req.params.id as string, 10);
-    
+
     const tenant = await tenantService.activateTenant(id);
 
     res.json({
       success: true,
-      message: 'Tenant activated successfully',
+      message: "Tenant activated successfully",
       data: tenant,
     });
   } catch (error) {
-    console.error('Activate tenant error:', error);
+    console.error("Activate tenant error:", error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error',
+      message: "Internal server error",
     });
   }
 }
@@ -287,22 +341,22 @@ export async function activateTenant(req: Request, res: Response) {
  */
 export async function createSuperAdmin(req: Request, res: Response) {
   try {
-    const { email, password, name, setupKey } = req.body;
+    const {email, password, name, setupKey} = req.body;
 
     // Require setup key for security
-    const SETUP_KEY = process.env.SUPER_ADMIN_SETUP_KEY || 'initial-setup-key';
-    
+    const SETUP_KEY = process.env.SUPER_ADMIN_SETUP_KEY || "initial-setup-key";
+
     if (setupKey !== SETUP_KEY) {
       return res.status(403).json({
         success: false,
-        message: 'Invalid setup key',
+        message: "Invalid setup key",
       });
     }
 
     if (!email || !password || !name) {
       return res.status(400).json({
         success: false,
-        message: 'Email, password, and name are required',
+        message: "Email, password, and name are required",
       });
     }
 
@@ -319,7 +373,7 @@ export async function createSuperAdmin(req: Request, res: Response) {
 
     res.status(201).json({
       success: true,
-      message: 'Super admin created successfully',
+      message: "Super admin created successfully",
       data: {
         id: superAdmin.id,
         email: superAdmin.email,
@@ -327,18 +381,18 @@ export async function createSuperAdmin(req: Request, res: Response) {
       },
     });
   } catch (error: any) {
-    console.error('Create super admin error:', error);
-    
-    if (error.code === 'P2002') {
+    console.error("Create super admin error:", error);
+
+    if (error.code === "P2002") {
       return res.status(400).json({
         success: false,
-        message: 'Email already exists',
+        message: "Email already exists",
       });
     }
-    
+
     res.status(500).json({
       success: false,
-      message: 'Internal server error',
+      message: "Internal server error",
     });
   }
 }
@@ -349,17 +403,17 @@ export async function createSuperAdmin(req: Request, res: Response) {
 export async function getSuperAdminProfile(req: Request, res: Response) {
   try {
     const userId = (req as any).user?.id;
-    
+
     if (!userId) {
       return res.status(401).json({
         success: false,
-        message: 'Unauthorized',
+        message: "Unauthorized",
       });
     }
 
     const prisma = getPublicPrisma();
     const superAdmin = await prisma.superAdmin.findUnique({
-      where: { id: userId },
+      where: {id: userId},
       select: {
         id: true,
         email: true,
@@ -371,7 +425,7 @@ export async function getSuperAdminProfile(req: Request, res: Response) {
     if (!superAdmin) {
       return res.status(404).json({
         success: false,
-        message: 'Super admin not found',
+        message: "Super admin not found",
       });
     }
 
@@ -379,14 +433,14 @@ export async function getSuperAdminProfile(req: Request, res: Response) {
       success: true,
       data: {
         ...superAdmin,
-        role: 'SUPER_ADMIN',
+        role: "SUPER_ADMIN",
       },
     });
   } catch (error) {
-    console.error('Get super admin profile error:', error);
+    console.error("Get super admin profile error:", error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error',
+      message: "Internal server error",
     });
   }
 }

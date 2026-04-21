@@ -1,10 +1,87 @@
-import { Request, Response } from 'express';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
+import {Request, Response} from "express";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 
 const SALT_ROUNDS = 10;
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
-const JWT_EXPIRES_IN = (process.env.JWT_EXPIRES_IN || '7d') as jwt.SignOptions['expiresIn'];
+const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
+const JWT_EXPIRES_IN = (process.env.JWT_EXPIRES_IN ||
+  "7d") as jwt.SignOptions["expiresIn"];
+
+type WorkLocation = {
+  latitude: number;
+  longitude: number;
+  radius: number;
+};
+
+function parseWorkLocationEntry(
+  value: unknown,
+  defaultRadius: number,
+): WorkLocation | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const location = value as {
+    latitude?: unknown;
+    longitude?: unknown;
+    radius?: unknown;
+  };
+
+  const latitude = Number(location.latitude);
+  const longitude = Number(location.longitude);
+  const radiusValue =
+    location.radius === undefined || location.radius === null
+      ? defaultRadius
+      : Number(location.radius);
+
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    return null;
+  }
+
+  const radius =
+    Number.isFinite(radiusValue) && radiusValue > 0
+      ? radiusValue
+      : defaultRadius;
+
+  return {
+    latitude,
+    longitude,
+    radius,
+  };
+}
+
+function parseWorkLocations(
+  value: unknown,
+  defaultRadius: number,
+): WorkLocation[] | null {
+  if (value === undefined || value === null || value === "") {
+    return null;
+  }
+
+  let rawValue = value;
+
+  if (typeof value === "string") {
+    try {
+      rawValue = JSON.parse(value);
+    } catch {
+      return null;
+    }
+  }
+
+  if (!Array.isArray(rawValue)) {
+    return null;
+  }
+
+  const locations = rawValue
+    .map(item => parseWorkLocationEntry(item, defaultRadius))
+    .filter((item): item is WorkLocation => item !== null);
+
+  return locations.length > 0 ? locations : null;
+}
+
+function resolvePrimaryWorkLocation(locations: WorkLocation[] | null) {
+  return locations && locations.length > 0 ? locations[0] : null;
+}
 
 /**
  * Login - Tenant user login
@@ -12,24 +89,24 @@ const JWT_EXPIRES_IN = (process.env.JWT_EXPIRES_IN || '7d') as jwt.SignOptions['
  */
 export const login = async (req: Request, res: Response) => {
   try {
-    const { email, password } = req.body;
+    const {email, password} = req.body;
     const prisma = req.prisma!;
 
     if (!email || !password) {
       return res.status(400).json({
         success: false,
-        message: 'Email and password are required',
+        message: "Email and password are required",
       });
     }
 
     const user = await prisma.user.findUnique({
-      where: { email },
+      where: {email},
     });
 
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid credentials',
+        message: "Invalid credentials",
       });
     }
 
@@ -37,14 +114,14 @@ export const login = async (req: Request, res: Response) => {
     if (!isPasswordValid) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid credentials',
+        message: "Invalid credentials",
       });
     }
 
     if (!user.isActive) {
       return res.status(403).json({
         success: false,
-        message: 'Account is deactivated',
+        message: "Account is deactivated",
       });
     }
 
@@ -57,7 +134,7 @@ export const login = async (req: Request, res: Response) => {
         tenantId: req.tenantId,
       },
       JWT_SECRET,
-      { expiresIn: JWT_EXPIRES_IN }
+      {expiresIn: JWT_EXPIRES_IN},
     );
 
     res.json({
@@ -80,10 +157,10 @@ export const login = async (req: Request, res: Response) => {
       },
     });
   } catch (error) {
-    console.error('Login error:', error);
+    console.error("Login error:", error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error',
+      message: "Internal server error",
     });
   }
 };
@@ -97,7 +174,7 @@ export const getProfile = async (req: Request, res: Response) => {
     const userId = req.user!.id;
 
     const user = await prisma.user.findUnique({
-      where: { id: userId },
+      where: {id: userId},
       select: {
         id: true,
         email: true,
@@ -112,6 +189,8 @@ export const getProfile = async (req: Request, res: Response) => {
         workLatitude: true,
         workLongitude: true,
         workRadius: true,
+        workLocations: true,
+        workLocations: true,
         isActive: true,
         createdAt: true,
       },
@@ -120,7 +199,7 @@ export const getProfile = async (req: Request, res: Response) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'User not found',
+        message: "User not found",
       });
     }
 
@@ -129,10 +208,10 @@ export const getProfile = async (req: Request, res: Response) => {
       data: user,
     });
   } catch (error) {
-    console.error('Get profile error:', error);
+    console.error("Get profile error:", error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error',
+      message: "Internal server error",
     });
   }
 };
@@ -144,15 +223,15 @@ export const updateProfile = async (req: Request, res: Response) => {
   try {
     const prisma = req.prisma!;
     const userId = req.user!.id;
-    const { name, startWorkTime } = req.body;
+    const {name, startWorkTime} = req.body;
     const photo = req.file ? req.file.filename : undefined;
 
     const user = await prisma.user.update({
-      where: { id: userId },
+      where: {id: userId},
       data: {
-        ...(name && { name }),
-        ...(photo && { photo }),
-        ...(startWorkTime && { startWorkTime }),
+        ...(name && {name}),
+        ...(photo && {photo}),
+        ...(startWorkTime && {startWorkTime}),
       },
       select: {
         id: true,
@@ -174,10 +253,10 @@ export const updateProfile = async (req: Request, res: Response) => {
       data: user,
     });
   } catch (error) {
-    console.error('Update profile error:', error);
+    console.error("Update profile error:", error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error',
+      message: "Internal server error",
     });
   }
 };
@@ -190,7 +269,7 @@ export const getAllUsers = async (req: Request, res: Response) => {
     const prisma = req.prisma!;
 
     const users = await prisma.user.findMany({
-      orderBy: { createdAt: 'desc' },
+      orderBy: {createdAt: "desc"},
       select: {
         id: true,
         email: true,
@@ -206,6 +285,7 @@ export const getAllUsers = async (req: Request, res: Response) => {
         workLatitude: true,
         workLongitude: true,
         workRadius: true,
+        workLocations: true,
         latePenalty: true,
         createdAt: true,
       },
@@ -216,10 +296,10 @@ export const getAllUsers = async (req: Request, res: Response) => {
       data: users,
     });
   } catch (error) {
-    console.error('Get all users error:', error);
+    console.error("Get all users error:", error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error',
+      message: "Internal server error",
     });
   }
 };
@@ -233,7 +313,7 @@ export const getUserById = async (req: Request, res: Response) => {
     const id = parseInt(req.params.id as string, 10);
 
     const user = await prisma.user.findUnique({
-      where: { id },
+      where: {id},
       select: {
         id: true,
         email: true,
@@ -249,6 +329,7 @@ export const getUserById = async (req: Request, res: Response) => {
         workLatitude: true,
         workLongitude: true,
         workRadius: true,
+        workLocations: true,
         latePenalty: true,
         createdAt: true,
       },
@@ -257,7 +338,7 @@ export const getUserById = async (req: Request, res: Response) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'User not found',
+        message: "User not found",
       });
     }
 
@@ -266,10 +347,10 @@ export const getUserById = async (req: Request, res: Response) => {
       data: user,
     });
   } catch (error) {
-    console.error('Get user by ID error:', error);
+    console.error("Get user by ID error:", error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error',
+      message: "Internal server error",
     });
   }
 };
@@ -293,42 +374,64 @@ export const createUser = async (req: Request, res: Response) => {
       workLatitude,
       workLongitude,
       workRadius,
+      workLocations,
     } = req.body;
 
     if (!email || !password || !name) {
       return res.status(400).json({
         success: false,
-        message: 'Email, password, and name are required',
+        message: "Email, password, and name are required",
       });
     }
 
     // Check if email already exists
     const existingUser = await prisma.user.findUnique({
-      where: { email },
+      where: {email},
     });
 
     if (existingUser) {
       return res.status(400).json({
         success: false,
-        message: 'Email already exists',
+        message: "Email already exists",
       });
     }
 
     const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
+    const parsedWorkLocations = parseWorkLocations(workLocations, 50);
+    const primaryLocation = resolvePrimaryWorkLocation(parsedWorkLocations);
+    const resolvedWorkLatitude =
+      workLatitude !== undefined
+        ? parseFloat(workLatitude)
+        : (primaryLocation?.latitude ?? null);
+    const resolvedWorkLongitude =
+      workLongitude !== undefined
+        ? parseFloat(workLongitude)
+        : (primaryLocation?.longitude ?? null);
+    const resolvedWorkRadius =
+      workRadius !== undefined
+        ? parseInt(workRadius, 10)
+        : (primaryLocation?.radius ?? null);
 
     const user = await prisma.user.create({
       data: {
         email,
         password: hashedPassword,
         name,
-        role: role || 'USER',
-        salaryType: salaryType || 'MONTHLY',
+        role: role || "USER",
+        salaryType: salaryType || "MONTHLY",
         salary: salary ? parseFloat(salary) : 0,
-        startWorkTime: startWorkTime || '09:00',
-        endWorkTime: endWorkTime || '17:00',
-        workLatitude: workLatitude !== undefined ? parseFloat(workLatitude) : null,
-        workLongitude: workLongitude !== undefined ? parseFloat(workLongitude) : null,
-        workRadius: workRadius !== undefined ? parseInt(workRadius, 10) : null,
+        startWorkTime: startWorkTime || "09:00",
+        endWorkTime: endWorkTime || "17:00",
+        workLatitude: Number.isFinite(resolvedWorkLatitude as number)
+          ? resolvedWorkLatitude
+          : null,
+        workLongitude: Number.isFinite(resolvedWorkLongitude as number)
+          ? resolvedWorkLongitude
+          : null,
+        workRadius: Number.isFinite(resolvedWorkRadius as number)
+          ? resolvedWorkRadius
+          : null,
+        workLocations: parsedWorkLocations,
         latePenalty: latePenalty ? parseFloat(latePenalty) : 0,
       },
       select: {
@@ -343,6 +446,7 @@ export const createUser = async (req: Request, res: Response) => {
         workLatitude: true,
         workLongitude: true,
         workRadius: true,
+        workLocations: true,
         latePenalty: true,
         createdAt: true,
       },
@@ -350,14 +454,14 @@ export const createUser = async (req: Request, res: Response) => {
 
     res.status(201).json({
       success: true,
-      message: 'User created successfully',
+      message: "User created successfully",
       data: user,
     });
   } catch (error) {
-    console.error('Create user error:', error);
+    console.error("Create user error:", error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error',
+      message: "Internal server error",
     });
   }
 };
@@ -382,23 +486,73 @@ export const updateUser = async (req: Request, res: Response) => {
       workLatitude,
       workLongitude,
       workRadius,
+      workLocations,
     } = req.body;
+    const parsedWorkLocations = parseWorkLocations(workLocations, 50);
+    const primaryLocation = resolvePrimaryWorkLocation(parsedWorkLocations);
+    const resolvedWorkLatitude =
+      workLatitude !== undefined
+        ? workLatitude === null
+          ? null
+          : parseFloat(workLatitude)
+        : primaryLocation?.latitude;
+    const resolvedWorkLongitude =
+      workLongitude !== undefined
+        ? workLongitude === null
+          ? null
+          : parseFloat(workLongitude)
+        : primaryLocation?.longitude;
+    const resolvedWorkRadius =
+      workRadius !== undefined
+        ? workRadius === null
+          ? null
+          : parseInt(workRadius, 10)
+        : primaryLocation?.radius;
+    const shouldUpdateLocationFields =
+      workLocations !== undefined ||
+      workLatitude !== undefined ||
+      workLongitude !== undefined ||
+      workRadius !== undefined;
 
     const user = await prisma.user.update({
-      where: { id },
+      where: {id},
       data: {
-        ...(name && { name }),
-        ...(email && { email }),
-        ...(role && { role }),
-        ...(salaryType && { salaryType }),
-        ...(salary !== undefined && { salary: parseFloat(salary) }),
-        ...(startWorkTime && { startWorkTime }),
-        ...(endWorkTime && { endWorkTime }),
-        ...(latePenalty !== undefined && { latePenalty: parseFloat(latePenalty) }),
-        ...(isActive !== undefined && { isActive }),
-        ...(workLatitude !== undefined && { workLatitude: workLatitude === null ? null : parseFloat(workLatitude) }),
-        ...(workLongitude !== undefined && { workLongitude: workLongitude === null ? null : parseFloat(workLongitude) }),
-        ...(workRadius !== undefined && { workRadius: workRadius === null ? null : parseInt(workRadius, 10) }),
+        ...(name && {name}),
+        ...(email && {email}),
+        ...(role && {role}),
+        ...(salaryType && {salaryType}),
+        ...(salary !== undefined && {salary: parseFloat(salary)}),
+        ...(startWorkTime && {startWorkTime}),
+        ...(endWorkTime && {endWorkTime}),
+        ...(latePenalty !== undefined && {
+          latePenalty: parseFloat(latePenalty),
+        }),
+        ...(isActive !== undefined && {isActive}),
+        ...(shouldUpdateLocationFields
+          ? {
+              workLatitude:
+                resolvedWorkLatitude !== undefined &&
+                resolvedWorkLatitude !== null &&
+                Number.isFinite(Number(resolvedWorkLatitude))
+                  ? Number(resolvedWorkLatitude)
+                  : null,
+              workLongitude:
+                resolvedWorkLongitude !== undefined &&
+                resolvedWorkLongitude !== null &&
+                Number.isFinite(Number(resolvedWorkLongitude))
+                  ? Number(resolvedWorkLongitude)
+                  : null,
+              workRadius:
+                resolvedWorkRadius !== undefined &&
+                resolvedWorkRadius !== null &&
+                Number.isFinite(Number(resolvedWorkRadius))
+                  ? Number(resolvedWorkRadius)
+                  : null,
+            }
+          : {}),
+        ...(workLocations !== undefined && {
+          workLocations: parsedWorkLocations,
+        }),
       },
       select: {
         id: true,
@@ -413,6 +567,7 @@ export const updateUser = async (req: Request, res: Response) => {
         workLatitude: true,
         workLongitude: true,
         workRadius: true,
+        workLocations: true,
         latePenalty: true,
       },
     });
@@ -422,10 +577,10 @@ export const updateUser = async (req: Request, res: Response) => {
       data: user,
     });
   } catch (error) {
-    console.error('Update user error:', error);
+    console.error("Update user error:", error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error',
+      message: "Internal server error",
     });
   }
 };
@@ -442,23 +597,23 @@ export const deleteUser = async (req: Request, res: Response) => {
     if (req.user!.id === id) {
       return res.status(400).json({
         success: false,
-        message: 'Cannot delete your own account',
+        message: "Cannot delete your own account",
       });
     }
 
     await prisma.user.delete({
-      where: { id },
+      where: {id},
     });
 
     res.json({
       success: true,
-      message: 'User deleted successfully',
+      message: "User deleted successfully",
     });
   } catch (error) {
-    console.error('Delete user error:', error);
+    console.error("Delete user error:", error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error',
+      message: "Internal server error",
     });
   }
 };
@@ -470,50 +625,53 @@ export const changePassword = async (req: Request, res: Response) => {
   try {
     const prisma = req.prisma!;
     const userId = req.user!.id;
-    const { currentPassword, newPassword } = req.body;
+    const {currentPassword, newPassword} = req.body;
 
     if (!currentPassword || !newPassword) {
       return res.status(400).json({
         success: false,
-        message: 'Current password and new password are required',
+        message: "Current password and new password are required",
       });
     }
 
     const user = await prisma.user.findUnique({
-      where: { id: userId },
+      where: {id: userId},
     });
 
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'User not found',
+        message: "User not found",
       });
     }
 
-    const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
+    const isPasswordValid = await bcrypt.compare(
+      currentPassword,
+      user.password,
+    );
     if (!isPasswordValid) {
       return res.status(401).json({
         success: false,
-        message: 'Current password is incorrect',
+        message: "Current password is incorrect",
       });
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS);
 
     await prisma.user.update({
-      where: { id: userId },
-      data: { password: hashedPassword },
+      where: {id: userId},
+      data: {password: hashedPassword},
     });
 
     res.json({
       success: true,
-      message: 'Password changed successfully',
+      message: "Password changed successfully",
     });
   } catch (error) {
-    console.error('Change password error:', error);
+    console.error("Change password error:", error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error',
+      message: "Internal server error",
     });
   }
 };

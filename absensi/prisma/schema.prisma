@@ -63,6 +63,7 @@ model User {
   workLatitude  Float?
   workLongitude Float?
   workRadius    Int?
+  workLocations Json?
 
   payrolls Payroll[]
 }
@@ -89,9 +90,19 @@ model Attendance {
   clockOut          DateTime?
   clockInPhoto      String?
   clockOutPhoto     String?
-  status            AttendanceStatus @default(PRESENT)
-  latitude          Float?
-  longitude         Float?
+  status              AttendanceStatus    @default(PRESENT)
+  leaveApprovalStatus LeaveApprovalStatus @default(PENDING)
+  leaveReviewNote     String?
+  leaveReviewedAt     DateTime?
+  correctionStatus    CorrectionStatus    @default(NONE)
+  correctionReason    String?
+  correctionRequestedClockIn  DateTime?
+  correctionRequestedClockOut DateTime?
+  correctionReviewNote String?
+  correctionRequestedAt DateTime?
+  correctionReviewedAt DateTime?
+  latitude            Float?
+  longitude           Float?
   totalBreakMinutes Int              @default(0)
   breaks            Break[]
   createdAt         DateTime         @default(now())
@@ -173,6 +184,19 @@ enum AttendanceStatus {
   SICK
   LEAVE
   ALPHA
+}
+
+enum LeaveApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum CorrectionStatus {
+  NONE
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 enum TaskStatus {

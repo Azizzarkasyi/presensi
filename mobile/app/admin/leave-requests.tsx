@@ -1,0 +1,414 @@
+import {useEffect, useMemo, useState} from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  Alert,
+  TouchableOpacity,
+} from "react-native";
+import {Ionicons} from "@expo/vector-icons";
+import {useRouter} from "expo-router";
+import {getLeaveRequests, reviewLeaveRequest} from "../../src/services/api";
+import {useResponsive} from "../../src/hooks/useResponsive";
+import {readCachedJson, writeCachedJson} from "../../src/utils/webCache";
+
+import {theme} from "../../src/constants/theme";
+import {ScreenHeader} from "../../src/components/ui/ScreenHeader";
+import {Card} from "../../src/components/ui/Card";
+import {Badge} from "../../src/components/ui/Badge";
+import {Button} from "../../src/components/ui/Button";
+import {Input} from "../../src/components/ui/Input";
+
+interface LeaveItem {
+  id: number;
+  date: string;
+  status: "SICK" | "LEAVE";
+  leaveApprovalStatus: "PENDING" | "APPROVED" | "REJECTED";
+  leaveReviewNote?: string | null;
+  leaveReviewedAt?: string | null;
+  clockInPhoto?: string | null;
+  clockOutPhoto?: string | null;
+  user: {id: number; name: string; email: string};
+}
+
+export default function AdminLeaveRequests() {
+  const router = useRouter();
+  const {isDesktop, isWeb} = useResponsive();
+  const [requests, setRequests] = useState<LeaveItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [updatingId, setUpdatingId] = useState<number | null>(null);
+  const [statusFilter, setStatusFilter] = useState<
+    "ALL" | "PENDING" | "APPROVED" | "REJECTED"
+  >("PENDING");
+  const [searchText, setSearchText] = useState("");
+  const [noteMap, setNoteMap] = useState<Record<number, string>>({});
+  const [usingCache, setUsingCache] = useState(false);
+
+  const cacheKey = `admin-leave-requests-${statusFilter}`;
+
+  useEffect(() => {
+    loadRequests();
+  }, [statusFilter]);
+
+  const loadRequests = async () => {
+    setLoading(true);
+    setUsingCache(false);
+    try {
+      const res = await getLeaveRequests({
+        status: statusFilter === "ALL" ? undefined : statusFilter,
+      });
+      const data = res.data.data || [];
+      setRequests(data);
+      await writeCachedJson(cacheKey, data);
+    } catch (error) {
+      console.error("Error loading leave requests:", error);
+      const cachedRequests = await readCachedJson<LeaveItem[]>(cacheKey);
+      if (cachedRequests && cachedRequests.length > 0) {
+        setRequests(cachedRequests);
+        setUsingCache(true);
+        Alert.alert(
+          "Offline",
+          "Menampilkan pengajuan izin terakhir yang tersimpan",
+        );
+      } else {
+        Alert.alert("Error", "Gagal memuat pengajuan izin");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredRequests = useMemo(() => {
+    return requests.filter(item => {
+      const q = searchText.toLowerCase().trim();
+      return (
+        item.user.name.toLowerCase().includes(q) ||
+        item.user.email.toLowerCase().includes(q)
+      );
+    });
+  }, [requests, searchText]);
+
+  const getStatusVariant = (value: string) => {
+    switch (value) {
+      case "APPROVED":
+        return "success";
+      case "REJECTED":
+        return "error";
+      case "PENDING":
+      default:
+        return "warning";
+    }
+  };
+
+  const handleReview = async (id: number, action: "APPROVED" | "REJECTED") => {
+    setUpdatingId(id);
+    try {
+      await reviewLeaveRequest(id, {
+        action,
+        note: noteMap[id]?.trim() || undefined,
+      });
+      setNoteMap(prev => ({...prev, [id]: ""}));
+      await loadRequests();
+      Alert.alert(
+        "Sukses",
+        `Pengajuan berhasil di-${action === "APPROVED" ? "setujui" : "tolak"}`,
+      );
+    } catch (error: any) {
+      Alert.alert(
+        "Gagal",
+        error.response?.data?.message || "Gagal memproses pengajuan",
+      );
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const formatDate = (dateStr: string) =>
+    new Date(dateStr).toLocaleDateString("id-ID", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+
+  return (
+    <View style={styles.container}>
+      <ScreenHeader title="Approval Izin" onBack={() => router.back()} />
+
+      {isWeb && isDesktop && (
+        <View style={styles.heroPanel}>
+          <View style={styles.heroTextBlock}>
+            <View style={styles.heroBadge}>
+              <Ionicons name="document-text-outline" size={14} color="#fff" />
+              <Text style={styles.heroBadgeText}>Leave Review Console</Text>
+            </View>
+            <Text style={styles.heroTitle}>
+              Setujui atau tolak izin dari browser dengan cepat.
+            </Text>
+            <Text style={styles.heroSubtitle}>
+              Daftar pengajuan bisa difilter, dan data terakhir tetap bisa
+              dilihat jika koneksi sedang tidak stabil.
+            </Text>
+          </View>
+
+          <View style={styles.heroStats}>
+            <View style={styles.heroStatCard}>
+              <Text style={styles.heroStatLabel}>Total</Text>
+              <Text style={styles.heroStatValue}>{requests.length}</Text>
+            </View>
+            <View style={styles.heroStatCard}>
+              <Text style={styles.heroStatLabel}>Pending</Text>
+              <Text style={styles.heroStatValue}>
+                {
+                  requests.filter(
+                    item => item.leaveApprovalStatus === "PENDING",
+                  ).length
+                }
+              </Text>
+            </View>
+            <View style={styles.heroStatCard}>
+              <Text style={styles.heroStatLabel}>Approved</Text>
+              <Text style={styles.heroStatValue}>
+                {
+                  requests.filter(
+                    item => item.leaveApprovalStatus === "APPROVED",
+                  ).length
+                }
+              </Text>
+            </View>
+            <View style={styles.heroStatCard}>
+              <Text style={styles.heroStatLabel}>Rejected</Text>
+              <Text style={styles.heroStatValue}>
+                {
+                  requests.filter(
+                    item => item.leaveApprovalStatus === "REJECTED",
+                  ).length
+                }
+              </Text>
+            </View>
+          </View>
+        </View>
+      )}
+
+      <View style={styles.content}>
+        <Card style={styles.filterCard}>
+          <Text style={styles.sectionTitle}>Filter Pengajuan</Text>
+          {usingCache ? (
+            <Text style={styles.cacheNote}>
+              Menampilkan cache data terakhir.
+            </Text>
+          ) : null}
+          <Input
+            label="Cari nama/email"
+            value={searchText}
+            onChangeText={setSearchText}
+            placeholder="Nama karyawan"
+          />
+          <View style={styles.filterRow}>
+            {(["ALL", "PENDING", "APPROVED", "REJECTED"] as const).map(item => (
+              <Button
+                key={item}
+                title={item === "ALL" ? "Semua" : item}
+                variant={statusFilter === item ? "primary" : "outline"}
+                size="sm"
+                onPress={() => setStatusFilter(item)}
+                style={styles.filterBtn}
+              />
+            ))}
+          </View>
+          <Button
+            title="Muat Ulang"
+            variant="outline"
+            onPress={loadRequests}
+            loading={loading}
+          />
+        </Card>
+
+        <FlatList
+          data={filteredRequests}
+          keyExtractor={item => item.id.toString()}
+          contentContainerStyle={styles.listContent}
+          refreshing={loading}
+          onRefresh={loadRequests}
+          showsVerticalScrollIndicator={false}
+          renderItem={({item}) => (
+            <Card style={styles.card}>
+              <View style={styles.cardHeader}>
+                <View style={{flex: 1}}>
+                  <Text style={styles.name}>{item.user.name}</Text>
+                  <Text style={styles.email}>{item.user.email}</Text>
+                </View>
+                <Badge
+                  label={item.leaveApprovalStatus}
+                  variant={getStatusVariant(item.leaveApprovalStatus)}
+                  size="sm"
+                />
+              </View>
+
+              <Text style={styles.date}>{formatDate(item.date)}</Text>
+              <Text style={styles.type}>
+                {item.status === "SICK" ? "Sakit" : "Izin / Cuti"}
+              </Text>
+
+              {item.clockInPhoto ? (
+                <Text style={styles.meta}>Bukti: tersedia</Text>
+              ) : null}
+              {item.clockOutPhoto ? (
+                <Text style={styles.meta}>Alasan: {item.clockOutPhoto}</Text>
+              ) : null}
+              {item.leaveReviewNote ? (
+                <Text style={styles.meta}>
+                  Catatan admin: {item.leaveReviewNote}
+                </Text>
+              ) : null}
+
+              {item.leaveApprovalStatus === "PENDING" && (
+                <View>
+                  <Input
+                    label="Catatan admin (opsional)"
+                    placeholder="Misal: disetujui, silakan update jadwal"
+                    value={noteMap[item.id] || ""}
+                    onChangeText={value =>
+                      setNoteMap(prev => ({...prev, [item.id]: value}))
+                    }
+                  />
+                  <View style={styles.actionRow}>
+                    <Button
+                      title="Tolak"
+                      variant="outline"
+                      onPress={() => handleReview(item.id, "REJECTED")}
+                      loading={updatingId === item.id}
+                      style={styles.actionBtn}
+                    />
+                    <Button
+                      title="Setujui"
+                      onPress={() => handleReview(item.id, "APPROVED")}
+                      loading={updatingId === item.id}
+                      style={styles.actionBtn}
+                    />
+                  </View>
+                </View>
+              )}
+            </Card>
+          )}
+          ListEmptyComponent={
+            !loading ? (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyText}>
+                  Belum ada pengajuan yang cocok dengan filter.
+                </Text>
+              </View>
+            ) : null
+          }
+        />
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {flex: 1, backgroundColor: theme.colors.background},
+  heroPanel: {
+    backgroundColor: "#0f172a",
+    borderRadius: 20,
+    padding: 20,
+    marginHorizontal: theme.spacing.lg,
+    marginTop: theme.spacing.lg,
+    flexDirection: "row",
+    alignItems: "stretch",
+    gap: 16 as any,
+  },
+  heroTextBlock: {flex: 1},
+  heroBadge: {
+    flexDirection: "row",
+    alignSelf: "flex-start",
+    alignItems: "center",
+    gap: 6 as any,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: "rgba(59,130,246,0.22)",
+    marginBottom: 12,
+  },
+  heroBadgeText: {color: "#fff", fontSize: 12, fontWeight: "700"},
+  heroTitle: {
+    color: "#fff",
+    fontSize: 22,
+    lineHeight: 28,
+    fontWeight: "800",
+    maxWidth: 620,
+  },
+  heroSubtitle: {
+    color: "#cbd5e1",
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 8,
+    maxWidth: 680,
+  },
+  heroStats: {
+    flexDirection: "row",
+    gap: 12 as any,
+    flexWrap: "wrap",
+    justifyContent: "flex-end",
+    alignItems: "stretch",
+    minWidth: 320,
+  },
+  heroStatCard: {
+    minWidth: 88,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderColor: "rgba(255,255,255,0.12)",
+    borderWidth: 1,
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+  },
+  heroStatLabel: {color: "#94a3b8", fontSize: 12, marginBottom: 4},
+  heroStatValue: {color: "#fff", fontSize: 18, fontWeight: "800"},
+  content: {flex: 1, padding: theme.spacing.lg},
+  filterCard: {marginBottom: theme.spacing.lg},
+  sectionTitle: {
+    ...theme.typography.h3,
+    marginBottom: theme.spacing.md,
+    color: theme.colors.text.primary,
+  },
+  cacheNote: {
+    color: theme.colors.text.secondary,
+    fontSize: 12,
+    marginBottom: 8,
+    fontStyle: "italic",
+  },
+  filterRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8 as any,
+    marginBottom: theme.spacing.md,
+  },
+  filterBtn: {minWidth: 92},
+  listContent: {paddingBottom: theme.spacing.lg},
+  card: {marginBottom: theme.spacing.md},
+  cardHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 8,
+  },
+  name: {...theme.typography.h4, color: theme.colors.text.primary},
+  email: {fontSize: 12, color: theme.colors.text.secondary},
+  date: {fontSize: 14, color: theme.colors.text.primary, marginBottom: 4},
+  type: {
+    fontSize: 13,
+    color: theme.colors.primary,
+    fontWeight: "600",
+    marginBottom: 8,
+  },
+  meta: {fontSize: 12, color: theme.colors.text.secondary, marginBottom: 4},
+  actionRow: {
+    flexDirection: "row",
+    gap: 12 as any,
+    marginTop: theme.spacing.sm,
+  },
+  actionBtn: {flex: 1},
+  emptyState: {padding: theme.spacing.xl, alignItems: "center"},
+  emptyText: {color: theme.colors.text.secondary},
+});
