@@ -1,12 +1,5 @@
 import {useEffect, useState} from "react";
-import {
-  View,
-  FlatList,
-  StyleSheet,
-  Text,
-  Alert,
-  TouchableOpacity,
-  import {View, FlatList, StyleSheet, Text, TouchableOpacity} from "react-native";
+import {View, FlatList, StyleSheet, Text, TouchableOpacity} from "react-native";
 import {Ionicons} from "@expo/vector-icons";
 import {useRouter} from "expo-router";
 import {getMyTasks, updateTaskStatus} from "../../src/services/api";
@@ -19,12 +12,12 @@ import {ScreenHeader} from "../../src/components/ui/ScreenHeader";
 import {Card} from "../../src/components/ui/Card";
 import {Badge} from "../../src/components/ui/Badge";
 import {Button} from "../../src/components/ui/Button";
-  import {useGlobalModal} from "../../src/contexts/GlobalModalContext";
+import {useGlobalModal} from "../../src/contexts/GlobalModalContext";
 
 export default function UserTasks() {
   const router = useRouter();
   const {isDesktop, isWeb} = useResponsive();
-    const {showModal} = useGlobalModal();
+  const {showModal} = useGlobalModal();
   const [tasks, setTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<number | null>(null);
@@ -68,20 +61,22 @@ export default function UserTasks() {
       await updateTaskStatus(taskId, newStatus);
       // Optimistic update or reload
       loadTasks();
-        showModal({
-          title: "Sukses",
-          message: `Status diubah menjadi ${newStatus}`,
-          buttonText: "OK",
-        });
+      showModal({
+        title: "Sukses",
+        message: `Status diubah menjadi ${newStatus}`,
+        buttonText: "OK",
+      });
     } catch (error: any) {
       console.error("Update task error:", error);
-        showModal({
-          title: "Gagal",
-          message:
-            error.response?.data?.message || error.message || "Gagal update status",
-          isError: true,
-          buttonText: "Tutup",
-        });
+      showModal({
+        title: "Gagal",
+        message:
+          error.response?.data?.message ||
+          error.message ||
+          "Gagal update status",
+        isError: true,
+        buttonText: "Tutup",
+      });
     } finally {
       setUpdatingId(null);
     }
