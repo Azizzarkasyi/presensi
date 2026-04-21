@@ -10,8 +10,11 @@ export const GlobalModal = () => {
       title={modal.title}
       message={modal.message}
       buttonText={modal.buttonText}
+      secondaryButtonText={modal.secondaryButtonText}
       isError={modal.isError}
       onClose={hideModal}
+      onPrimaryPress={modal.onPrimaryPress}
+      onSecondaryPress={modal.onSecondaryPress}
     />
   );
 };
