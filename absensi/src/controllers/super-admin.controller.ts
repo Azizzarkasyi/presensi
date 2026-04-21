@@ -9,14 +9,44 @@ const JWT_SECRET = process.env.JWT_SECRET || "super-admin-secret";
 const JWT_EXPIRES_IN = (process.env.JWT_EXPIRES_IN ||
   "7d") as jwt.SignOptions["expiresIn"];
 
+const normalizeEmail = (value: string) => value.trim().toLowerCase();
+
+const findSuperAdminByEmail = async (
+  prisma: ReturnType<typeof getPublicPrisma>,
+  email: string,
+) => {
+  const normalizedEmail = normalizeEmail(email);
+
+  const superAdmin = await prisma.superAdmin.findFirst({
+    where: {
+      email: {
+        equals: normalizedEmail,
+        mode: "insensitive",
+      },
+    },
+  });
+
+  if (superAdmin) {
+    return superAdmin;
+  }
+
+  const rawMatches = await prisma.$queryRawUnsafe<any[]>(
+    'SELECT * FROM "SuperAdmin" WHERE LOWER(TRIM("email")) = LOWER(TRIM($1)) LIMIT 1',
+    normalizedEmail,
+  );
+
+  return rawMatches[0] || null;
+};
+
 /**
  * Super Admin Login
  */
 export async function superAdminLogin(req: Request, res: Response) {
   try {
     const {email, password} = req.body;
+    const normalizedEmail = normalizeEmail(email || "");
 
-    if (!email || !password) {
+    if (!normalizedEmail || !password) {
       return res.status(400).json({
         success: false,
         message: "Email and password are required",
@@ -24,9 +54,7 @@ export async function superAdminLogin(req: Request, res: Response) {
     }
 
     const prisma = getPublicPrisma();
-    const superAdmin = await prisma.superAdmin.findUnique({
-      where: {email},
-    });
+    const superAdmin = await findSuperAdminByEmail(prisma, normalizedEmail);
 
     if (!superAdmin) {
       return res.status(401).json({
@@ -183,8 +211,9 @@ export async function resetTenantAdminPassword(req: Request, res: Response) {
 export async function createTenant(req: Request, res: Response) {
   try {
     const {name, adminEmail, adminPassword, adminName} = req.body;
+    const normalizedAdminEmail = normalizeEmail(adminEmail || "");
 
-    if (!name || !adminEmail || !adminPassword || !adminName) {
+    if (!name || !normalizedAdminEmail || !adminPassword || !adminName) {
       return res.status(400).json({
         success: false,
         message: "Name, adminEmail, adminPassword, and adminName are required",
@@ -193,7 +222,7 @@ export async function createTenant(req: Request, res: Response) {
 
     const tenant = await tenantService.createTenant({
       name,
-      adminEmail,
+      adminEmail: normalizedAdminEmail,
       adminPassword,
       adminName,
     });

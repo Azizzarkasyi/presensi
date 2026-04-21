@@ -14,6 +14,8 @@ type WorkLocation = {
   radius: number;
 };
 
+const normalizeEmail = (value: string) => value.trim().toLowerCase();
+
 function parseWorkLocationEntry(
   value: unknown,
   defaultRadius: number,
@@ -384,9 +386,11 @@ export const createUser = async (req: Request, res: Response) => {
       });
     }
 
+    const normalizedEmail = normalizeEmail(email);
+
     // Check if email already exists
     const existingUser = await prisma.user.findUnique({
-      where: {email},
+      where: {email: normalizedEmail},
     });
 
     if (existingUser) {
@@ -414,7 +418,7 @@ export const createUser = async (req: Request, res: Response) => {
 
     const user = await prisma.user.create({
       data: {
-        email,
+        email: normalizedEmail,
         password: hashedPassword,
         name,
         role: role || "USER",
@@ -513,12 +517,13 @@ export const updateUser = async (req: Request, res: Response) => {
       workLatitude !== undefined ||
       workLongitude !== undefined ||
       workRadius !== undefined;
+    const normalizedEmail = email ? normalizeEmail(email) : undefined;
 
     const user = await prisma.user.update({
       where: {id},
       data: {
         ...(name && {name}),
-        ...(email && {email}),
+        ...(normalizedEmail && {email: normalizedEmail}),
         ...(role && {role}),
         ...(salaryType && {salaryType}),
         ...(salary !== undefined && {salary: parseFloat(salary)}),

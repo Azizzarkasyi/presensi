@@ -8,6 +8,8 @@ import {promisify} from "util";
 const execAsync = promisify(exec);
 const SALT_ROUNDS = 10;
 
+const normalizeEmail = (value: string) => value.trim().toLowerCase();
+
 /**
  * Service for managing tenants (companies)
  */
@@ -381,7 +383,7 @@ export class TenantService {
 
     await prisma.user.create({
       data: {
-        email: data.email,
+        email: normalizeEmail(data.email),
         password: hashedPassword,
         name: data.name,
         role: "ADMIN",

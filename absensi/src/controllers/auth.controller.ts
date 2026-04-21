@@ -29,18 +29,58 @@ interface TenantUser {
 
 const normalizeEmail = (value: string) => value.trim().toLowerCase();
 
-const findUserByEmail = async (
-  tenantPrisma: ReturnType<typeof getTenantPrisma>,
+const findSuperAdminByEmail = async (
+  publicPrisma: ReturnType<typeof getPublicPrisma>,
   email: string,
 ) => {
-  return tenantPrisma.user.findFirst({
+  const normalizedEmail = normalizeEmail(email);
+
+  const superAdmin = await publicPrisma.superAdmin.findFirst({
     where: {
       email: {
-        equals: email,
+        equals: normalizedEmail,
         mode: "insensitive",
       },
     },
   });
+
+  if (superAdmin) {
+    return superAdmin;
+  }
+
+  const rawMatches = await publicPrisma.$queryRawUnsafe<any[]>(
+    'SELECT * FROM "SuperAdmin" WHERE LOWER(TRIM("email")) = LOWER(TRIM($1)) LIMIT 1',
+    normalizedEmail,
+  );
+
+  return rawMatches[0] || null;
+};
+
+const findUserByEmail = async (
+  tenantPrisma: ReturnType<typeof getTenantPrisma>,
+  email: string,
+) => {
+  const normalizedEmail = normalizeEmail(email);
+
+  const user = await tenantPrisma.user.findFirst({
+    where: {
+      email: {
+        equals: normalizedEmail,
+        mode: "insensitive",
+      },
+    },
+  });
+
+  if (user) {
+    return user;
+  }
+
+  const rawMatches = await tenantPrisma.$queryRawUnsafe<any[]>(
+    'SELECT * FROM "User" WHERE LOWER(TRIM("email")) = LOWER(TRIM($1)) LIMIT 1',
+    normalizedEmail,
+  );
+
+  return rawMatches[0] || null;
 };
 
 /**
@@ -66,14 +106,10 @@ export async function autoLogin(req: Request, res: Response) {
     const publicPrisma = getPublicPrisma();
 
     // 1. Check if user is Super Admin
-    const superAdmin = await publicPrisma.superAdmin.findFirst({
-      where: {
-        email: {
-          equals: normalizedEmail,
-          mode: "insensitive",
-        },
-      },
-    });
+    const superAdmin = await findSuperAdminByEmail(
+      publicPrisma,
+      normalizedEmail,
+    );
 
     if (superAdmin) {
       const isPasswordValid = await bcrypt.compare(
