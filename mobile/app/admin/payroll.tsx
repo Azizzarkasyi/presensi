@@ -3,16 +3,15 @@ import {
   View,
   Text,
   StyleSheet,
-  FlatList,
   ScrollView,
   Platform,
+  Modal,
 } from "react-native";
 import {Ionicons} from "@expo/vector-icons";
 import {useRouter} from "expo-router";
 import * as ImagePicker from "expo-image-picker";
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
-import {useAuth} from "../../src/contexts/AuthContext";
 import api, {
   generatePayroll,
   getAllPayrolls,
@@ -26,6 +25,7 @@ import {ScreenHeader} from "../../src/components/ui/ScreenHeader";
 import {Card} from "../../src/components/ui/Card";
 import {Button} from "../../src/components/ui/Button";
 import {Input} from "../../src/components/ui/Input";
+import {Dropdown} from "../../src/components/ui/Dropdown";
 import {Badge} from "../../src/components/ui/Badge";
 import {useGlobalModal} from "../../src/contexts/GlobalModalContext";
 
@@ -38,7 +38,6 @@ interface Employee {
 }
 
 export default function AdminPayroll() {
-  const {user} = useAuth();
   const router = useRouter();
   const {isDesktop, isWeb} = useResponsive();
   const {showModal} = useGlobalModal();
@@ -47,6 +46,7 @@ export default function AdminPayroll() {
   const [selectedEmployee, setSelectedEmployee] = useState<number | null>(null);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [showPayrollModal, setShowPayrollModal] = useState(false);
   const [historySearch, setHistorySearch] = useState("");
   const [historyStatus, setHistoryStatus] = useState<
     "ALL" | "PENDING" | "PAID"
@@ -68,10 +68,7 @@ export default function AdminPayroll() {
       const allEmployees = Array.isArray(data) ? data : [];
 
       const companyEmployees = allEmployees.filter(
-        (e: any) =>
-          // If companyId check is needed, ensure it exists, otherwise just filter by role
-          (user?.companyId ? e.companyId === user.companyId : true) &&
-          e.role === "USER",
+        (e: any) => e.role === "USER",
       );
       setEmployees(companyEmployees);
     } catch (error) {
@@ -126,6 +123,7 @@ export default function AdminPayroll() {
       setSelectedEmployee(null);
       setStartDate("");
       setEndDate("");
+      setShowPayrollModal(false);
     } catch (error: any) {
       showModal({
         title: "Gagal",
@@ -294,6 +292,20 @@ export default function AdminPayroll() {
     }
   };
 
+  const openPayrollModal = () => {
+    setShowPayrollModal(true);
+  };
+
+  const employeeOptions = useMemo(
+    () =>
+      employees.map(employee => ({
+        label: employee.name,
+        value: employee.id,
+        description: `${formatCurrency(employee.salary)}/${employee.salaryType}`,
+      })),
+    [employees],
+  );
+
   return (
     <View style={styles.container}>
       <ScreenHeader title="Generate Gaji" />
@@ -311,96 +323,22 @@ export default function AdminPayroll() {
             </Text>
             <Text style={styles.heroSubtitle}>{payrollHeroText}</Text>
           </View>
-
-          <View style={styles.heroStats}>
-            <View style={styles.heroStatCard}>
-              <Text style={styles.heroStatLabel}>Total Slip</Text>
-              <Text style={styles.heroStatValue}>{summary.total}</Text>
-            </View>
-            <View style={styles.heroStatCard}>
-              <Text style={styles.heroStatLabel}>Pending</Text>
-              <Text style={styles.heroStatValue}>{summary.pending}</Text>
-            </View>
-            <View style={styles.heroStatCard}>
-              <Text style={styles.heroStatLabel}>Lunas</Text>
-              <Text style={styles.heroStatValue}>{summary.paid}</Text>
-            </View>
-            <View style={styles.heroStatCard}>
-              <Text style={styles.heroStatLabel}>Total Net</Text>
-              <Text style={styles.heroStatValue}>
-                {formatCurrency(summary.totalNet)}
-              </Text>
-            </View>
-          </View>
         </View>
       )}
+
+      <View style={styles.quickActions}>
+        <Button
+          title="+ Buat Slip Gaji"
+          onPress={openPayrollModal}
+          variant="primary"
+          style={styles.quickActionBtn}
+        />
+      </View>
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <Card style={styles.card}>
-          <Text style={styles.sectionTitle}>1. Pilih Karyawan</Text>
-
-          {employees.length === 0 ? (
-            <Text style={styles.emptyText}>
-              Tidak ada karyawan yang ditemukan.
-            </Text>
-          ) : (
-            <FlatList
-              data={employees}
-              horizontal
-              keyExtractor={item => item.id.toString()}
-              renderItem={({item}) => (
-                <Button
-                  title={`${item.name}\n${formatCurrency(item.salary)}/${item.salaryType}`}
-                  variant={selectedEmployee === item.id ? "primary" : "outline"}
-                  onPress={() => setSelectedEmployee(item.id)}
-                  style={styles.empBtn}
-                  textStyle={styles.empBtnText}
-                />
-              )}
-              showsHorizontalScrollIndicator={false}
-              style={styles.empList}
-              contentContainerStyle={styles.empListContent}
-            />
-          )}
-
-          <Text style={styles.sectionTitle}>2. Tentukan Periode</Text>
-          <View style={styles.row}>
-            <View style={styles.flex1}>
-              <Input
-                label="Tanggal Mulai"
-                placeholder="YYYY-MM-DD"
-                value={startDate}
-                onChangeText={setStartDate}
-                hint="Contoh: 2024-01-01"
-              />
-            </View>
-            <View style={{width: 12}} />
-            <View style={styles.flex1}>
-              <Input
-                label="Tanggal Akhir"
-                placeholder="YYYY-MM-DD"
-                value={endDate}
-                onChangeText={setEndDate}
-                hint="Contoh: 2024-01-31"
-              />
-            </View>
-          </View>
-
-          <View style={styles.divider} />
-
-          <Button
-            title="Generate Slip Gaji"
-            onPress={handleGenerate}
-            loading={loading}
-            size="lg"
-            variant="primary"
-            icon={<Text>💰</Text>}
-          />
-        </Card>
-
         <Card style={styles.card}>
           <View
             style={[
@@ -547,6 +485,77 @@ export default function AdminPayroll() {
           )}
         </Card>
       </ScrollView>
+
+      <Modal visible={showPayrollModal} animationType="fade" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <ScrollView
+              contentContainerStyle={styles.modalScrollContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Buat Slip Gaji</Text>
+                <Button
+                  title="✕"
+                  variant="ghost"
+                  onPress={() => setShowPayrollModal(false)}
+                  style={{width: 40, paddingHorizontal: 0}}
+                />
+              </View>
+
+              <Text style={styles.sectionTitle}>1. Pilih Karyawan</Text>
+
+              {employees.length === 0 ? (
+                <Text style={styles.emptyText}>
+                  Tidak ada karyawan yang ditemukan.
+                </Text>
+              ) : (
+                <Dropdown
+                  label="Pilih Karyawan"
+                  placeholder="Pilih karyawan"
+                  options={employeeOptions}
+                  value={selectedEmployee}
+                  onChange={value => setSelectedEmployee(Number(value))}
+                  menuStyle={styles.employeeDropdownMenu}
+                />
+              )}
+
+              <Text style={styles.sectionTitle}>2. Tentukan Periode</Text>
+              <View style={styles.row}>
+                <View style={styles.flex1}>
+                  <Input
+                    label="Tanggal Mulai"
+                    placeholder="YYYY-MM-DD"
+                    value={startDate}
+                    onChangeText={setStartDate}
+                    hint="Contoh: 2024-01-01"
+                  />
+                </View>
+                <View style={{width: 12}} />
+                <View style={styles.flex1}>
+                  <Input
+                    label="Tanggal Akhir"
+                    placeholder="YYYY-MM-DD"
+                    value={endDate}
+                    onChangeText={setEndDate}
+                    hint="Contoh: 2024-01-31"
+                  />
+                </View>
+              </View>
+
+              <View style={styles.modalButtons}>
+                <Button
+                  title="Simpan Slip Gaji"
+                  onPress={handleGenerate}
+                  loading={loading}
+                  style={{flex: 1}}
+                />
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -612,6 +621,13 @@ const styles = StyleSheet.create({
   },
   heroStatLabel: {color: "#94a3b8", fontSize: 12, marginBottom: 4},
   heroStatValue: {color: "#fff", fontSize: 16, fontWeight: "800"},
+  quickActions: {
+    paddingHorizontal: theme.spacing.lg,
+    paddingTop: theme.spacing.md,
+  },
+  quickActionBtn: {
+    alignSelf: "flex-start",
+  },
   scrollContent: {
     padding: theme.spacing.lg,
   },
@@ -624,24 +640,19 @@ const styles = StyleSheet.create({
     color: theme.colors.text.primary,
     marginTop: 8,
   },
-  empList: {
+  employeeDropdownMenu: {
     marginBottom: 24,
-    marginHorizontal: -4, // compensates for padding if needed, but here mainly for look
   },
-  empListContent: {
-    paddingVertical: 4,
-    gap: 8,
-  },
-  empBtn: {
-    minWidth: 140,
-    height: "auto",
-    paddingVertical: 12,
-    marginRight: 8,
-    alignItems: "flex-start",
-  },
-  empBtnText: {
-    textAlign: "left",
+  selectedNote: {
+    color: theme.colors.text.secondary,
     fontSize: 12,
+    marginBottom: 8,
+    fontStyle: "italic",
+  },
+  emptyEmployeeText: {
+    color: theme.colors.text.secondary,
+    fontStyle: "italic",
+    marginBottom: 16,
   },
   statusFilterRow: {
     flexDirection: "row",
@@ -707,5 +718,39 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderColor: theme.colors.border,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(15,23,42,0.55)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  modalContent: {
+    width: "100%",
+    maxWidth: 640,
+    maxHeight: "88%",
+    backgroundColor: theme.colors.background,
+    borderRadius: 24,
+    padding: 20,
+    ...theme.shadows.md,
+  },
+  modalScrollContent: {
+    paddingBottom: 8,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  modalTitle: {
+    ...theme.typography.h3,
+    color: theme.colors.text.primary,
+  },
+  modalButtons: {
+    flexDirection: "row",
+    gap: 12 as any,
+    marginTop: 8,
   },
 });

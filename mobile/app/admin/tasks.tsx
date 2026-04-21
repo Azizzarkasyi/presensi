@@ -8,18 +8,17 @@ import {
   ScrollView,
 } from "react-native";
 import {Ionicons} from "@expo/vector-icons";
-import {useRouter} from "expo-router";
 import {useAuth} from "../../src/contexts/AuthContext";
 import {getTasks, getUsers, createTask} from "../../src/services/api";
 import {useResponsive} from "../../src/hooks/useResponsive";
 import {readCachedJson, writeCachedJson} from "../../src/utils/webCache";
 
-// UI Components
 import {theme} from "../../src/constants/theme";
 import {ScreenHeader} from "../../src/components/ui/ScreenHeader";
 import {Card} from "../../src/components/ui/Card";
 import {Button} from "../../src/components/ui/Button";
 import {Input} from "../../src/components/ui/Input";
+import {Dropdown} from "../../src/components/ui/Dropdown";
 import {Badge} from "../../src/components/ui/Badge";
 import {useGlobalModal} from "../../src/contexts/GlobalModalContext";
 
@@ -39,7 +38,6 @@ interface Employee {
 }
 
 export default function AdminTasks() {
-  const {user} = useAuth();
   const {isDesktop, isWeb} = useResponsive();
   const {showModal} = useGlobalModal();
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -48,7 +46,6 @@ export default function AdminTasks() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [selectedEmployee, setSelectedEmployee] = useState<number | null>(null);
-  const [employeeSearch, setEmployeeSearch] = useState("");
   const [loading, setLoading] = useState(false);
   const [usingCache, setUsingCache] = useState(false);
 
@@ -152,21 +149,14 @@ export default function AdminTasks() {
     }
   };
 
-  const filteredEmployees = useMemo(() => {
-    const q = employeeSearch.toLowerCase().trim();
-    if (!q) {
-      return employees;
-    }
-
-    return employees.filter(employee =>
-      employee.name.toLowerCase().includes(q),
-    );
-  }, [employees, employeeSearch]);
-
-  const openTaskModal = () => {
-    setEmployeeSearch("");
-    setShowTaskModal(true);
-  };
+  const employeeOptions = useMemo(
+    () =>
+      employees.map(employee => ({
+        label: employee.name,
+        value: employee.id,
+      })),
+    [employees],
+  );
 
   const renderTaskItem = ({item}: {item: Task}) => (
     <Card style={styles.taskCard}>
@@ -203,7 +193,7 @@ export default function AdminTasks() {
         rightElement={
           <Button
             title="+ Baru"
-            onPress={openTaskModal}
+            onPress={() => setShowTaskModal(true)}
             variant="primary"
             style={{paddingHorizontal: 16, height: 40, minHeight: 40}}
             textStyle={{fontSize: 14}}
@@ -244,7 +234,6 @@ export default function AdminTasks() {
         />
       </View>
 
-      {/* Modern Modal */}
       <Modal visible={showTaskModal} animationType="fade" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -280,54 +269,13 @@ export default function AdminTasks() {
                 style={{height: 80, textAlignVertical: "top"}}
               />
 
-              <Text style={styles.sectionLabel}>Ditugaskan Kepada</Text>
-              <Input
-                label="Cari karyawan"
-                placeholder="Ketik nama karyawan"
-                value={employeeSearch}
-                onChangeText={setEmployeeSearch}
+              <Dropdown
+                label="Ditugaskan Kepada"
+                placeholder="Pilih karyawan"
+                options={employeeOptions}
+                value={selectedEmployee}
+                onChange={value => setSelectedEmployee(Number(value))}
               />
-
-              {selectedEmployee ? (
-                <Text style={styles.selectedNote}>
-                  Dipilih:{" "}
-                  {employees.find(item => item.id === selectedEmployee)?.name ||
-                    "-"}
-                </Text>
-              ) : null}
-
-              <View style={styles.employeeList}>
-                {filteredEmployees.length > 0 ? (
-                  filteredEmployees.map(item => (
-                    <Button
-                      key={item.id}
-                      title={item.name}
-                      variant={
-                        selectedEmployee === item.id ? "primary" : "outline"
-                      }
-                      onPress={() => setSelectedEmployee(item.id)}
-                      style={[
-                        styles.employeeRow,
-                        selectedEmployee !== item.id && {
-                          borderColor: theme.colors.border,
-                        },
-                      ]}
-                      textStyle={{
-                        fontSize: 14,
-                        color:
-                          selectedEmployee === item.id
-                            ? "#fff"
-                            : theme.colors.text.secondary,
-                        textAlign: "left",
-                      }}
-                    />
-                  ))
-                ) : (
-                  <Text style={styles.emptyEmployeeText}>
-                    Karyawan tidak ditemukan.
-                  </Text>
-                )}
-              </View>
 
               <View style={styles.modalButtons}>
                 <Button
@@ -387,25 +335,6 @@ const styles = StyleSheet.create({
     marginTop: 8,
     maxWidth: 680,
   },
-  heroStats: {
-    flexDirection: "row",
-    gap: 12 as any,
-    flexWrap: "wrap",
-    justifyContent: "flex-end",
-    alignItems: "stretch",
-    minWidth: 320,
-  },
-  heroStatCard: {
-    minWidth: 88,
-    backgroundColor: "rgba(255,255,255,0.08)",
-    borderColor: "rgba(255,255,255,0.12)",
-    borderWidth: 1,
-    borderRadius: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-  },
-  heroStatLabel: {color: "#94a3b8", fontSize: 12, marginBottom: 4},
-  heroStatValue: {color: "#fff", fontSize: 18, fontWeight: "800"},
   listWrap: {
     flex: 1,
   },
@@ -467,7 +396,6 @@ const styles = StyleSheet.create({
   emptyText: {
     color: theme.colors.text.secondary,
   },
-  // Modal Styles
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.4)",
@@ -495,43 +423,6 @@ const styles = StyleSheet.create({
   modalTitle: {
     ...theme.typography.h2,
     color: theme.colors.text.primary,
-  },
-  sectionLabel: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: theme.colors.text.secondary,
-    marginTop: theme.spacing.md,
-    marginBottom: theme.spacing.xs,
-  },
-  employeeChip: {
-    marginRight: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    minHeight: 36,
-    borderRadius: theme.radius.full,
-  },
-  selectedNote: {
-    marginTop: theme.spacing.sm,
-    marginBottom: theme.spacing.sm,
-    color: theme.colors.text.secondary,
-    fontSize: 12,
-  },
-  employeeList: {
-    marginTop: theme.spacing.sm,
-    gap: 8 as any,
-    maxHeight: 280,
-  },
-  employeeRow: {
-    width: "100%",
-    justifyContent: "flex-start",
-    alignItems: "flex-start",
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-  },
-  emptyEmployeeText: {
-    color: theme.colors.text.secondary,
-    fontStyle: "italic",
-    paddingVertical: 12,
   },
   modalButtons: {
     marginTop: theme.spacing.xl,
