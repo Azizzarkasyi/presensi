@@ -1,3 +1,4 @@
+import {Prisma} from "@prisma/client";
 import {Request, Response} from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
@@ -189,7 +190,6 @@ export const getProfile = async (req: Request, res: Response) => {
         workLatitude: true,
         workLongitude: true,
         workRadius: true,
-        workLocations: true,
         workLocations: true,
         isActive: true,
         createdAt: true,
@@ -431,7 +431,7 @@ export const createUser = async (req: Request, res: Response) => {
         workRadius: Number.isFinite(resolvedWorkRadius as number)
           ? resolvedWorkRadius
           : null,
-        workLocations: parsedWorkLocations,
+        ...(parsedWorkLocations ? {workLocations: parsedWorkLocations} : {}),
         latePenalty: latePenalty ? parseFloat(latePenalty) : 0,
       },
       select: {
@@ -551,7 +551,7 @@ export const updateUser = async (req: Request, res: Response) => {
             }
           : {}),
         ...(workLocations !== undefined && {
-          workLocations: parsedWorkLocations,
+          workLocations: parsedWorkLocations ?? Prisma.DbNull,
         }),
       },
       select: {
