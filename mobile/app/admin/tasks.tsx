@@ -37,7 +37,7 @@ export default function AdminTasks() {
   const {showModal} = useGlobalModal();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [showModal, setShowModal] = useState(false);
+  const [showTaskModal, setShowTaskModal] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [selectedEmployee, setSelectedEmployee] = useState<number | null>(null);
@@ -107,7 +107,7 @@ export default function AdminTasks() {
         description,
         assigneeId: selectedEmployee,
       });
-      setShowModal(false);
+      setShowTaskModal(false);
       setTitle("");
       setDescription("");
       setSelectedEmployee(null);
@@ -179,7 +179,7 @@ export default function AdminTasks() {
         rightElement={
           <Button
             title="+ Baru"
-            onPress={() => setShowModal(true)}
+            onPress={() => setShowTaskModal(true)}
             variant="primary"
             style={{paddingHorizontal: 16, height: 40, minHeight: 40}}
             textStyle={{fontSize: 14}}
