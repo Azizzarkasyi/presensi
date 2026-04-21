@@ -146,7 +146,10 @@ export default function EditEmployee() {
       newErrors.latePenalty = "Denda harus angka";
 
     workLocations.forEach((location, index) => {
-      if (isNaN(Number(location.latitude)) || isNaN(Number(location.longitude))) {
+      if (
+        isNaN(Number(location.latitude)) ||
+        isNaN(Number(location.longitude))
+      ) {
         newErrors[`location-${index}`] = "Koordinat lokasi harus valid";
       }
       if (!location.radius || isNaN(Number(location.radius))) {
@@ -297,66 +300,45 @@ export default function EditEmployee() {
           <View style={styles.rowBetween}>
             <Text style={styles.sectionTitleNoMargin}>Status Akun</Text>
             <Button
-              Tambahkan satu atau lebih titik lokasi kerja dari peta. Setiap titik
-              punya radius absen sendiri.
+              title={isActive ? "Aktif" : "Non-Aktif"}
               size="sm"
               onPress={() => setIsActive(!isActive)}
             />
-              {workLocations.length === 0 ? (
-                <View style={{marginBottom: 16}}>
-                  <Text
-                    style={{color: theme.colors.text.light, fontStyle: "italic"}}
-                  >
-                    Belum ada lokasi khusus, akan mengikuti pusat
-                  </Text>
-                </View>
-              ) : (
-                <View style={{gap: 12, marginBottom: 16}}>
-                  {workLocations.map((location, index) => (
-                    <View key={location.id} style={styles.locationCard}>
-                      <View style={styles.rowBetween}>
-                        <Text style={styles.label}>Titik {index + 1}</Text>
-                        <TouchableOpacity
-                          onPress={() =>
-                            setWorkLocations(prev =>
-                              prev.filter(item => item.id !== location.id),
-                            )
-                          }
-                        >
-                          <Text style={styles.removeLocationText}>Hapus</Text>
-                        </TouchableOpacity>
-                      </View>
-                      <Text style={styles.locationValue}>
-                        {location.latitude}, {location.longitude}
-                      </Text>
-                      <Input
-                        label="Radius Titik Ini (meter)"
-                        value={location.radius}
-                        onChangeText={text => {
-                          setWorkLocations(prev =>
-                            prev.map(item =>
-                              item.id === location.id
-                                ? {...item, radius: text}
-                                : item,
-                            ),
-                          );
-                          setErrors({...errors, [`location-radius-${index}`]: ""});
-                        }}
-                        keyboardType="numeric"
-                        placeholder="Contoh: 50"
-                        error={errors[`location-radius-${index}`]}
-                      />
-                    </View>
-                  ))}
-                </View>
-              )}
+          </View>
+        </Card>
+
+        {/* Basic Information Section */}
+        <Card style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>👤 Informasi Dasar</Text>
+          <Input
+            label="Nama Lengkap"
+            value={name}
+            onChangeText={text => {
+              setName(text);
+              setErrors({...errors, name: ""});
+            }}
+            error={errors.name}
+          />
+          <Input
             label="Email"
             value={email}
-                title="🗺️ Tambah Titik via Peta Interaktif"
+            onChangeText={text => {
               setEmail(text);
               setErrors({...errors, email: ""});
             }}
             keyboardType="email-address"
+            autoCapitalize="none"
+            error={errors.email}
+          />
+
+          <Text style={styles.label}>Role / Jabatan</Text>
+          <View style={styles.salaryTypeContainer}>
+            {roles.map(r => (
+              <Button
+                key={r.value}
+                title={r.label}
+                variant={role === r.value ? "primary" : "outline"}
+                onPress={() => setRole(r.value)}
                 style={[
                   styles.salaryTypeBtn,
                   role !== r.value && {borderColor: theme.colors.border},
@@ -512,7 +494,10 @@ export default function EditEmployee() {
                               : item,
                           ),
                         );
-                        setErrors({...errors, [`location-radius-${index}`]: ""});
+                        setErrors({
+                          ...errors,
+                          [`location-radius-${index}`]: "",
+                        });
                       }}
                       keyboardType="numeric"
                       placeholder="Contoh: 50"
@@ -708,7 +693,7 @@ const styles = StyleSheet.create({
     marginTop: -2,
   },
   removeLocationText: {
-    color: theme.colors.error,
+    color: theme.colors.status.error,
     fontSize: 12,
     fontWeight: "700",
   },
