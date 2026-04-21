@@ -1,14 +1,16 @@
-import { Slot } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
-import { AuthProvider } from '../src/contexts/AuthContext';
+import {Slot} from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
+import {useEffect} from "react";
+import {AuthProvider} from "../src/contexts/AuthContext";
+import {GlobalModalProvider} from "../src/contexts/GlobalModalContext";
+import {GlobalModal} from "../src/components/GlobalModal";
 import {
   useFonts,
   PlusJakartaSans_400Regular,
   PlusJakartaSans_500Medium,
   PlusJakartaSans_600SemiBold,
-  PlusJakartaSans_700Bold
-} from '@expo-google-fonts/plus-jakarta-sans';
+  PlusJakartaSans_700Bold,
+} from "@expo-google-fonts/plus-jakarta-sans";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -17,7 +19,7 @@ export default function RootLayout() {
     PlusJakartaSans_400Regular,
     PlusJakartaSans_500Medium,
     PlusJakartaSans_600SemiBold,
-    PlusJakartaSans_700Bold
+    PlusJakartaSans_700Bold,
   });
 
   useEffect(() => {
@@ -30,7 +32,10 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
-      <Slot />
+      <GlobalModalProvider>
+        <Slot />
+        <GlobalModal />
+      </GlobalModalProvider>
     </AuthProvider>
   );
 }

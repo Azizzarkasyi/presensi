@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
   Image,
 } from "react-native";
 import {useRouter} from "expo-router";
@@ -17,38 +16,32 @@ import {Card} from "../../src/components/ui/Card";
 import {Button} from "../../src/components/ui/Button";
 import {theme} from "../../src/constants/theme";
 import {Ionicons} from "@expo/vector-icons";
-import {SuccessModal} from "../../src/components/ui/SuccessModal";
+import {useGlobalModal} from "../../src/contexts/GlobalModalContext";
 
 export default function LeaveRequest() {
   const router = useRouter();
   const {isDesktop, isWeb} = useResponsive();
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
-  const [errorModal, setErrorModal] = useState<{
-    visible: boolean;
-    message: string;
-  }>({visible: false, message: ""});
-
-  const [status, setStatus] = useState<"SICK" | "LEAVE">("SICK");
+  const [status, setStatus] = useState("SICK");
   const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const {showModal} = useGlobalModal();
 
-  const pickImage = async (useCamera: boolean = false) => {
+  const pickImage = async (useCamera = false) => {
     try {
       if (useCamera) {
         const {status} = await ImagePicker.requestCameraPermissionsAsync();
         if (status !== "granted") {
-          setErrorModal({
-            visible: true,
+          showModal({
+            isError: true,
             message: "Aplikasi membutuhkan akses kamera lho.",
+            title: "Izin Ditolak",
           });
           return;
         }
-
         const result = await ImagePicker.launchCameraAsync({
           mediaTypes: ImagePicker.MediaTypeOptions.Images,
           quality: 0.7,
         });
-
         if (!result.canceled && result.assets && result.assets.length > 0) {
           setPhotoUri(result.assets[0].uri);
         }
@@ -57,22 +50,26 @@ export default function LeaveRequest() {
           mediaTypes: ImagePicker.MediaTypeOptions.Images,
           quality: 0.7,
         });
-
         if (!result.canceled && result.assets && result.assets.length > 0) {
           setPhotoUri(result.assets[0].uri);
         }
       }
     } catch (error) {
       console.error("Error picking image:", error);
-      setErrorModal({visible: true, message: "Tidak dapat memuat gambar"});
+      showModal({
+        isError: true,
+        message: "Tidak dapat memuat gambar",
+        title: "Gagal",
+      });
     }
   };
 
   const handleSubmit = async () => {
     if (!photoUri) {
-      setErrorModal({
-        visible: true,
+      showModal({
+        isError: true,
         message: "Anda wajib melampirkan foto / surat bukti!",
+        title: "Peringatan",
       });
       return;
     }
@@ -88,36 +85,49 @@ export default function LeaveRequest() {
       let type = "image/jpeg";
 
       if (isWeb) {
-        // Fetch blob from blob URL for web React Native Image Picker
         const res = await fetch(photoUri);
         const blob = await res.blob();
-        formData.append("photo", blob as any, fallbackName);
+        formData.append("photo", blob, fallbackName);
       } else {
-        // Mobile platform handling
-        filename = photoUri.split("/").pop() || fallbackName;
+        filename = (photoUri as string).split("/").pop() || fallbackName;
         const match = /\.(\w+)$/.exec(filename);
         type = match ? `image/${match[1]}` : `image`;
         formData.append("photo", {
-          uri: photoUri,
+          uri: photoUri as string,
           name: filename,
           type,
         } as any);
       }
 
       await requestLeave(formData);
-      setSuccess(true);
+      showModal({
+        isError: false,
+        message: "Pengajuan Izin / Sakit Anda telah berhasil dicatat.",
+        title: "Berhasil Terkirim",
+        buttonText: "Ke Dashboard",
+        onClose: () => router.replace("/"),
+      });
     } catch (error: any) {
       console.error("Request leave error:", error);
-      const msg = error.response?.data?.message || "Gagal mengajukan izin";
-      setErrorModal({visible: true, message: msg});
+      let msg = "Gagal mengajukan izin";
+      if (
+        error &&
+        error.response &&
+        error.response.data &&
+        error.response.data.message
+      ) {
+        msg = error.response.data.message;
+      } else if (error && error.message) {
+        msg = error.message;
+      }
+      showModal({
+        isError: true,
+        message: msg,
+        title: "Gagal",
+      });
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleCloseSuccess = () => {
-    setSuccess(false);
-    router.replace("/");
   };
 
   return (
@@ -223,22 +233,6 @@ export default function LeaveRequest() {
           </Card>
         </View>
       </ScrollView>
-
-      <SuccessModal
-        visible={success}
-        title="Berhasil Terkirim"
-        message="Pengajuan Izin / Sakit Anda telah berhasil dicatat."
-        buttonText="Ke Dashboard"
-        onClose={handleCloseSuccess}
-      />
-      <SuccessModal
-        visible={errorModal.visible}
-        isError
-        title="Gagal"
-        message={errorModal.message}
-        buttonText="Tutup"
-        onClose={() => setErrorModal({visible: false, message: ""})}
-      />
     </View>
   );
 }
