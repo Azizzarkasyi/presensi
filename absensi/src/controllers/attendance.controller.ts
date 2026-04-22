@@ -82,6 +82,16 @@ function normalizeWorkLocation(
 }
 
 function getAllowedWorkLocations(user: any, config: any): WorkLocation[] {
+  const hasCompanyLocation =
+    config?.officeLatitude !== null &&
+    config?.officeLatitude !== undefined &&
+    config?.officeLongitude !== null &&
+    config?.officeLongitude !== undefined;
+
+  if (!hasCompanyLocation) {
+    return [];
+  }
+
   const defaultRadius = config?.allowedRadiusMeters ?? 50;
 
   const configuredLocations = Array.isArray(user.workLocations)
@@ -95,10 +105,6 @@ function getAllowedWorkLocations(user: any, config: any): WorkLocation[] {
         )
     : [];
 
-  if (configuredLocations.length > 0) {
-    return configuredLocations;
-  }
-
   const legacyLocation = normalizeWorkLocation(
     {
       latitude: user.workLatitude,
@@ -108,20 +114,15 @@ function getAllowedWorkLocations(user: any, config: any): WorkLocation[] {
     defaultRadius,
   );
 
+  if (configuredLocations.length > 0) {
+    return configuredLocations;
+  }
+
   if (legacyLocation) {
     return [legacyLocation];
   }
 
-  const officeLocation = normalizeWorkLocation(
-    {
-      latitude: config?.officeLatitude,
-      longitude: config?.officeLongitude,
-      radius: config?.allowedRadiusMeters,
-    },
-    defaultRadius,
-  );
-
-  return officeLocation ? [officeLocation] : [];
+  return [];
 }
 
 function isWithinAnyAllowedLocation(
@@ -240,7 +241,7 @@ export const clockIn = async (req: Request, res: Response) => {
           validation.nearest?.radius ?? allowedLocations[0].radius;
         return res.status(400).json({
           success: false,
-          message: `Absen ditolak: Anda berada di luar semua radius lokasi kerja (Jarak terdekat: ${Math.round(nearestDistance)}m, Maksimal: ${nearestRadius}m).`,
+          message: `Absen ditolak: Anda berada di luar semua radius lokasi kerja. Jarak terdekat ${Math.round(nearestDistance)} meter, batas maksimal ${nearestRadius} meter.`,
         });
       }
     }
@@ -796,7 +797,7 @@ export const clockOut = async (req: Request, res: Response) => {
           validation.nearest?.radius ?? allowedLocations[0].radius;
         return res.status(400).json({
           success: false,
-          message: `Pulang ditolak: Anda berada di luar semua radius lokasi kerja (Jarak terdekat: ${Math.round(nearestDistance)}m, Maksimal: ${nearestRadius}m).`,
+          message: `Pulang ditolak: Anda berada di luar semua radius lokasi kerja. Jarak terdekat ${Math.round(nearestDistance)} meter, batas maksimal ${nearestRadius} meter.`,
         });
       }
     }

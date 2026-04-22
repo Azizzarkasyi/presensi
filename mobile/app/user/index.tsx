@@ -21,6 +21,7 @@ import {
   startBreak,
   endBreak,
   getTodayBreaks,
+  getCompanyConfig,
   registerFace,
   verifyFace,
   getFaceStatus,
@@ -41,7 +42,19 @@ export default function UserDashboard() {
     "clockIn" | "clockOut" | "breakStart" | "breakEnd" | "register"
   >("clockIn");
   const [faceRegistered, setFaceRegistered] = useState(false);
+  const [workValidation, setWorkValidation] = useState<{
+    latitude: number;
+    longitude: number;
+    radius: number;
+  } | null>(null);
   // Shift detection handled server-side; no local shift selection needed
+
+  type LocationResult = {
+    coords: {
+      latitude: number;
+      longitude: number;
+    };
+  };
 
   useEffect(() => {
     loadData();
@@ -70,6 +83,29 @@ export default function UserDashboard() {
       }
       if (breaksRes.data.success) {
         setTodayBreaks(breaksRes.data.data);
+      }
+
+      try {
+        const configRes = await getCompanyConfig();
+        const config = configRes.data?.data;
+
+        if (
+          config?.officeLatitude !== null &&
+          config?.officeLatitude !== undefined &&
+          config?.officeLongitude !== null &&
+          config?.officeLongitude !== undefined
+        ) {
+          setWorkValidation({
+            latitude: Number(config.officeLatitude),
+            longitude: Number(config.officeLongitude),
+            radius: Number(config.allowedRadiusMeters) || 3000,
+          });
+        } else {
+          setWorkValidation(null);
+        }
+      } catch (error) {
+        console.error("Error loading profile:", error);
+        setWorkValidation(null);
       }
     } catch (error) {
       console.error("Error loading data:", error);
@@ -106,11 +142,6 @@ export default function UserDashboard() {
           return;
         }
 
-        // --- Lokasi kantor dan radius (meter) ---
-        const OFFICE_LAT = -6.2; // ganti dengan lat kantor
-        const OFFICE_LON = 106.816666; // ganti dengan lon kantor
-        const OFFICE_RADIUS = 100; // meter
-
         // Timeout GPS 3 detik
         const locationPromise = Location.getCurrentPositionAsync({
           accuracy: Location.Accuracy.Balanced,
@@ -121,9 +152,12 @@ export default function UserDashboard() {
             3000,
           ),
         );
-        let location;
+        let location: LocationResult;
         try {
-          location = await Promise.race([locationPromise, timeoutPromise]);
+          location = (await Promise.race([
+            locationPromise,
+            timeoutPromise,
+          ])) as LocationResult;
         } catch (err) {
           showModal({
             title: "Error",
@@ -139,7 +173,12 @@ export default function UserDashboard() {
         currentLon = location.coords.longitude;
 
         // Validasi radius lokasi kantor
-        function getDistanceFromLatLonInMeters(lat1, lon1, lat2, lon2) {
+        function getDistanceFromLatLonInMeters(
+          lat1: number,
+          lon1: number,
+          lat2: number,
+          lon2: number,
+        ) {
           const R = 6371000; // Radius bumi dalam meter
           const dLat = ((lat2 - lat1) * Math.PI) / 180;
           const dLon = ((lon2 - lon1) * Math.PI) / 180;
@@ -152,21 +191,23 @@ export default function UserDashboard() {
               2;
           return R * 2 * Math.asin(Math.sqrt(a));
         }
-        const distance = getDistanceFromLatLonInMeters(
-          currentLat,
-          currentLon,
-          OFFICE_LAT,
-          OFFICE_LON,
-        );
-        if (distance > OFFICE_RADIUS) {
-          showModal({
-            title: "Error",
-            message: "Anda di luar jangkauan lokasi kantor.",
-            isError: true,
-            buttonText: "Tutup",
-          });
-          setLoading(false);
-          return;
+        if (workValidation) {
+          const distance = getDistanceFromLatLonInMeters(
+            currentLat,
+            currentLon,
+            workValidation.latitude,
+            workValidation.longitude,
+          );
+          if (distance > workValidation.radius) {
+            showModal({
+              title: "Error",
+              message: `Anda di luar jangkauan lokasi kantor. Jarak Anda ${Math.round(distance)} meter, batas maksimal ${workValidation.radius} meter.`,
+              isError: true,
+              buttonText: "Tutup",
+            });
+            setLoading(false);
+            return;
+          }
         }
       }
 
