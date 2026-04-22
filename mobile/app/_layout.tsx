@@ -6,6 +6,7 @@ import {GlobalModalProvider} from "../src/contexts/GlobalModalContext";
 import {GlobalModal} from "../src/components/GlobalModal";
 import {WebInstallPrompt} from "../src/components/WebInstallPrompt";
 import {WebOfflineBanner} from "../src/components/WebOfflineBanner";
+import {ErrorBoundary} from "../src/components/ErrorBoundary";
 import {
   useFonts,
   PlusJakartaSans_400Regular,
@@ -33,13 +34,16 @@ export default function RootLayout() {
   if (!fontsLoaded) return null;
 
   return (
-    <AuthProvider>
-      <GlobalModalProvider>
-        <Slot />
-        <GlobalModal />
-        <WebInstallPrompt />
-        <WebOfflineBanner />
-      </GlobalModalProvider>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <GlobalModalProvider>
+          <Slot />
+          <GlobalModal />
+          <WebInstallPrompt />
+          <WebOfflineBanner />
+        </GlobalModalProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
+

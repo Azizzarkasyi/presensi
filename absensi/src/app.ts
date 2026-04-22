@@ -2,8 +2,10 @@ import express, {Express, Request, Response, NextFunction} from "express";
 import cors from "cors";
 import path from "path";
 import fs from "fs";
+import rateLimit from "express-rate-limit";
 
 import {tenantMiddleware, optionalTenantMiddleware} from "./middleware/tenant";
+import {autoMigrateTenants} from "./config/auto-migrate";
 
 // Routes
 import authRoutes from "./routes/auth.routes";
@@ -24,15 +26,67 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, {recursive: true});
 }
 
-// Update konfigurasi CORS
+// ============================================
+// Security: CORS Whitelist
+// ============================================
+const allowedOrigins = [
+  "https://app-presensi.yexsx.my.id",
+  "https://api-presensi.yexsx.my.id",
+  "http://localhost:8081",
+  "http://localhost:19006",
+  "http://localhost:3000",
+];
+
 app.use(
   cors({
-    origin: true, // Allow all origins for now to fix connection issues
+    origin: (origin, callback) => {
+      // Allow requests with no origin (mobile apps, curl, etc.)
+      if (!origin) return callback(null, true);
+      // Allow localhost in development
+      if (
+        allowedOrigins.includes(origin) ||
+        origin.startsWith("http://localhost:") ||
+        origin.startsWith("http://192.168.")
+      ) {
+        return callback(null, true);
+      }
+      callback(new Error("Not allowed by CORS"));
+    },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "X-Tenant-ID"],
   }),
 );
+
+// ============================================
+// Security: Rate Limiting
+// ============================================
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20, // max 20 login attempts per window
+  message: {
+    success: false,
+    message:
+      "Terlalu banyak percobaan login. Coba lagi dalam 15 menit.",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const apiLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minute
+  max: 120, // 120 requests per minute
+  message: {
+    success: false,
+    message: "Terlalu banyak request. Coba lagi nanti.",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Apply rate limiting
+app.use("/api/", apiLimiter);
+app.use("/api/auth", authLimiter);
 
 // Middleware
 app.use(express.json());
@@ -44,7 +98,7 @@ app.get("/", (req: Request, res: Response) => {
   res.json({
     success: true,
     message: "Multi-Tenant Attendance API is running",
-    version: "2.0.0",
+    version: "2.1.0",
   });
 });
 
@@ -111,116 +165,9 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   });
 });
 
-// Auto-migrate schema length for existing tenants on boot
-setTimeout(async () => {
-  try {
-    const {getPublicPrisma} = require("./prisma/tenant-prisma");
-    const prisma = getPublicPrisma();
-    const tenants = await prisma.tenant.findMany();
-    for (const tenant of tenants) {
-      await prisma
-        .$executeRawUnsafe(
-          `DO $$
-          BEGIN
-            IF NOT EXISTS (
-              SELECT 1 FROM pg_type t
-              JOIN pg_namespace n ON n.oid = t.typnamespace
-              WHERE t.typname = 'LeaveApprovalStatus' AND n.nspname = '${tenant.schemaName}'
-            ) THEN
-              CREATE TYPE "${tenant.schemaName}"."LeaveApprovalStatus" AS ENUM ('PENDING', 'APPROVED', 'REJECTED');
-            END IF;
-          END $$;`,
-        )
-        .catch(() => {});
-      await prisma
-        .$executeRawUnsafe(
-          `DO $$
-          BEGIN
-            IF NOT EXISTS (
-              SELECT 1 FROM pg_type t
-              JOIN pg_namespace n ON n.oid = t.typnamespace
-              WHERE t.typname = 'CorrectionStatus' AND n.nspname = '${tenant.schemaName}'
-            ) THEN
-              CREATE TYPE "${tenant.schemaName}"."CorrectionStatus" AS ENUM ('NONE', 'PENDING', 'APPROVED', 'REJECTED');
-            END IF;
-          END $$;`,
-        )
-        .catch(() => {});
-      await prisma
-        .$executeRawUnsafe(
-          `DO $$
-          BEGIN
-            IF EXISTS (
-              SELECT 1
-              FROM information_schema.columns
-              WHERE table_schema = '${tenant.schemaName}'
-                AND table_name = 'Attendance'
-                AND column_name = 'leaveApprovalStatus'
-                AND data_type = 'character varying'
-            ) THEN
-              ALTER TABLE "${tenant.schemaName}"."Attendance"
-                  ALTER COLUMN "leaveApprovalStatus" DROP DEFAULT,
-                ALTER COLUMN "leaveApprovalStatus" TYPE "${tenant.schemaName}"."LeaveApprovalStatus"
-                USING "leaveApprovalStatus"::text::"${tenant.schemaName}"."LeaveApprovalStatus";
-            END IF;
-
-            IF EXISTS (
-              SELECT 1
-              FROM information_schema.columns
-              WHERE table_schema = '${tenant.schemaName}'
-                AND table_name = 'Attendance'
-                AND column_name = 'correctionStatus'
-                AND data_type = 'character varying'
-            ) THEN
-              ALTER TABLE "${tenant.schemaName}"."Attendance"
-                  ALTER COLUMN "correctionStatus" DROP DEFAULT,
-                ALTER COLUMN "correctionStatus" TYPE "${tenant.schemaName}"."CorrectionStatus"
-                USING "correctionStatus"::text::"${tenant.schemaName}"."CorrectionStatus";
-            END IF;
-          END $$;`,
-        )
-        .catch(() => {});
-      await prisma
-        .$executeRawUnsafe(
-          `ALTER TABLE "${tenant.schemaName}"."Attendance"
-            ALTER COLUMN "leaveApprovalStatus" SET DEFAULT 'PENDING',
-            ALTER COLUMN "correctionStatus" SET DEFAULT 'NONE';`,
-        )
-        .catch(() => {});
-      await prisma
-        .$executeRawUnsafe(
-          `ALTER TABLE "${tenant.schemaName}"."User" ALTER COLUMN "startWorkTime" TYPE VARCHAR(255)`,
-        )
-        .catch(() => {});
-      await prisma
-        .$executeRawUnsafe(
-          `ALTER TABLE "${tenant.schemaName}"."User" ALTER COLUMN "endWorkTime" TYPE VARCHAR(255)`,
-        )
-        .catch(() => {});
-      await prisma
-        .$executeRawUnsafe(
-          `ALTER TABLE "${tenant.schemaName}"."User" ADD COLUMN IF NOT EXISTS "workLocations" JSONB`,
-        )
-        .catch(() => {});
-      await prisma
-        .$executeRawUnsafe(
-          `ALTER TABLE "${tenant.schemaName}"."Attendance"
-          ADD COLUMN IF NOT EXISTS "leaveApprovalStatus" "${tenant.schemaName}"."LeaveApprovalStatus" NOT NULL DEFAULT 'PENDING',
-          ADD COLUMN IF NOT EXISTS "leaveReviewNote" TEXT,
-          ADD COLUMN IF NOT EXISTS "leaveReviewedAt" TIMESTAMP(3),
-          ADD COLUMN IF NOT EXISTS "correctionStatus" "${tenant.schemaName}"."CorrectionStatus" NOT NULL DEFAULT 'NONE',
-          ADD COLUMN IF NOT EXISTS "correctionReason" TEXT,
-          ADD COLUMN IF NOT EXISTS "correctionRequestedClockIn" TIMESTAMP(3),
-          ADD COLUMN IF NOT EXISTS "correctionRequestedClockOut" TIMESTAMP(3),
-          ADD COLUMN IF NOT EXISTS "correctionReviewNote" TEXT,
-          ADD COLUMN IF NOT EXISTS "correctionRequestedAt" TIMESTAMP(3),
-          ADD COLUMN IF NOT EXISTS "correctionReviewedAt" TIMESTAMP(3)`,
-        )
-        .catch(() => {});
-    }
-  } catch (e) {
-    // Ignore migration errors
-  }
+// Auto-migrate schema for existing tenants on boot (delayed)
+setTimeout(() => {
+  autoMigrateTenants();
 }, 5000);
 
 export default app;

@@ -82,6 +82,19 @@ function normalizeWorkLocation(
 }
 
 function getAllowedWorkLocations(user: any, config: any): WorkLocation[] {
+  const defaultRadius = config?.allowedRadiusMeters ?? 50;
+
+  // 1. Check per-user custom work locations first
+  if (user?.workLocations && Array.isArray(user.workLocations) && user.workLocations.length > 0) {
+    const userLocations = user.workLocations
+      .map((loc: any) => normalizeWorkLocation(loc, defaultRadius))
+      .filter((loc: WorkLocation | null): loc is WorkLocation => loc !== null);
+    if (userLocations.length > 0) {
+      return userLocations;
+    }
+  }
+
+  // 2. Fallback: use company-wide office location
   const hasCompanyLocation =
     config?.officeLatitude !== null &&
     config?.officeLatitude !== undefined &&
@@ -91,8 +104,6 @@ function getAllowedWorkLocations(user: any, config: any): WorkLocation[] {
   if (!hasCompanyLocation) {
     return [];
   }
-
-  const defaultRadius = config?.allowedRadiusMeters ?? 50;
 
   const companyLocation = normalizeWorkLocation(
     {
@@ -364,7 +375,6 @@ export const requestLeave = async (req: Request, res: Response) => {
       });
     }
 
-    // Save description in clockOutPhoto (Repurpose for Zero-Migration storage strategy)
     // Trim to 255 chars to prevent database text-overflow
     const safeDesc = description ? description.substring(0, 250) : null;
 
@@ -374,8 +384,8 @@ export const requestLeave = async (req: Request, res: Response) => {
         date: targetDate,
         status: status,
         leaveApprovalStatus: "PENDING",
-        clockInPhoto: photo, // Repurpose for Document URL
-        clockOutPhoto: safeDesc, // Repurpose for Keterangan Text
+        clockInPhoto: photo, // Document URL
+        leaveDescription: safeDesc, // Keterangan
       },
     });
 

@@ -7,6 +7,8 @@ import {
   Platform,
   Modal,
   ScrollView,
+  RefreshControl,
+  Alert,
 } from "react-native";
 import {Ionicons} from "@expo/vector-icons";
 import * as Location from "expo-location";
@@ -25,6 +27,7 @@ import {
   registerFace,
   verifyFace,
   getFaceStatus,
+  getAttendanceStatistics,
 } from "../../src/services/api";
 import FaceCamera from "../../src/components/FaceCamera";
 import {theme} from "../../src/constants/theme";
@@ -37,6 +40,13 @@ export default function UserDashboard() {
   const [todayAttendance, setTodayAttendance] = useState<any>(null);
   const [todayBreaks, setTodayBreaks] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [monthlyStats, setMonthlyStats] = useState<{
+    present: number;
+    late: number;
+    sick: number;
+    leave: number;
+    totalDays: number;
+  } | null>(null);
   const [showCamera, setShowCamera] = useState(false);
   const [cameraMode, setCameraMode] = useState<
     "clockIn" | "clockOut" | "breakStart" | "breakEnd" | "register"
@@ -83,6 +93,16 @@ export default function UserDashboard() {
       }
       if (breaksRes.data.success) {
         setTodayBreaks(breaksRes.data.data);
+      }
+
+      // Load monthly statistics
+      try {
+        const statsRes = await getAttendanceStatistics();
+        if (statsRes.data.success) {
+          setMonthlyStats(statsRes.data.data);
+        }
+      } catch (error) {
+        console.error("Error loading stats:", error);
       }
 
       try {
@@ -287,9 +307,38 @@ export default function UserDashboard() {
     }
   };
 
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadData();
+    await checkFaceStatus();
+    setRefreshing(false);
+  };
+
   const handleLogout = async () => {
-    await logout();
-    router.replace("/login");
+    if (Platform.OS === "web") {
+      if (window.confirm("Apakah Anda yakin ingin logout?")) {
+        await logout();
+        router.replace("/login");
+      }
+    } else {
+      Alert.alert(
+        "Konfirmasi Logout",
+        "Apakah Anda yakin ingin logout?",
+        [
+          {text: "Batal", style: "cancel"},
+          {
+            text: "Logout",
+            style: "destructive",
+            onPress: async () => {
+              await logout();
+              router.replace("/login");
+            },
+          },
+        ],
+      );
+    }
   };
 
   const hasActiveBreak = todayBreaks?.activeBreak != null;
@@ -317,6 +366,8 @@ export default function UserDashboard() {
     {icon: "💰", title: "Slip Gaji", route: "/user/payroll"},
     {icon: "📝", title: "Tugas", route: "/user/tasks"},
     {icon: "📅", title: "Izin", route: "/user/leave"},
+    {icon: "✏️", title: "Koreksi", route: "/user/attendance-correction"},
+    {icon: "👤", title: "Profil", route: "/user/profile"},
   ];
 
   return (
@@ -358,7 +409,12 @@ export default function UserDashboard() {
       )}
 
       {/* Main Content */}
-      <ScrollView style={[styles.main, isDesktop && styles.mainDesktop]}>
+      <ScrollView
+        style={[styles.main, isDesktop && styles.mainDesktop]}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
         <View style={styles.header}>
           <View>
             <Text style={[styles.title, isDesktop && styles.titleDesktop]}>
@@ -559,6 +615,31 @@ export default function UserDashboard() {
             )}
           </View>
         </View>
+
+        {/* Monthly Statistics */}
+        {monthlyStats && (
+          <View style={styles.statsCard}>
+            <Text style={styles.sectionTitle}>📊 Statistik Bulan Ini</Text>
+            <View style={styles.statsRow}>
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>{monthlyStats.present}</Text>
+                <Text style={styles.statLabel}>Hadir</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={[styles.statNumber, {color: theme.colors.status.warning}]}>{monthlyStats.late}</Text>
+                <Text style={styles.statLabel}>Telat</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={[styles.statNumber, {color: theme.colors.status.info}]}>{monthlyStats.sick}</Text>
+                <Text style={styles.statLabel}>Sakit</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={[styles.statNumber, {color: theme.colors.secondary}]}>{monthlyStats.leave}</Text>
+                <Text style={styles.statLabel}>Izin</Text>
+              </View>
+            </View>
+          </View>
+        )}
 
         {/* Menu Grid (Mobile/Tablet only) */}
         {!isDesktop && (
@@ -817,4 +898,29 @@ const styles = StyleSheet.create({
   menuCardTablet: {width: "calc(25% - 9px)" as any},
   menuIcon: {fontSize: 28, marginBottom: 8},
   menuTitle: {fontSize: 14, fontWeight: "600", color: "#1e293b"},
+  statsCard: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    elevation: 2,
+  },
+  statsRow: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    marginTop: 8,
+  },
+  statItem: {
+    alignItems: "center",
+  },
+  statNumber: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: theme.colors.status.success,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: "#64748b",
+    marginTop: 4,
+  },
 });

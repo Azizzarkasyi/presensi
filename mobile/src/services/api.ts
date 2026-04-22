@@ -74,6 +74,11 @@ export const updateProfile = (data: FormData) =>
     headers: {"Content-Type": "multipart/form-data"},
   });
 
+export const changePassword = (data: {
+  currentPassword: string;
+  newPassword: string;
+}) => api.put("/users/change-password", data);
+
 // Users (Admin only)
 export const getUsers = () => api.get("/users");
 

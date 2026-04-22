@@ -101,6 +101,7 @@ model Attendance {
   correctionReviewNote String?
   correctionRequestedAt DateTime?
   correctionReviewedAt DateTime?
+  leaveDescription    String?
   latitude            Float?
   longitude           Float?
   totalBreakMinutes Int              @default(0)

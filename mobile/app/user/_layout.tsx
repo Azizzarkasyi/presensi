@@ -15,6 +15,7 @@ export default function UserLayout() {
       <Stack.Screen name="payroll" />
       <Stack.Screen name="tasks" />
       <Stack.Screen name="leave" />
+      <Stack.Screen name="profile" />
     </Stack>
   );
 }

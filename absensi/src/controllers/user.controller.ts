@@ -4,7 +4,10 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
 const SALT_ROUNDS = 10;
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error("FATAL: JWT_SECRET environment variable is not set!");
+}
 const JWT_EXPIRES_IN = (process.env.JWT_EXPIRES_IN ||
   "7d") as jwt.SignOptions["expiresIn"];
 
