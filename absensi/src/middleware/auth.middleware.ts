@@ -2,10 +2,10 @@ import {Request, Response, NextFunction} from "express";
 import jwt from "jsonwebtoken";
 import {getPublicPrisma} from "../prisma/tenant-prisma";
 
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
+if (!process.env.JWT_SECRET) {
   throw new Error("FATAL: JWT_SECRET environment variable is not set!");
 }
+const JWT_SECRET: string = process.env.JWT_SECRET;
 
 // Extend Express Request type
 declare global {
