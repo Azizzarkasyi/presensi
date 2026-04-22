@@ -426,10 +426,6 @@ export const getLeaveRequests = async (req: Request, res: Response) => {
       },
     };
 
-    if (status && status !== "ALL") {
-      where.leaveApprovalStatus = status;
-    }
-
     const requests = await prisma.attendance.findMany({
       where,
       include: {
@@ -445,9 +441,16 @@ export const getLeaveRequests = async (req: Request, res: Response) => {
       orderBy: [{date: "desc"}, {createdAt: "desc"}],
     });
 
+    const filteredRequests =
+      status && status !== "ALL"
+        ? requests.filter(
+            request => String(request.leaveApprovalStatus) === String(status),
+          )
+        : requests;
+
     res.json({
       success: true,
-      data: requests,
+      data: filteredRequests,
     });
   } catch (error) {
     console.error("Get leave requests error:", error);
