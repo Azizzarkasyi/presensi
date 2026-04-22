@@ -8,7 +8,7 @@ import {
   Platform,
 } from "react-native";
 import {Ionicons} from "@expo/vector-icons";
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import {ScreenHeader} from "../../src/components/ui/ScreenHeader";
 import {Button} from "../../src/components/ui/Button";
@@ -190,8 +190,9 @@ export default function PayrollView() {
               <TouchableOpacity
                 onPress={() =>
                   window.open(
-                    api.defaults.baseURL?.replace("/api", "") +
-                      item.paymentProof,
+                    `${(api.defaults.baseURL ?? "").replace("/api", "")}${
+                      item.paymentProof
+                    }`,
                     "_blank",
                   )
                 }

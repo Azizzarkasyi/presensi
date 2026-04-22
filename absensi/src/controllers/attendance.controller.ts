@@ -94,35 +94,16 @@ function getAllowedWorkLocations(user: any, config: any): WorkLocation[] {
 
   const defaultRadius = config?.allowedRadiusMeters ?? 50;
 
-  const configuredLocations = Array.isArray(user.workLocations)
-    ? user.workLocations
-        .map((location: unknown) =>
-          normalizeWorkLocation(location, defaultRadius),
-        )
-        .filter(
-          (location: WorkLocation | null): location is WorkLocation =>
-            location !== null,
-        )
-    : [];
-
-  const legacyLocation = normalizeWorkLocation(
+  const companyLocation = normalizeWorkLocation(
     {
-      latitude: user.workLatitude,
-      longitude: user.workLongitude,
-      radius: user.workRadius,
+      latitude: config.officeLatitude,
+      longitude: config.officeLongitude,
+      radius: config.allowedRadiusMeters,
     },
     defaultRadius,
   );
 
-  if (configuredLocations.length > 0) {
-    return configuredLocations;
-  }
-
-  if (legacyLocation) {
-    return [legacyLocation];
-  }
-
-  return [];
+  return companyLocation ? [companyLocation] : [];
 }
 
 function isWithinAnyAllowedLocation(
