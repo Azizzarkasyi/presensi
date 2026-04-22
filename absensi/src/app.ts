@@ -30,6 +30,7 @@ if (!fs.existsSync(uploadsDir)) {
 // Security: CORS Whitelist
 // ============================================
 const allowedOrigins = [
+  "https://yexsx.my.id",
   "https://app-presensi.yexsx.my.id",
   "https://api-presensi.yexsx.my.id",
   "http://localhost:8081",
@@ -42,11 +43,12 @@ app.use(
     origin: (origin, callback) => {
       // Allow requests with no origin (mobile apps, curl, etc.)
       if (!origin) return callback(null, true);
-      // Allow localhost in development
+      // Allow localhost and local network in development
       if (
         allowedOrigins.includes(origin) ||
         origin.startsWith("http://localhost:") ||
-        origin.startsWith("http://192.168.")
+        origin.startsWith("http://192.168.") ||
+        origin.endsWith(".yexsx.my.id")
       ) {
         return callback(null, true);
       }
