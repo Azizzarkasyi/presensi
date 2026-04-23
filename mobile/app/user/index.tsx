@@ -9,6 +9,7 @@ import {
   ScrollView,
   RefreshControl,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 import {Ionicons} from "@expo/vector-icons";
 import * as Location from "expo-location";
@@ -52,6 +53,7 @@ export default function UserDashboard() {
     "clockIn" | "clockOut" | "breakStart" | "breakEnd" | "register"
   >("clockIn");
   const [faceRegistered, setFaceRegistered] = useState(false);
+  const [gpsStatus, setGpsStatus] = useState<string | null>(null);
   const [workValidation, setWorkValidation] = useState<{
     latitude: number;
     longitude: number;
@@ -63,8 +65,46 @@ export default function UserDashboard() {
     coords: {
       latitude: number;
       longitude: number;
+      accuracy: number | null;
     };
   };
+
+  async function getBestLocation(maxRetries = 3): Promise<{lat: number; lon: number}> {
+    const timeouts = [5000, 8000, 12000]; // Increasing timeout per retry
+    let lastError: any;
+    let bestLocation: {lat: number; lon: number; accuracy: number} | null = null;
+
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      setGpsStatus(attempt === 0 ? "Mencari lokasi GPS..." : `Retry lokasi ke-${attempt + 1}...`);
+      try {
+        const loc = await Promise.race([
+          Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High }),
+          new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), timeouts[attempt]))
+        ]) as LocationResult;
+
+        // Save best location (smallest accuracy = most accurate)
+        const currentAccuracy = loc.coords.accuracy ?? 999;
+        if (!bestLocation || currentAccuracy < bestLocation.accuracy) {
+          bestLocation = {
+            lat: loc.coords.latitude,
+            lon: loc.coords.longitude,
+            accuracy: currentAccuracy,
+          };
+        }
+
+        // If accuracy is good enough (< 30m), stop retry
+        if (currentAccuracy < 30) break;
+
+      } catch (err) {
+        lastError = err;
+        // Continue to next retry
+      }
+    }
+
+    setGpsStatus(null);
+    if (bestLocation) return { lat: bestLocation.lat, lon: bestLocation.lon };
+    throw lastError ?? new Error("Gagal mendapatkan lokasi");
+  }
 
   useEffect(() => {
     loadData();
@@ -162,22 +202,9 @@ export default function UserDashboard() {
           return;
         }
 
-        // Timeout GPS 3 detik
-        const locationPromise = Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
-        });
-        const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(
-            () => reject(new Error("Pencarian GPS terlalu lama (Timeout)")),
-            3000,
-          ),
-        );
-        let location: LocationResult;
+        let location: {lat: number; lon: number};
         try {
-          location = (await Promise.race([
-            locationPromise,
-            timeoutPromise,
-          ])) as LocationResult;
+          location = await getBestLocation(3);
         } catch (err) {
           showModal({
             title: "Error",
@@ -189,8 +216,8 @@ export default function UserDashboard() {
           setLoading(false);
           return;
         }
-        currentLat = location.coords.latitude;
-        currentLon = location.coords.longitude;
+        currentLat = location.lat;
+        currentLon = location.lon;
 
         // Validasi radius lokasi kantor
         function getDistanceFromLatLonInMeters(
@@ -220,8 +247,8 @@ export default function UserDashboard() {
           );
           if (distance > workValidation.radius) {
             showModal({
-              title: "Error",
-              message: `Anda di luar jangkauan lokasi kantor. Jarak Anda ${Math.round(distance)} meter, batas maksimal ${workValidation.radius} meter.`,
+              title: "Di Luar Jangkauan",
+              message: `Jarak Anda ${Math.round(distance)}m dari kantor, batas maksimal ${workValidation.radius}m.\n\nPastikan Anda berada di lokasi yang tepat, lalu coba absen kembali.`,
               isError: true,
               buttonText: "Tutup",
             });
@@ -543,6 +570,14 @@ export default function UserDashboard() {
                     todayBreaks.activeBreak.startTime,
                   ).toLocaleTimeString("id-ID")}
                 </Text>
+              </View>
+            )}
+
+            {/* GPS Status Indicator */}
+            {gpsStatus && (
+              <View style={styles.gpsStatusBar}>
+                <ActivityIndicator size="small" color={theme.colors.primary} />
+                <Text style={styles.gpsStatusText}>{gpsStatus}</Text>
               </View>
             )}
 
@@ -922,5 +957,21 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#64748b",
     marginTop: 4,
+  },
+  gpsStatusBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#eff6ff",
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#dbeafe",
+  },
+  gpsStatusText: {
+    color: theme.colors.primary,
+    fontSize: 14,
+    fontWeight: "600",
   },
 });
