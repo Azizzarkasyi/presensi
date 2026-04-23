@@ -33,6 +33,25 @@ import {
 import FaceCamera from "../../src/components/FaceCamera";
 import {theme} from "../../src/constants/theme";
 
+function getDistanceFromLatLonInMeters(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number,
+) {
+  const R = 6371000; // Radius bumi dalam meter
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    0.5 -
+    Math.cos(dLat) / 2 +
+    (Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      (1 - Math.cos(dLon))) /
+      2;
+  return R * 2 * Math.asin(Math.sqrt(a));
+}
+
 export default function UserDashboard() {
   const {user, logout} = useAuth();
   const router = useRouter();
@@ -54,6 +73,7 @@ export default function UserDashboard() {
   >("clockIn");
   const [faceRegistered, setFaceRegistered] = useState(false);
   const [gpsStatus, setGpsStatus] = useState<string | null>(null);
+  const [liveDistance, setLiveDistance] = useState<number | null>(null);
   const [workValidation, setWorkValidation] = useState<{
     latitude: number;
     longitude: number;
@@ -78,7 +98,10 @@ export default function UserDashboard() {
       setGpsStatus(attempt === 0 ? "Mencari lokasi GPS..." : `Retry lokasi ke-${attempt + 1}...`);
       try {
         const loc = await Promise.race([
-          Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High }),
+          Location.getCurrentPositionAsync({ 
+            accuracy: Location.Accuracy.High,
+            maximumAge: 0, // Force fresh location
+          }),
           new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), timeouts[attempt]))
         ]) as LocationResult;
 
@@ -90,6 +113,17 @@ export default function UserDashboard() {
             lon: loc.coords.longitude,
             accuracy: currentAccuracy,
           };
+
+          // Update live distance if work validation exists
+          if (workValidation) {
+            const dist = getDistanceFromLatLonInMeters(
+              bestLocation.lat,
+              bestLocation.lon,
+              workValidation.latitude,
+              workValidation.longitude
+            );
+            setLiveDistance(Math.round(dist));
+          }
         }
 
         // If accuracy is good enough (< 30m), stop retry
@@ -175,6 +209,7 @@ export default function UserDashboard() {
   const handleFaceAction = (
     mode: "clockIn" | "clockOut" | "breakStart" | "breakEnd" | "register",
   ) => {
+    setLiveDistance(null);
     setCameraMode(mode);
     setShowCamera(true);
   };
@@ -219,25 +254,6 @@ export default function UserDashboard() {
         currentLat = location.lat;
         currentLon = location.lon;
 
-        // Validasi radius lokasi kantor
-        function getDistanceFromLatLonInMeters(
-          lat1: number,
-          lon1: number,
-          lat2: number,
-          lon2: number,
-        ) {
-          const R = 6371000; // Radius bumi dalam meter
-          const dLat = ((lat2 - lat1) * Math.PI) / 180;
-          const dLon = ((lon2 - lon1) * Math.PI) / 180;
-          const a =
-            0.5 -
-            Math.cos(dLat) / 2 +
-            (Math.cos((lat1 * Math.PI) / 180) *
-              Math.cos((lat2 * Math.PI) / 180) *
-              (1 - Math.cos(dLon))) /
-              2;
-          return R * 2 * Math.asin(Math.sqrt(a));
-        }
         if (workValidation) {
           const distance = getDistanceFromLatLonInMeters(
             currentLat,
@@ -578,6 +594,21 @@ export default function UserDashboard() {
               <View style={styles.gpsStatusBar}>
                 <ActivityIndicator size="small" color={theme.colors.primary} />
                 <Text style={styles.gpsStatusText}>{gpsStatus}</Text>
+              </View>
+            )}
+
+            {/* Distance Indicator */}
+            {liveDistance !== null && workValidation && (
+              <View style={[
+                styles.distanceBar,
+                liveDistance <= workValidation.radius ? styles.distanceOk : styles.distanceFar
+              ]}>
+                <Text style={styles.distanceText}>
+                  {liveDistance <= workValidation.radius
+                    ? `✅ Dalam jangkauan (${liveDistance}m dari kantor)`
+                    : `⚠️ Di luar jangkauan — ${liveDistance}m dari kantor, batas ${workValidation.radius}m`
+                  }
+                </Text>
               </View>
             )}
 
@@ -973,5 +1004,25 @@ const styles = StyleSheet.create({
     color: theme.colors.primary,
     fontSize: 14,
     fontWeight: "600",
+  },
+  distanceBar: {
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+  },
+  distanceOk: {
+    backgroundColor: "#f0fdf4",
+    borderColor: "#bbf7d0",
+  },
+  distanceFar: {
+    backgroundColor: "#fffbeb",
+    borderColor: "#fde68a",
+  },
+  distanceText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: theme.colors.text.primary,
+    textAlign: "center",
   },
 });
