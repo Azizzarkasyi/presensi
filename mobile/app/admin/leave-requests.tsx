@@ -31,6 +31,7 @@ interface LeaveItem {
   leaveApprovalStatus: "PENDING" | "APPROVED" | "REJECTED";
   leaveReviewNote?: string | null;
   leaveReviewedAt?: string | null;
+  leaveDescription?: string | null;
   clockInPhoto?: string | null;
   clockOutPhoto?: string | null;
   user: {id: number; name: string; email: string};
@@ -275,8 +276,8 @@ export default function AdminLeaveRequests() {
                 </View>
               </View>
             ) : null}
-            {item.clockOutPhoto ? (
-              <Text style={styles.meta}>Keterangan: {item.clockOutPhoto}</Text>
+            {item.leaveDescription ? (
+              <Text style={styles.meta}>Keterangan: {item.leaveDescription}</Text>
             ) : null}
             {item.leaveReviewNote ? (
               <Text style={styles.meta}>

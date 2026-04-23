@@ -6,6 +6,8 @@ import {
   StyleSheet,
   ScrollView,
   Modal,
+  Platform,
+  Alert,
 } from "react-native";
 import {Ionicons} from "@expo/vector-icons";
 import {useRouter} from "expo-router";
@@ -131,8 +133,28 @@ export default function SuperAdminDashboard() {
   };
 
   const handleLogout = async () => {
-    await logout();
-    router.replace("/login");
+    if (Platform.OS === "web") {
+      if (window.confirm("Apakah Anda yakin ingin logout?")) {
+        await logout();
+        router.replace("/login");
+      }
+    } else {
+      Alert.alert(
+        "Konfirmasi Logout",
+        "Apakah Anda yakin ingin logout?",
+        [
+          {text: "Batal", style: "cancel"},
+          {
+            text: "Logout",
+            style: "destructive",
+            onPress: async () => {
+              await logout();
+              router.replace("/login");
+            },
+          },
+        ],
+      );
+    }
   };
 
   const handleEdit = (tenant: Tenant) => {

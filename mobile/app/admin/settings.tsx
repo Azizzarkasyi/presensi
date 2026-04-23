@@ -44,9 +44,10 @@ export default function AdminSettings() {
     setUsingCache(false);
     try {
       const res = await getCompanyConfig();
-      if (res.data) {
+      const configData = res.data?.data || res.data;
+      if (configData) {
         // Merge with defaults to ensure no keys are missing
-        const nextConfig = {...config, ...res.data};
+        const nextConfig = {...config, ...configData};
         setConfig(nextConfig);
         await writeCachedJson(cacheKey, nextConfig);
       }
@@ -69,6 +70,7 @@ export default function AdminSettings() {
     setLoading(true);
     try {
       await updateCompanyConfig(config);
+      await loadConfig(); // Reload from server to confirm save
       showModal({
         title: "Berhasil",
         message: "Pengaturan perusahaan berhasil diperbarui.",
