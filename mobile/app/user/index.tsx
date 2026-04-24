@@ -29,7 +29,12 @@ import {
   verifyFace,
   getFaceStatus,
   getAttendanceStatistics,
+  getAttendanceHistory,
+  getProfile,
+  requestAttendanceCorrection,
 } from "../../src/services/api";
+import {Button} from "../../src/components/ui/Button";
+import {Input} from "../../src/components/ui/Input";
 import FaceCamera from "../../src/components/FaceCamera";
 import {theme} from "../../src/constants/theme";
 
@@ -79,6 +84,15 @@ export default function UserDashboard() {
     longitude: number;
     radius: number;
   }>>([]);
+  const [missedClockOut, setMissedClockOut] = useState<{
+    id: number;
+    date: string;
+    clockIn: string;
+  } | null>(null);
+  const [showMissedClockOutModal, setShowMissedClockOutModal] = useState(false);
+  const [missedClockOutTime, setMissedClockOutTime] = useState("17:00");
+  const [missedClockOutReason, setMissedClockOutReason] = useState("");
+  const [missedClockOutLoading, setMissedClockOutLoading] = useState(false);
   // Shift detection handled server-side; no local shift selection needed
 
   type LocationResult = {
@@ -181,6 +195,36 @@ export default function UserDashboard() {
         console.error("Error loading stats:", error);
       }
 
+      // Detect missed clock out from yesterday
+      try {
+        const historyRes = await getAttendanceHistory({page: 1, limit: 5});
+        const historyList =
+          historyRes.data?.data?.records || historyRes.data?.data || [];
+
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        yesterday.setHours(0, 0, 0, 0);
+        const yesterdayStr = yesterday.toISOString().split("T")[0];
+
+        const yesterdayMissed = historyList.find((att: any) => {
+          const attDate = new Date(att.date).toISOString().split("T")[0];
+          return attDate === yesterdayStr && att.clockIn && !att.clockOut;
+        });
+
+        if (yesterdayMissed) {
+          setMissedClockOut({
+            id: yesterdayMissed.id,
+            date: yesterdayStr,
+            clockIn: yesterdayMissed.clockIn,
+          });
+          setShowMissedClockOutModal(true);
+        } else {
+          setMissedClockOut(null);
+        }
+      } catch (error) {
+        console.error("Error checking missed clock out:", error);
+      }
+
       try {
         const [configRes, profileRes] = await Promise.all([
           getCompanyConfig(),
@@ -235,6 +279,53 @@ export default function UserDashboard() {
       }
     } catch (error) {
       console.error("Error loading data:", error);
+    }
+  };
+
+  const handleMissedClockOutSubmit = async () => {
+    if (!missedClockOut) return;
+    if (!missedClockOutReason.trim()) {
+      showModal({
+        title: "Error",
+        message: "Alasan wajib diisi.",
+        isError: true,
+        buttonText: "Tutup",
+      });
+      return;
+    }
+
+    setMissedClockOutLoading(true);
+    try {
+      const [hours, minutes] = missedClockOutTime.split(":").map(Number);
+      const clockOutDateTime = new Date(missedClockOut.date);
+      clockOutDateTime.setHours(hours, minutes, 0, 0);
+
+      await requestAttendanceCorrection(missedClockOut.id, {
+        correctionReason: missedClockOutReason.trim(),
+        requestedClockOut: clockOutDateTime.toISOString(),
+      });
+
+      setShowMissedClockOutModal(false);
+      setMissedClockOut(null);
+      setMissedClockOutReason("");
+      setMissedClockOutTime("17:00");
+
+      showModal({
+        title: "Berhasil",
+        message:
+          "Pengajuan koreksi jam keluar berhasil dikirim dan menunggu persetujuan admin.",
+        buttonText: "OK",
+      });
+      await loadData();
+    } catch (error: any) {
+      showModal({
+        title: "Gagal",
+        message: error.response?.data?.message || "Gagal mengirim koreksi",
+        isError: true,
+        buttonText: "Tutup",
+      });
+    } finally {
+      setMissedClockOutLoading(false);
     }
   };
 
@@ -429,7 +520,7 @@ export default function UserDashboard() {
   };
 
   const hasActiveBreak = todayBreaks?.activeBreak != null;
-  const canClockIn = !todayAttendance?.clockIn;
+  const canClockIn = !todayAttendance?.clockIn && !missedClockOut;
   const canClockOut = todayAttendance?.clockIn && !todayAttendance?.clockOut;
   const canStartBreak =
     todayAttendance?.clockIn && !todayAttendance?.clockOut && !hasActiveBreak;
@@ -633,6 +724,23 @@ export default function UserDashboard() {
               </View>
             )}
 
+            {/* Missed Clock Out Alert */}
+            {missedClockOut && (
+              <TouchableOpacity
+                style={styles.missedAlert}
+                onPress={() => setShowMissedClockOutModal(true)}
+              >
+                <Text style={styles.missedAlertText}>
+                  ⚠️ Anda belum absen keluar kemarin (
+                  {new Date(missedClockOut.date).toLocaleDateString("id-ID", {
+                    day: "numeric",
+                    month: "long",
+                  })}
+                  ). Tap untuk mengisi jam keluar.
+                </Text>
+              </TouchableOpacity>
+            )}
+
             {/* GPS Status Indicator */}
             {gpsStatus && (
               <View style={styles.gpsStatusBar}>
@@ -738,24 +846,85 @@ export default function UserDashboard() {
             <Text style={styles.sectionTitle}>📊 Statistik Bulan Ini</Text>
             <View style={styles.statsRow}>
               <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{monthlyStats.present}</Text>
+                <Text style={styles.statValue}>{monthlyStats.present}</Text>
                 <Text style={styles.statLabel}>Hadir</Text>
               </View>
               <View style={styles.statItem}>
-                <Text style={[styles.statNumber, {color: theme.colors.status.warning}]}>{monthlyStats.late}</Text>
+                <Text style={styles.statValue}>{monthlyStats.late}</Text>
                 <Text style={styles.statLabel}>Telat</Text>
               </View>
               <View style={styles.statItem}>
-                <Text style={[styles.statNumber, {color: theme.colors.status.info}]}>{monthlyStats.sick}</Text>
+                <Text style={styles.statValue}>{monthlyStats.sick}</Text>
                 <Text style={styles.statLabel}>Sakit</Text>
               </View>
               <View style={styles.statItem}>
-                <Text style={[styles.statNumber, {color: theme.colors.secondary}]}>{monthlyStats.leave}</Text>
+                <Text style={styles.statValue}>{monthlyStats.leave}</Text>
                 <Text style={styles.statLabel}>Izin</Text>
               </View>
             </View>
           </View>
         )}
+
+        <View style={{height: 40}} />
+      </ScrollView>
+
+      {/* Missed Clock Out Modal */}
+      <Modal visible={showMissedClockOutModal} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.missedModal}>
+            <Text style={styles.missedModalTitle}>⚠️ Lupa Absen Keluar</Text>
+            <Text style={styles.missedModalSubtitle}>
+              Anda belum absen keluar pada{" "}
+              {missedClockOut
+                ? new Date(missedClockOut.date).toLocaleDateString("id-ID", {
+                    weekday: "long",
+                    day: "numeric",
+                    month: "long",
+                  })
+                : ""}
+              . Isi jam keluar dan alasan untuk melanjutkan absen hari ini.
+            </Text>
+
+            {/* Jam Masuk (read-only) */}
+            <Text style={styles.missedModalLabel}>
+              Jam Masuk:{" "}
+              {missedClockOut?.clockIn
+                ? new Date(missedClockOut.clockIn).toLocaleTimeString("id-ID")
+                : "-"}
+            </Text>
+
+            {/* Pilih Jam Keluar */}
+            <Input
+              label="Jam Keluar (format 17:00)"
+              value={missedClockOutTime}
+              onChangeText={setMissedClockOutTime}
+              placeholder="17:00"
+              keyboardType="numbers-and-punctuation"
+            />
+
+            {/* Alasan */}
+            <Input
+              label="Alasan lupa absen keluar *"
+              value={missedClockOutReason}
+              onChangeText={setMissedClockOutReason}
+              placeholder="Contoh: Lupa, baterai HP habis, dll."
+              multiline
+            />
+
+            <Button
+              title="Kirim Koreksi"
+              onPress={handleMissedClockOutSubmit}
+              loading={missedClockOutLoading}
+              style={{marginBottom: 12}}
+            />
+            <Button
+              title="Nanti"
+              variant="ghost"
+              onPress={() => setShowMissedClockOutModal(false)}
+            />
+          </View>
+        </View>
+      </Modal>
 
         {/* Menu Grid (Mobile/Tablet only) */}
         {!isDesktop && (
@@ -1074,5 +1243,49 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: theme.colors.text.primary,
     textAlign: "center",
+  },
+  missedAlert: {
+    backgroundColor: "#fefce8",
+    borderWidth: 1,
+    borderColor: "#fde68a",
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 16,
+  },
+  missedAlertText: {
+    color: "#92400e",
+    fontSize: 13,
+    fontWeight: "600",
+    lineHeight: 20,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end",
+  },
+  missedModal: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 24,
+    paddingBottom: 40,
+  },
+  missedModalTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#92400e",
+    marginBottom: 8,
+  },
+  missedModalSubtitle: {
+    fontSize: 14,
+    color: "#6b7280",
+    lineHeight: 20,
+    marginBottom: 20,
+  },
+  missedModalLabel: {
+    fontSize: 14,
+    color: "#374151",
+    fontWeight: "600",
+    marginBottom: 12,
   },
 });
