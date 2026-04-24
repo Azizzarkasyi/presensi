@@ -866,7 +866,6 @@ export default function UserDashboard() {
         )}
 
         <View style={{height: 40}} />
-      </ScrollView>
 
       {/* Missed Clock Out Modal */}
       <Modal visible={showMissedClockOutModal} animationType="slide" transparent>
@@ -942,14 +941,6 @@ export default function UserDashboard() {
           </View>
         )}
 
-        {/* Modal Kamera */}
-        <Modal visible={showCamera} animationType="slide">
-          <FaceCamera
-            mode={cameraMode === "register" ? "register" : "verify"}
-            onFaceDetected={handleFaceDetected}
-            onCancel={() => setShowCamera(false)}
-          />
-        </Modal>
       </ScrollView>
     </View>
   );
