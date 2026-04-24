@@ -74,11 +74,11 @@ export default function UserDashboard() {
   const [faceRegistered, setFaceRegistered] = useState(false);
   const [gpsStatus, setGpsStatus] = useState<string | null>(null);
   const [liveDistance, setLiveDistance] = useState<number | null>(null);
-  const [workValidation, setWorkValidation] = useState<{
+  const [workLocations, setWorkLocations] = useState<Array<{
     latitude: number;
     longitude: number;
     radius: number;
-  } | null>(null);
+  }>>([]);
   // Shift detection handled server-side; no local shift selection needed
 
   type LocationResult = {
@@ -114,16 +114,18 @@ export default function UserDashboard() {
             accuracy: currentAccuracy,
           };
 
-          // Update live distance if work validation exists
-          if (workValidation) {
-            const dist = getDistanceFromLatLonInMeters(
-              bestLocation.lat,
-              bestLocation.lon,
-              workValidation.latitude,
-              workValidation.longitude
-            );
-            setLiveDistance(Math.round(dist));
-          }
+        // Update live distance if work locations exist
+        if (workLocations.length > 0 && bestLocation) {
+          const distances = workLocations.map(loc =>
+            getDistanceFromLatLonInMeters(
+              bestLocation!.lat,
+              bestLocation!.lon,
+              loc.latitude,
+              loc.longitude
+            )
+          );
+          setLiveDistance(Math.round(Math.min(...distances)));
+        }
         }
 
         // If accuracy is good enough (< 30m), stop retry
@@ -180,26 +182,56 @@ export default function UserDashboard() {
       }
 
       try {
-        const configRes = await getCompanyConfig();
-        const config = configRes.data?.data;
+        const [configRes, profileRes] = await Promise.all([
+          getCompanyConfig(),
+          getProfile(),
+        ]);
 
-        if (
-          config?.officeLatitude !== null &&
-          config?.officeLatitude !== undefined &&
-          config?.officeLongitude !== null &&
-          config?.officeLongitude !== undefined
-        ) {
-          setWorkValidation({
+        const config = configRes.data?.data;
+        const userProfile = profileRes.data?.data;
+        const defaultRadius = Number(config?.allowedRadiusMeters) || 50;
+
+        let locations: Array<{latitude: number; longitude: number; radius: number}> = [];
+
+        // 1. Priority: workLocations per-user (multi-location support)
+        if (userProfile?.workLocations) {
+          let raw = userProfile.workLocations;
+          if (typeof raw === "string") {
+            try { raw = JSON.parse(raw); } catch(e) { raw = null; }
+          }
+          if (Array.isArray(raw) && raw.length > 0) {
+            locations = raw
+              .map((loc: any) => ({
+                latitude: Number(loc.latitude),
+                longitude: Number(loc.longitude),
+                radius: Number(loc.radius) > 0 ? Number(loc.radius) : defaultRadius,
+              }))
+              .filter((loc: any) => isFinite(loc.latitude) && isFinite(loc.longitude));
+          }
+        }
+
+        // 2. Fallback: single work location fields per-user (legacy)
+        if (locations.length === 0 && userProfile?.workLatitude && userProfile?.workLongitude) {
+          locations = [{
+            latitude: Number(userProfile.workLatitude),
+            longitude: Number(userProfile.workLongitude),
+            radius: Number(userProfile.workRadius) > 0 ? Number(userProfile.workRadius) : defaultRadius,
+          }];
+        }
+
+        // 3. Fallback: global office location from company config
+        if (locations.length === 0 && config?.officeLatitude && config?.officeLongitude) {
+          locations = [{
             latitude: Number(config.officeLatitude),
             longitude: Number(config.officeLongitude),
-            radius: Number(config.allowedRadiusMeters) || 3000,
-          });
-        } else {
-          setWorkValidation(null);
+            radius: defaultRadius,
+          }];
         }
+
+        setWorkLocations(locations);
       } catch (error) {
-        console.error("Error loading profile:", error);
-        setWorkValidation(null);
+        console.error("Error loading work locations:", error);
+        setWorkLocations([]);
       }
     } catch (error) {
       console.error("Error loading data:", error);
@@ -254,17 +286,29 @@ export default function UserDashboard() {
         currentLat = location.lat;
         currentLon = location.lon;
 
-        if (workValidation) {
-          const distance = getDistanceFromLatLonInMeters(
-            currentLat,
-            currentLon,
-            workValidation.latitude,
-            workValidation.longitude,
-          );
-          if (distance > workValidation.radius) {
+        if (workLocations.length > 0) {
+          const distances = workLocations.map(loc => ({
+            dist: getDistanceFromLatLonInMeters(
+              currentLat!,
+              currentLon!,
+              loc.latitude,
+              loc.longitude
+            ),
+            radius: loc.radius,
+          }));
+
+          // Allowed if user is within radius of ANY assigned location
+          const isInRange = distances.some(d => d.dist <= d.radius);
+
+          if (!isInRange) {
+            // Find closest location for helpful error message
+            const closest = distances.reduce((prev, curr) => 
+              prev.dist < curr.dist ? prev : curr
+            );
+
             showModal({
               title: "Di Luar Jangkauan",
-              message: `Jarak Anda ${Math.round(distance)}m dari kantor, batas maksimal ${workValidation.radius}m.\n\nPastikan Anda berada di lokasi yang tepat, lalu coba absen kembali.`,
+              message: `Anda ${Math.round(closest.dist)}m dari titik lokasi terdekat, batas maksimal ${closest.radius}m.\n\nPastikan Anda berada di salah satu lokasi kerja yang diizinkan.`,
               isError: true,
               buttonText: "Tutup",
             });
@@ -598,19 +642,25 @@ export default function UserDashboard() {
             )}
 
             {/* Distance Indicator */}
-            {liveDistance !== null && workValidation && (
-              <View style={[
-                styles.distanceBar,
-                liveDistance <= workValidation.radius ? styles.distanceOk : styles.distanceFar
-              ]}>
-                <Text style={styles.distanceText}>
-                  {liveDistance <= workValidation.radius
-                    ? `✅ Dalam jangkauan (${liveDistance}m dari kantor)`
-                    : `⚠️ Di luar jangkauan — ${liveDistance}m dari kantor, batas ${workValidation.radius}m`
-                  }
-                </Text>
-              </View>
-            )}
+            {liveDistance !== null && workLocations.length > 0 && (() => {
+              // The liveDistance state already stores the MINIMUM distance to any location
+              // We just need to check if that min distance is within ANY of the allowed radii
+              const isOk = workLocations.some(loc => liveDistance <= loc.radius);
+
+              return (
+                <View style={[
+                  styles.distanceBar,
+                  isOk ? styles.distanceOk : styles.distanceFar
+                ]}>
+                  <Text style={styles.distanceText}>
+                    {isOk
+                      ? `✅ Dalam jangkauan (${liveDistance}m dari titik terdekat)`
+                      : `⚠️ Di luar jangkauan — ${liveDistance}m dari titik terdekat`
+                    }
+                  </Text>
+                </View>
+              );
+            })()}
 
             {/* Action Buttons */}
             <View style={styles.buttonRow}>
