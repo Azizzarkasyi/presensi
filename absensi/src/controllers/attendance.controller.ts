@@ -243,7 +243,7 @@ export const clockIn = async (req: Request, res: Response) => {
     const lateThreshold = config?.lateThresholdMinutes || 15;
 
     // Determine status - check if late
-    const now = new Date();
+    // const now = new Date(); // Removed duplicate declaration
 
     let attendanceStatus = status || "PRESENT";
     if (attendanceStatus === "PRESENT" && !isFLEX) {
