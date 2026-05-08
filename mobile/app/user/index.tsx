@@ -1,4 +1,5 @@
 import {useEffect, useState} from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   View,
   Text,
@@ -101,6 +102,7 @@ export default function UserDashboard() {
       longitude: number;
       accuracy: number | null;
     };
+    mocked?: boolean;
   };
 
   async function getBestLocation(maxRetries = 3): Promise<{lat: number; lon: number}> {
@@ -118,6 +120,11 @@ export default function UserDashboard() {
           }),
           new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), timeouts[attempt]))
         ]) as LocationResult;
+
+        // Anti Fake GPS / Mock Location
+        if (loc.mocked) {
+          throw new Error("FAKE_GPS");
+        }
 
         // Save best location (smallest accuracy = most accurate)
         const currentAccuracy = loc.coords.accuracy ?? 999;
@@ -173,26 +180,39 @@ export default function UserDashboard() {
   };
 
   const loadData = async () => {
+    const CACHE_KEY = `@dashboard_cache_${user?.id}`;
+
+    // 1. Tampilkan Data Lokal Dulu (Instant UI / Offline)
     try {
+      const cached = await AsyncStorage.getItem(CACHE_KEY);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed.todayAttendance) setTodayAttendance(parsed.todayAttendance);
+        if (parsed.todayBreaks) setTodayBreaks(parsed.todayBreaks);
+        if (parsed.monthlyStats) setMonthlyStats(parsed.monthlyStats);
+        if (parsed.workLocations) setWorkLocations(parsed.workLocations);
+      }
+    } catch (e) { /* ignore cache read error */ }
+
+    // 2. Fetch API Online (Background Update)
+    try {
+      let tempTodayAttendance = null;
+      let tempTodayBreaks = null;
+      let tempMonthlyStats = null;
+      let tempWorkLocations: any[] = [];
+
       const [attendanceRes, breaksRes] = await Promise.all([
         getTodayAttendance(),
         getTodayBreaks(),
       ]);
+      
       if (attendanceRes.data.success) {
-        setTodayAttendance(attendanceRes.data.data);
+        tempTodayAttendance = attendanceRes.data.data;
+        setTodayAttendance(tempTodayAttendance);
       }
       if (breaksRes.data.success) {
-        setTodayBreaks(breaksRes.data.data);
-      }
-
-      // Load monthly statistics
-      try {
-        const statsRes = await getAttendanceStatistics();
-        if (statsRes.data.success) {
-          setMonthlyStats(statsRes.data.data);
-        }
-      } catch (error) {
-        console.error("Error loading stats:", error);
+        tempTodayBreaks = breaksRes.data.data;
+        setTodayBreaks(tempTodayBreaks);
       }
 
       // Detect missed clock out from yesterday
@@ -203,12 +223,15 @@ export default function UserDashboard() {
 
         const yesterday = new Date();
         yesterday.setDate(yesterday.getDate() - 1);
-        yesterday.setHours(0, 0, 0, 0);
-        const yesterdayStr = yesterday.toISOString().split("T")[0];
+        const yYear = yesterday.getFullYear();
+        const yMonth = String(yesterday.getMonth() + 1).padStart(2, "0");
+        const yDay = String(yesterday.getDate()).padStart(2, "0");
+        const yesterdayStr = `${yYear}-${yMonth}-${yDay}`;
 
         const yesterdayMissed = historyList.find((att: any) => {
-          const attDate = new Date(att.date).toISOString().split("T")[0];
-          return attDate === yesterdayStr && att.clockIn && !att.clockOut;
+          const d = new Date(att.date);
+          const attDateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+          return attDateStr === yesterdayStr && att.clockIn && !att.clockOut;
         });
 
         if (yesterdayMissed) {
@@ -223,6 +246,16 @@ export default function UserDashboard() {
         }
       } catch (error) {
         console.error("Error checking missed clock out:", error);
+      }
+
+      try {
+        const statsRes = await getAttendanceStatistics();
+        if (statsRes.data.success) {
+          tempMonthlyStats = statsRes.data.data;
+          setMonthlyStats(tempMonthlyStats);
+        }
+      } catch (error) {
+        console.error("Error loading stats:", error);
       }
 
       try {
@@ -272,13 +305,23 @@ export default function UserDashboard() {
           }];
         }
 
-        setWorkLocations(locations);
+        tempWorkLocations = locations;
+        setWorkLocations(tempWorkLocations);
       } catch (error) {
         console.error("Error loading work locations:", error);
         setWorkLocations([]);
       }
+
+      // 3. Simpan data terbaru ke Cache Lokal
+      await AsyncStorage.setItem(CACHE_KEY, JSON.stringify({
+        todayAttendance: tempTodayAttendance,
+        todayBreaks: tempTodayBreaks,
+        monthlyStats: tempMonthlyStats,
+        workLocations: tempWorkLocations
+      }));
+
     } catch (error) {
-      console.error("Error loading data:", error);
+      console.error("Gagal sinkronisasi data online. Menggunakan data lokal (offline).", error);
     }
   };
 
@@ -296,13 +339,9 @@ export default function UserDashboard() {
 
     setMissedClockOutLoading(true);
     try {
-      const [hours, minutes] = missedClockOutTime.split(":").map(Number);
-      const clockOutDateTime = new Date(missedClockOut.date);
-      clockOutDateTime.setHours(hours, minutes, 0, 0);
-
       await requestAttendanceCorrection(missedClockOut.id, {
         correctionReason: missedClockOutReason.trim(),
-        requestedClockOut: clockOutDateTime.toISOString(),
+        requestedClockOut: missedClockOutTime.trim(),
       });
 
       setShowMissedClockOutModal(false);
@@ -363,11 +402,13 @@ export default function UserDashboard() {
         let location: {lat: number; lon: number};
         try {
           location = await getBestLocation(3);
-        } catch (err) {
+        } catch (err: any) {
+          const isFakeGps = err.message === "FAKE_GPS";
           showModal({
-            title: "Error",
-            message:
-              "Gagal mendapatkan lokasi, pastikan GPS aktif dan sinyal bagus.",
+            title: isFakeGps ? "Akses Ditolak" : "Error",
+            message: isFakeGps 
+              ? "Aplikasi Fake GPS / Mock Location terdeteksi. Harap matikan untuk melakukan absensi." 
+              : "Gagal mendapatkan lokasi, pastikan GPS aktif dan sinyal bagus.",
             isError: true,
             buttonText: "Tutup",
           });

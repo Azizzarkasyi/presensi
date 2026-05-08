@@ -39,6 +39,20 @@ api.interceptors.request.use(async config => {
   return config;
 });
 
+// Auto-Logout Interceptor (Handle Token Expired)
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    if (error.response && error.response.status === 401) {
+      // Hapus sesi lokal agar user dipaksa login ulang
+      await AsyncStorage.removeItem("token");
+      await AsyncStorage.removeItem("user");
+      // Note: Redirect ke halaman login akan ditangani oleh AuthContext yang mendeteksi token hilang
+    }
+    return Promise.reject(error);
+  }
+);
+
 export default api;
 
 // ============================================

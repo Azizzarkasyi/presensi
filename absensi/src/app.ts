@@ -1,3 +1,6 @@
+// Enforce server timezone to Asia/Jakarta to prevent UTC-offset date bugs
+process.env.TZ = "Asia/Jakarta";
+
 import express, {Express, Request, Response, NextFunction} from "express";
 import cors from "cors";
 import path from "path";
