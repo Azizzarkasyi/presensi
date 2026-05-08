@@ -177,9 +177,9 @@ export const clockIn = async (req: Request, res: Response) => {
       });
     }
 
-    // Get today's date (date only, no time)
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // Get today's date correctly mapped to UTC to avoid timezone shift in DB
+    const now = new Date();
+    const today = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
 
     // Check if already exists for today
     const existingAttendance = await prisma.attendance.findFirst({
@@ -355,11 +355,13 @@ export const requestLeave = async (req: Request, res: Response) => {
       });
     }
 
-    let targetDate = new Date();
+    const now = new Date();
+    let targetDate = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
     if (date) {
-      targetDate = new Date(date);
+      // Set target date ensuring correct DB UTC mapping
+      const d = new Date(date);
+      targetDate = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
     }
-    targetDate.setHours(0, 0, 0, 0);
 
     const existingAttendance = await prisma.attendance.findFirst({
       where: {
@@ -797,8 +799,8 @@ export const clockOut = async (req: Request, res: Response) => {
     }
 
     // Find today's attendance
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const now = new Date();
+    const today = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
 
     const attendance = await prisma.attendance.findFirst({
       where: {
@@ -902,8 +904,8 @@ export const getTodayAttendance = async (req: Request, res: Response) => {
     const prisma = req.prisma!;
     const userId = req.user!.id;
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const now = new Date();
+    const today = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
 
     const attendance = await prisma.attendance.findFirst({
       where: {
@@ -989,8 +991,8 @@ export const getAllTodayAttendance = async (req: Request, res: Response) => {
   try {
     const prisma = req.prisma!;
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const now = new Date();
+    const today = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
 
     const attendances = await prisma.attendance.findMany({
       where: {date: today},
