@@ -249,6 +249,7 @@ export const clockIn = async (req: Request, res: Response) => {
     if (attendanceStatus === "PRESENT" && !isFLEX) {
       try {
         const shiftTimes = workStartTime
+          .replace(/\./g, ":") // handle 09.00
           .split(",")
           .map(s => s.trim())
           .filter(s => s);
@@ -258,7 +259,7 @@ export const clockIn = async (req: Request, res: Response) => {
         let foundOnTimeShift = false;
         for (const st of shiftTimes) {
           const parts = st.split(":");
-          if (parts.length === 2) {
+          if (parts.length >= 2) {
             const sh = parseInt(parts[0], 10);
             const sm = parseInt(parts[1], 10);
             if (!isNaN(sh) && !isNaN(sm)) {
@@ -279,7 +280,7 @@ export const clockIn = async (req: Request, res: Response) => {
           let allShiftEnd = shiftTimes
             .map(st => {
               const parts = st.split(":");
-              if (parts.length === 2) {
+              if (parts.length >= 2) {
                 const sh = parseInt(parts[0], 10);
                 const sm = parseInt(parts[1], 10);
                 if (!isNaN(sh) && !isNaN(sm)) {

@@ -110,6 +110,7 @@ export default function UserDashboard() {
       ? Number(config.lateThresholdMinutes) 
       : 15;
     const shiftTimes = workStartTime
+      .replace(/\./g, ":") // handle 09.00
       .split(",")
       .map((s: string) => s.trim())
       .filter((s: string) => s);
@@ -121,7 +122,7 @@ export default function UserDashboard() {
     let foundOnTimeShift = false;
     for (const st of shiftTimes) {
       const parts = st.split(":");
-      if (parts.length === 2) {
+      if (parts.length >= 2) {
         const sh = parseInt(parts[0], 10);
         const sm = parseInt(parts[1], 10);
         if (!isNaN(sh) && !isNaN(sm)) {
@@ -143,7 +144,7 @@ export default function UserDashboard() {
     const allShiftEnd = shiftTimes
       .map((st: string) => {
         const parts = st.split(":");
-        if (parts.length === 2) {
+        if (parts.length >= 2) {
           const sh = parseInt(parts[0], 10);
           const sm = parseInt(parts[1], 10);
           if (!isNaN(sh) && !isNaN(sm)) {
