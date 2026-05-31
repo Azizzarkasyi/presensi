@@ -201,21 +201,6 @@ export default function AdminTasks() {
         }
       />
 
-      {isWeb && isDesktop && (
-        <View style={styles.heroPanel}>
-          <View style={styles.heroTextBlock}>
-            <View style={styles.heroBadge}>
-              <Ionicons name="list-outline" size={14} color="#fff" />
-              <Text style={styles.heroBadgeText}>Task Console</Text>
-            </View>
-            <Text style={styles.heroTitle}>Kelola tugas dari browser.</Text>
-            <Text style={styles.heroSubtitle}>
-              Buat tugas dan cek penugasan tanpa statistik di header.
-            </Text>
-          </View>
-        </View>
-      )}
-
       <View style={styles.listWrap}>
         {usingCache ? (
           <Text style={styles.cacheNote}>Menampilkan cache data terakhir.</Text>
@@ -226,6 +211,24 @@ export default function AdminTasks() {
           renderItem={renderTaskItem}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          ListHeaderComponent={
+            <View>
+              {isWeb && isDesktop && (
+                <View style={styles.heroPanel}>
+                  <View style={styles.heroTextBlock}>
+                    <View style={styles.heroBadge}>
+                      <Ionicons name="list-outline" size={14} color="#fff" />
+                      <Text style={styles.heroBadgeText}>Task Console</Text>
+                    </View>
+                    <Text style={styles.heroTitle}>Kelola tugas dari browser.</Text>
+                    <Text style={styles.heroSubtitle}>
+                      Buat tugas dan cek penugasan tanpa statistik di header.
+                    </Text>
+                  </View>
+                </View>
+              )}
+            </View>
+          }
           ListEmptyComponent={
             <View style={styles.emptyState}>
               <Text style={styles.emptyText}>Belum ada tugas</Text>

@@ -188,47 +188,47 @@ export default function AddEmployee() {
     <View style={styles.container}>
       <ScreenHeader title="Tambah Karyawan" />
 
-      {isWeb && isDesktop && (
-        <View style={styles.heroPanel}>
-          <View style={styles.heroTextBlock}>
-            <View style={styles.heroBadge}>
-              <Ionicons name="person-add-outline" size={14} color="#fff" />
-              <Text style={styles.heroBadgeText}>Employee Setup</Text>
-            </View>
-            <Text style={styles.heroTitle}>
-              Tambahkan karyawan dari browser dengan alur yang lebih jelas.
-            </Text>
-            <Text style={styles.heroSubtitle}>
-              Atur role, jam kerja, lokasi, dan radius absen dalam satu layar
-              tanpa keluar dari web.
-            </Text>
-          </View>
-
-          <View style={styles.heroStats}>
-            <View style={styles.heroStatCard}>
-              <Text style={styles.heroStatLabel}>Role</Text>
-              <Text style={styles.heroStatValue}>{role}</Text>
-            </View>
-            <View style={styles.heroStatCard}>
-              <Text style={styles.heroStatLabel}>Jam Masuk</Text>
-              <Text style={styles.heroStatValue}>{startWorkTime}</Text>
-            </View>
-            <View style={styles.heroStatCard}>
-              <Text style={styles.heroStatLabel}>Jam Pulang</Text>
-              <Text style={styles.heroStatValue}>{endWorkTime || "-"}</Text>
-            </View>
-            <View style={styles.heroStatCard}>
-              <Text style={styles.heroStatLabel}>Lokasi</Text>
-              <Text style={styles.heroStatValue}>{workLocations.length}</Text>
-            </View>
-          </View>
-        </View>
-      )}
-
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {isWeb && isDesktop && (
+          <View style={styles.heroPanel}>
+            <View style={styles.heroTextBlock}>
+              <View style={styles.heroBadge}>
+                <Ionicons name="person-add-outline" size={14} color="#fff" />
+                <Text style={styles.heroBadgeText}>Employee Setup</Text>
+              </View>
+              <Text style={styles.heroTitle}>
+                Tambahkan karyawan dari browser dengan alur yang lebih jelas.
+              </Text>
+              <Text style={styles.heroSubtitle}>
+                Atur role, jam kerja, lokasi, dan radius absen dalam satu layar
+                tanpa keluar dari web.
+              </Text>
+            </View>
+
+            <View style={styles.heroStats}>
+              <View style={styles.heroStatCard}>
+                <Text style={styles.heroStatLabel}>Role</Text>
+                <Text style={styles.heroStatValue}>{role}</Text>
+              </View>
+              <View style={styles.heroStatCard}>
+                <Text style={styles.heroStatLabel}>Jam Masuk</Text>
+                <Text style={styles.heroStatValue}>{startWorkTime}</Text>
+              </View>
+              <View style={styles.heroStatCard}>
+                <Text style={styles.heroStatLabel}>Jam Pulang</Text>
+                <Text style={styles.heroStatValue}>{endWorkTime || "-"}</Text>
+              </View>
+              <View style={styles.heroStatCard}>
+                <Text style={styles.heroStatLabel}>Lokasi</Text>
+                <Text style={styles.heroStatValue}>{workLocations.length}</Text>
+              </View>
+            </View>
+          </View>
+        )}
+
         <Card style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>👤 Informasi Dasar</Text>
           <Input

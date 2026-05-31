@@ -1,5 +1,5 @@
 import {useEffect, useState} from "react";
-import {View, Text, TouchableOpacity, StyleSheet, Platform, Alert} from "react-native";
+import {View, Text, TouchableOpacity, StyleSheet, Platform, Alert, ScrollView} from "react-native";
 import {Ionicons} from "@expo/vector-icons";
 import {useRouter} from "expo-router";
 import {useAuth} from "../../src/contexts/AuthContext";
@@ -209,8 +209,9 @@ export default function AdminDashboard() {
           )}
         </View>
 
-        {isWeb && isDesktop && (
-          <View style={styles.heroPanel}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
+          {isWeb && isDesktop && (
+            <View style={styles.heroPanel}>
             <View style={styles.heroTextBlock}>
               <View style={styles.heroBadge}>
                 <Ionicons name="analytics-outline" size={14} color="#fff" />
@@ -282,12 +283,13 @@ export default function AdminDashboard() {
           </Card>
         </View>
 
-        <TouchableOpacity
-          style={[styles.addButton, isDesktop && styles.addButtonDesktop]}
-          onPress={() => router.push("/admin/add-employee")}
-        >
-          <Text style={styles.addButtonText}>+ Tambah Karyawan</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.addButton, isDesktop && styles.addButtonDesktop]}
+            onPress={() => router.push("/admin/add-employee")}
+          >
+            <Text style={styles.addButtonText}>+ Tambah Karyawan</Text>
+          </TouchableOpacity>
+        </ScrollView>
       </View>
     </View>
   );

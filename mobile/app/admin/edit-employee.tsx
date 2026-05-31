@@ -270,49 +270,49 @@ export default function EditEmployee() {
     <View style={styles.container}>
       <ScreenHeader title="Edit Karyawan" />
 
-      {isWeb && isDesktop && (
-        <View style={styles.heroPanel}>
-          <View style={styles.heroTextBlock}>
-            <View style={styles.heroBadge}>
-              <Ionicons name="create-outline" size={14} color="#fff" />
-              <Text style={styles.heroBadgeText}>Employee Edit</Text>
-            </View>
-            <Text style={styles.heroTitle}>
-              Perbarui data karyawan dengan tampilan yang konsisten.
-            </Text>
-            <Text style={styles.heroSubtitle}>
-              Edit role, jam kerja, status aktif, dan radius lokasi tanpa keluar
-              dari web admin.
-            </Text>
-          </View>
-
-          <View style={styles.heroStats}>
-            <View style={styles.heroStatCard}>
-              <Text style={styles.heroStatLabel}>Status</Text>
-              <Text style={styles.heroStatValue}>
-                {isActive ? "Aktif" : "Non-Aktif"}
-              </Text>
-            </View>
-            <View style={styles.heroStatCard}>
-              <Text style={styles.heroStatLabel}>Role</Text>
-              <Text style={styles.heroStatValue}>{role}</Text>
-            </View>
-            <View style={styles.heroStatCard}>
-              <Text style={styles.heroStatLabel}>Jam Masuk</Text>
-              <Text style={styles.heroStatValue}>{startWorkTime}</Text>
-            </View>
-            <View style={styles.heroStatCard}>
-              <Text style={styles.heroStatLabel}>Lokasi</Text>
-              <Text style={styles.heroStatValue}>{workLocations.length}</Text>
-            </View>
-          </View>
-        </View>
-      )}
-
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {isWeb && isDesktop && (
+          <View style={styles.heroPanel}>
+            <View style={styles.heroTextBlock}>
+              <View style={styles.heroBadge}>
+                <Ionicons name="create-outline" size={14} color="#fff" />
+                <Text style={styles.heroBadgeText}>Employee Edit</Text>
+              </View>
+              <Text style={styles.heroTitle}>
+                Perbarui data karyawan dengan tampilan yang konsisten.
+              </Text>
+              <Text style={styles.heroSubtitle}>
+                Edit role, jam kerja, status aktif, dan radius lokasi tanpa keluar
+                dari web admin.
+              </Text>
+            </View>
+
+            <View style={styles.heroStats}>
+              <View style={styles.heroStatCard}>
+                <Text style={styles.heroStatLabel}>Status</Text>
+                <Text style={styles.heroStatValue}>
+                  {isActive ? "Aktif" : "Non-Aktif"}
+                </Text>
+              </View>
+              <View style={styles.heroStatCard}>
+                <Text style={styles.heroStatLabel}>Role</Text>
+                <Text style={styles.heroStatValue}>{role}</Text>
+              </View>
+              <View style={styles.heroStatCard}>
+                <Text style={styles.heroStatLabel}>Jam Masuk</Text>
+                <Text style={styles.heroStatValue}>{startWorkTime}</Text>
+              </View>
+              <View style={styles.heroStatCard}>
+                <Text style={styles.heroStatLabel}>Lokasi</Text>
+                <Text style={styles.heroStatValue}>{workLocations.length}</Text>
+              </View>
+            </View>
+          </View>
+        )}
+
         {/* Status Toggle */}
         <Card style={styles.sectionCard}>
           <View style={styles.rowBetween}>

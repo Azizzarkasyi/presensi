@@ -97,49 +97,50 @@ export default function AdminSettings() {
     <View style={[styles.container, isWeb && styles.containerWeb]}>
       <ScreenHeader title="Pengaturan Perusahaan" />
 
-      {isWeb && isDesktop && (
-        <View style={styles.heroPanel}>
-          <View style={styles.heroTextBlock}>
-            <View style={styles.heroBadge}>
-              <Ionicons name="settings-outline" size={14} color="#fff" />
-              <Text style={styles.heroBadgeText}>Settings Console</Text>
-            </View>
-            <Text style={styles.heroTitle}>
-              Atur jam kerja, lembur, dan radius lokasi dari browser.
-            </Text>
-            <Text style={styles.heroSubtitle}>
-              Pengaturan yang terakhir tersimpan tetap bisa dimuat lagi jika
-              koneksi sedang tidak stabil.
-            </Text>
-          </View>
-
-          <View style={styles.heroStats}>
-            <View style={styles.heroStatCard}>
-              <Text style={styles.heroStatLabel}>Toleransi</Text>
-              <Text style={styles.heroStatValue}>
-                {config.lateThresholdMinutes} mnt
-              </Text>
-            </View>
-            <View style={styles.heroStatCard}>
-              <Text style={styles.heroStatLabel}>Istirahat</Text>
-              <Text style={styles.heroStatValue}>
-                {config.maxBreakMinutesPerDay} mnt
-              </Text>
-            </View>
-            <View style={styles.heroStatCard}>
-              <Text style={styles.heroStatLabel}>Radius</Text>
-              <Text style={styles.heroStatValue}>
-                {config.allowedRadiusMeters} m
-              </Text>
-            </View>
-          </View>
-        </View>
-      )}
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {isWeb && isDesktop && (
+          <View style={styles.heroPanel}>
+            <View style={styles.heroTextBlock}>
+              <View style={styles.heroBadge}>
+                <Ionicons name="settings-outline" size={14} color="#fff" />
+                <Text style={styles.heroBadgeText}>Settings Console</Text>
+              </View>
+              <Text style={styles.heroTitle}>
+                Atur jam kerja, lembur, dan radius lokasi dari browser.
+              </Text>
+              <Text style={styles.heroSubtitle}>
+                Pengaturan yang terakhir tersimpan tetap bisa dimuat lagi jika
+                koneksi sedang tidak stabil.
+              </Text>
+            </View>
+
+            <View style={styles.heroStats}>
+              <View style={styles.heroStatCard}>
+                <Text style={styles.heroStatLabel}>Toleransi</Text>
+                <Text style={styles.heroStatValue}>
+                  {config.lateThresholdMinutes} mnt
+                </Text>
+              </View>
+              <View style={styles.heroStatCard}>
+                <Text style={styles.heroStatLabel}>Istirahat</Text>
+                <Text style={styles.heroStatValue}>
+                  {config.maxBreakMinutesPerDay} mnt
+                </Text>
+              </View>
+              <View style={styles.heroStatCard}>
+                <Text style={styles.heroStatLabel}>Radius</Text>
+                <Text style={styles.heroStatValue}>
+                  {config.allowedRadiusMeters} m
+                </Text>
+              </View>
+            </View>
+          </View>
+        )}
+
         <View
           style={[styles.contentWrapper, isDesktop && styles.contentDesktop]}
         >

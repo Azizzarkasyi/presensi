@@ -310,21 +310,7 @@ export default function AdminPayroll() {
     <View style={styles.container}>
       <ScreenHeader title="Generate Gaji" />
 
-      {isWeb && isDesktop && (
-        <View style={styles.heroPanel}>
-          <View style={styles.heroTextBlock}>
-            <View style={styles.heroBadge}>
-              <Ionicons name="wallet-outline" size={14} color="#fff" />
-              <Text style={styles.heroBadgeText}>Payroll Console</Text>
-            </View>
-            <Text style={styles.heroTitle}>
-              Kelola generate slip, status bayar, dan ekspor laporan dari
-              browser.
-            </Text>
-            <Text style={styles.heroSubtitle}>{payrollHeroText}</Text>
-          </View>
-        </View>
-      )}
+
 
       <View style={styles.quickActions}>
         <Button
@@ -339,6 +325,22 @@ export default function AdminPayroll() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {isWeb && isDesktop && (
+          <View style={styles.heroPanel}>
+            <View style={styles.heroTextBlock}>
+              <View style={styles.heroBadge}>
+                <Ionicons name="wallet-outline" size={14} color="#fff" />
+                <Text style={styles.heroBadgeText}>Payroll Console</Text>
+              </View>
+              <Text style={styles.heroTitle}>
+                Kelola generate slip, status bayar, dan ekspor laporan dari
+                browser.
+              </Text>
+              <Text style={styles.heroSubtitle}>{payrollHeroText}</Text>
+            </View>
+          </View>
+        )}
+
         <Card style={styles.card}>
           <View
             style={[
