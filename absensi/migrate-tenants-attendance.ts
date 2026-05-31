@@ -98,7 +98,9 @@ async function main() {
         ADD COLUMN IF NOT EXISTS "correctionRequestedClockOut" TIMESTAMP(3),
         ADD COLUMN IF NOT EXISTS "correctionReviewNote" TEXT,
         ADD COLUMN IF NOT EXISTS "correctionRequestedAt" TIMESTAMP(3),
-        ADD COLUMN IF NOT EXISTS "correctionReviewedAt" TIMESTAMP(3);
+        ADD COLUMN IF NOT EXISTS "correctionReviewedAt" TIMESTAMP(3),
+        ADD COLUMN IF NOT EXISTS "lateReason" TEXT,
+        ADD COLUMN IF NOT EXISTS "lateDeductionStatus" TEXT DEFAULT 'PENDING';
       `);
       console.log(`  - Attendance columns ready in ${schemaName}`);
     } catch (error) {
