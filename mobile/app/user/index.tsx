@@ -106,7 +106,9 @@ export default function UserDashboard() {
     const workStartTime = profile.startWorkTime || "09:00";
     if (workStartTime.toUpperCase() === "FLEX") return false;
 
-    const lateThreshold = config ? (Number(config.lateThresholdMinutes) || 15) : 15;
+    const lateThreshold = config?.lateThresholdMinutes !== undefined 
+      ? Number(config.lateThresholdMinutes) 
+      : 15;
     const shiftTimes = workStartTime
       .split(",")
       .map((s: string) => s.trim())

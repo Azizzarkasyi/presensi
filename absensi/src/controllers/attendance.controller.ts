@@ -240,7 +240,7 @@ export const clockIn = async (req: Request, res: Response) => {
 
     const workStartTime = user.startWorkTime || "09:00";
     const isFLEX = workStartTime.toUpperCase() === "FLEX";
-    const lateThreshold = config?.lateThresholdMinutes || 15;
+    const lateThreshold = config?.lateThresholdMinutes ?? 15;
 
     // Determine status - check if late
     // const now = new Date(); // Removed duplicate declaration
