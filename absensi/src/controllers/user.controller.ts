@@ -15,6 +15,7 @@ type WorkLocation = {
   latitude: number;
   longitude: number;
   radius: number;
+  name?: string;
 };
 
 const normalizeEmail = (value: string) => value.trim().toLowerCase();
@@ -31,6 +32,7 @@ function parseWorkLocationEntry(
     latitude?: unknown;
     longitude?: unknown;
     radius?: unknown;
+    name?: unknown;
   };
 
   const latitude = Number(location.latitude);
@@ -53,6 +55,7 @@ function parseWorkLocationEntry(
     latitude,
     longitude,
     radius,
+    ...(typeof location.name === "string" ? {name: location.name} : {}),
   };
 }
 

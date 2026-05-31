@@ -42,6 +42,7 @@ type WorkLocation = {
   latitude: number;
   longitude: number;
   radius: number;
+  name?: string;
 };
 
 function normalizeWorkLocation(
@@ -56,6 +57,7 @@ function normalizeWorkLocation(
     latitude?: unknown;
     longitude?: unknown;
     radius?: unknown;
+    name?: unknown;
   };
 
   const latitude = Number(location.latitude);
@@ -78,6 +80,7 @@ function normalizeWorkLocation(
     latitude,
     longitude,
     radius,
+    ...(typeof location.name === "string" ? {name: location.name} : {}),
   };
 }
 
