@@ -36,6 +36,14 @@ api.interceptors.request.use(async config => {
     config.headers["X-Tenant-ID"] = tenantId;
   }
 
+  // Prevent GET caching
+  if (config.method?.toLowerCase() === 'get') {
+    config.params = {
+      ...config.params,
+      _t: new Date().getTime(),
+    };
+  }
+
   return config;
 });
 
