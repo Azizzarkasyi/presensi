@@ -346,14 +346,15 @@ export default function UserDashboard() {
         let locations: Array<{latitude: number; longitude: number; radius: number}> = [];
 
         // 1. Priority: workLocations per-user (multi-location support)
-        if (userProfile?.workLocations) {
-          let raw = userProfile.workLocations;
+        if (fetchedProfile?.workLocations) {
+          let raw = fetchedProfile.workLocations;
           if (typeof raw === "string") {
             try { raw = JSON.parse(raw); } catch(e) { raw = null; }
           }
           if (Array.isArray(raw) && raw.length > 0) {
             locations = raw
               .map((loc: any) => ({
+                name: loc.name,
                 latitude: Number(loc.latitude),
                 longitude: Number(loc.longitude),
                 radius: Number(loc.radius) > 0 ? Number(loc.radius) : defaultRadius,
@@ -363,11 +364,12 @@ export default function UserDashboard() {
         }
 
         // 2. Fallback: single work location fields per-user (legacy)
-        if (locations.length === 0 && userProfile?.workLatitude && userProfile?.workLongitude) {
+        if (locations.length === 0 && fetchedProfile?.workLatitude && fetchedProfile?.workLongitude) {
           locations = [{
-            latitude: Number(userProfile.workLatitude),
-            longitude: Number(userProfile.workLongitude),
-            radius: Number(userProfile.workRadius) > 0 ? Number(userProfile.workRadius) : defaultRadius,
+            name: "Lokasi Pusat",
+            latitude: Number(fetchedProfile.workLatitude),
+            longitude: Number(fetchedProfile.workLongitude),
+            radius: Number(fetchedProfile.workRadius) > 0 ? Number(fetchedProfile.workRadius) : defaultRadius,
           }];
         }
 
