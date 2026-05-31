@@ -413,7 +413,7 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     marginBottom: 8,
   },
-  name: {...theme.typography.h4, color: theme.colors.text.primary},
+  name: {...theme.typography.h3, color: theme.colors.text.primary},
   email: {fontSize: 12, color: theme.colors.text.secondary},
   date: {fontSize: 14, color: theme.colors.text.primary, marginBottom: 4},
   type: {

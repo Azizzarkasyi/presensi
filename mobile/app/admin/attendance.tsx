@@ -2,7 +2,7 @@ import {useEffect, useMemo, useState} from "react";
 import {View, FlatList, StyleSheet, Text} from "react-native";
 import {Ionicons} from "@expo/vector-icons";
 import {useRouter} from "expo-router";
-import {getAttendanceReport} from "../../src/services/api";
+import {getAttendanceReport, reviewLateDeduction} from "../../src/services/api";
 
 // UI Components
 import {theme} from "../../src/constants/theme";
@@ -19,6 +19,8 @@ interface AttendanceRecord {
   clockIn: string | null;
   clockOut: string | null;
   status: string;
+  lateReason: string | null;
+  lateDeductionStatus: string | null;
   user: {name: string; email: string};
 }
 
@@ -56,6 +58,28 @@ export default function AdminAttendance() {
         buttonText: "Tutup",
       });
     } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleReviewLateDeduction = async (attendanceId: number, action: "APPROVED" | "REJECTED") => {
+    try {
+      setLoading(true);
+      await reviewLateDeduction(attendanceId, { action });
+      showModal({
+        title: "Sukses",
+        message: `Potongan keterlambatan berhasil ${action === "APPROVED" ? "dibebaskan" : "ditolak"}.`,
+        buttonText: "OK",
+      });
+      await loadRecords();
+    } catch (error: any) {
+      console.error("Error reviewing late deduction:", error);
+      showModal({
+        title: "Gagal",
+        message: error.response?.data?.message || "Gagal mengubah status potongan keterlambatan",
+        isError: true,
+        buttonText: "Tutup",
+      });
       setLoading(false);
     }
   };
@@ -148,7 +172,7 @@ export default function AdminAttendance() {
   const renderItem = ({item}: {item: AttendanceRecord}) => (
     <Card style={styles.card}>
       <View style={styles.cardHeader}>
-        <View>
+        <View style={{flex: 1, marginRight: 8}}>
           <Text style={styles.userName}>{item.user?.name || "Unknown"}</Text>
           <Text style={styles.date}>
             {new Date(item.date).toLocaleDateString("id-ID", {
@@ -176,6 +200,45 @@ export default function AdminAttendance() {
           <Text style={styles.timeValue}>{formatTime(item.clockOut)}</Text>
         </View>
       </View>
+
+      {item.status === "LATE" && item.lateReason && (
+        <View style={styles.lateReasonContainer}>
+          <Text style={styles.lateReasonTitle}>💬 Alasan Terlambat:</Text>
+          <Text style={styles.lateReasonText}>{item.lateReason}</Text>
+          
+          <View style={styles.lateStatusRow}>
+            <Text style={styles.lateStatusLabel}>Status Potongan Gaji:</Text>
+            {item.lateDeductionStatus === "PENDING" && (
+              <Badge label="Menunggu Persetujuan" variant="warning" size="sm" />
+            )}
+            {item.lateDeductionStatus === "APPROVED" && (
+              <Badge label="Bebas Potongan" variant="success" size="sm" />
+            )}
+            {item.lateDeductionStatus === "REJECTED" && (
+              <Badge label="Potong Gaji" variant="error" size="sm" />
+            )}
+          </View>
+
+          {item.lateDeductionStatus === "PENDING" && (
+            <View style={styles.lateActionButtons}>
+              <Button
+                title="Bebaskan"
+                size="sm"
+                onPress={() => handleReviewLateDeduction(item.id, "APPROVED")}
+                style={[styles.actionBtnLate, {backgroundColor: theme.colors.status.success}]}
+              />
+              <View style={{width: 8}} />
+              <Button
+                title="Tolak"
+                size="sm"
+                variant="outline"
+                onPress={() => handleReviewLateDeduction(item.id, "REJECTED")}
+                style={styles.actionBtnLate}
+              />
+            </View>
+          )}
+        </View>
+      )}
     </Card>
   );
 
@@ -484,5 +547,43 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     color: theme.colors.text.secondary,
+  },
+  lateReasonContainer: {
+    marginTop: theme.spacing.sm,
+    paddingTop: theme.spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
+  },
+  lateReasonTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: theme.colors.text.primary,
+    marginBottom: 4,
+  },
+  lateReasonText: {
+    fontSize: 13,
+    color: theme.colors.text.secondary,
+    backgroundColor: theme.colors.background,
+    padding: theme.spacing.sm,
+    borderRadius: theme.radius.sm,
+    marginBottom: theme.spacing.sm,
+  },
+  lateStatusRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: theme.spacing.sm,
+    gap: 8,
+  },
+  lateStatusLabel: {
+    fontSize: 13,
+    color: theme.colors.text.secondary,
+    fontWeight: "600",
+  },
+  lateActionButtons: {
+    flexDirection: "row",
+    marginTop: theme.spacing.xs,
+  },
+  actionBtnLate: {
+    flex: 1,
   },
 });

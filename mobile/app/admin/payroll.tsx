@@ -68,7 +68,7 @@ export default function AdminPayroll() {
       const allEmployees = Array.isArray(data) ? data : [];
 
       const companyEmployees = allEmployees.filter(
-        (e: any) => e.role === "USER",
+        (e: any) => e.role !== "ADMIN" && e.isActive,
       );
       setEmployees(companyEmployees);
     } catch (error) {

@@ -151,7 +151,7 @@ export const clockIn = async (req: Request, res: Response) => {
   try {
     const prisma = req.prisma!;
     const userId = req.user!.id;
-    const {status, latitude, longitude, faceVerified} = req.body;
+    const {status, latitude, longitude, faceVerified, lateReason} = req.body;
     const photo = req.file ? `/uploads/${req.file.filename}` : null;
 
     // Check if user has face registered
@@ -313,6 +313,8 @@ export const clockIn = async (req: Request, res: Response) => {
         status: attendanceStatus,
         latitude: latitude ? parseFloat(latitude) : null,
         longitude: longitude ? parseFloat(longitude) : null,
+        lateReason: attendanceStatus === "LATE" ? (lateReason || null) : null,
+        lateDeductionStatus: attendanceStatus === "LATE" ? "PENDING" : null,
       },
     });
 
@@ -513,6 +515,61 @@ export const reviewLeaveRequest = async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error("Review leave request error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
+/**
+ * Admin: Approve or reject late deduction (Approve means WAIVED, Reject means DEDUCT)
+ */
+export const reviewLateDeduction = async (req: Request, res: Response) => {
+  try {
+    const prisma = req.prisma!;
+    const id = Number(req.params.id);
+    const {action} = req.body; // APPROVED or REJECTED
+
+    if (!["APPROVED", "REJECTED"].includes(action)) {
+      return res.status(400).json({
+        success: false,
+        message: "Action harus APPROVED atau REJECTED",
+      });
+    }
+
+    const attendance = await prisma.attendance.findUnique({
+      where: {id},
+    });
+
+    if (!attendance) {
+      return res.status(404).json({
+        success: false,
+        message: "Absensi tidak ditemukan",
+      });
+    }
+
+    if (attendance.status !== "LATE") {
+      return res.status(400).json({
+        success: false,
+        message: "Absensi ini tidak berstatus terlambat (LATE)",
+      });
+    }
+
+    const updated = await prisma.attendance.update({
+      where: {id},
+      data: {
+        lateDeductionStatus: action,
+      },
+    });
+
+    res.json({
+      success: true,
+      message: `Status potongan keterlambatan berhasil diubah ke ${action}`,
+      data: updated,
+    });
+  } catch (error) {
+    console.error("Review late deduction error:", error);
     res.status(500).json({
       success: false,
       message: "Internal server error",

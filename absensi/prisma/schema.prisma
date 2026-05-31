@@ -91,6 +91,8 @@ model Attendance {
   clockInPhoto      String?
   clockOutPhoto     String?
   status              AttendanceStatus    @default(PRESENT)
+  lateReason          String?
+  lateDeductionStatus String?             @default("PENDING") // PENDING, APPROVED, REJECTED
   leaveApprovalStatus LeaveApprovalStatus @default(PENDING)
   leaveReviewNote     String?
   leaveReviewedAt     DateTime?

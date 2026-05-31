@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, Platform } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 
 interface FaceCameraProps {
@@ -12,6 +12,39 @@ export default function FaceCamera({ onFaceDetected, onCancel, mode }: FaceCamer
   const [permission, requestPermission] = useCameraPermissions();
   const [capturing, setCapturing] = useState(false);
   const cameraRef = useRef<any>(null);
+
+  if (Platform.OS === 'web') {
+    return (
+      <View style={styles.container}>
+        <View style={styles.overlay}>
+          <View style={styles.faceFrame} />
+          <Text style={styles.instructionText}>
+            [Web Testing Mode] Posisikan wajah Anda dalam bingkai
+          </Text>
+        </View>
+        <View style={styles.controls}>
+          <TouchableOpacity style={styles.cancelBtn} onPress={onCancel}>
+            <Text style={styles.cancelBtnText}>Batal</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.captureBtn}
+            onPress={async () => {
+              const descriptor = [];
+              const timestamp = Date.now();
+              for (let i = 0; i < 20; i++) {
+                descriptor.push(Math.sin(timestamp + i * 1000) * 0.5 + 0.5);
+              }
+              onFaceDetected({ descriptor }, "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=");
+            }}
+          >
+            <Text style={styles.captureBtnText}>
+              {mode === 'register' ? '📸 Simulasikan Daftar' : '✓ Simulasikan Verifikasi'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
 
   if (!permission) {
     return (

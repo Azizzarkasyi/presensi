@@ -94,7 +94,73 @@ export default function UserDashboard() {
   const [missedClockOutTime, setMissedClockOutTime] = useState("17:00");
   const [missedClockOutReason, setMissedClockOutReason] = useState("");
   const [missedClockOutLoading, setMissedClockOutLoading] = useState(false);
-  // Shift detection handled server-side; no local shift selection needed
+  
+  const [companyConfig, setCompanyConfig] = useState<any>(null);
+  const [userProfile, setUserProfile] = useState<any>(null);
+  const [showLateReasonModal, setShowLateReasonModal] = useState(false);
+  const [lateReason, setLateReason] = useState("");
+  const [pendingClockInFormData, setPendingClockInFormData] = useState<any>(null);
+
+  const checkIfLate = (profile: any, config: any) => {
+    if (!profile || !config) return false;
+    const workStartTime = profile.startWorkTime || "09:00";
+    if (workStartTime.toUpperCase() === "FLEX") return false;
+
+    const lateThreshold = Number(config.lateThresholdMinutes) || 15;
+    const shiftTimes = workStartTime
+      .split(",")
+      .map((s: string) => s.trim())
+      .filter((s: string) => s);
+    if (shiftTimes.length === 0) shiftTimes.push("09:00");
+
+    const now = new Date();
+    
+    // Check if within any shift window (on time)
+    let foundOnTimeShift = false;
+    for (const st of shiftTimes) {
+      const parts = st.split(":");
+      if (parts.length === 2) {
+        const sh = parseInt(parts[0], 10);
+        const sm = parseInt(parts[1], 10);
+        if (!isNaN(sh) && !isNaN(sm)) {
+          const shiftStart = new Date();
+          shiftStart.setHours(sh, sm, 0, 0);
+          const shiftEnd = new Date(shiftStart);
+          shiftEnd.setMinutes(shiftEnd.getMinutes() + lateThreshold);
+          if (now >= shiftStart && now <= shiftEnd) {
+            foundOnTimeShift = true;
+            break;
+          }
+        }
+      }
+    }
+
+    if (foundOnTimeShift) return false;
+
+    // Check if past last shift
+    const allShiftEnd = shiftTimes
+      .map((st: string) => {
+        const parts = st.split(":");
+        if (parts.length === 2) {
+          const sh = parseInt(parts[0], 10);
+          const sm = parseInt(parts[1], 10);
+          if (!isNaN(sh) && !isNaN(sm)) {
+            const d = new Date();
+            d.setHours(sh, sm, 0, 0);
+            d.setMinutes(d.getMinutes() + lateThreshold);
+            return d;
+          }
+        }
+        return null;
+      })
+      .filter(Boolean) as Date[];
+
+    const lastShiftEnd = allShiftEnd.length > 0 ? allShiftEnd[allShiftEnd.length - 1] : null;
+    if (lastShiftEnd && now > lastShiftEnd) {
+      return true;
+    }
+    return false;
+  };
 
   type LocationResult = {
     coords: {
@@ -116,7 +182,6 @@ export default function UserDashboard() {
         const loc = await Promise.race([
           Location.getCurrentPositionAsync({ 
             accuracy: Location.Accuracy.High,
-            maximumAge: 0, // Force fresh location
           }),
           new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), timeouts[attempt]))
         ]) as LocationResult;
@@ -191,6 +256,8 @@ export default function UserDashboard() {
         if (parsed.todayBreaks) setTodayBreaks(parsed.todayBreaks);
         if (parsed.monthlyStats) setMonthlyStats(parsed.monthlyStats);
         if (parsed.workLocations) setWorkLocations(parsed.workLocations);
+        if (parsed.companyConfig) setCompanyConfig(parsed.companyConfig);
+        if (parsed.userProfile) setUserProfile(parsed.userProfile);
       }
     } catch (e) { /* ignore cache read error */ }
 
@@ -258,15 +325,20 @@ export default function UserDashboard() {
         console.error("Error loading stats:", error);
       }
 
+      let fetchedConfig: any = null;
+      let fetchedProfile: any = null;
+
       try {
         const [configRes, profileRes] = await Promise.all([
           getCompanyConfig(),
           getProfile(),
         ]);
 
-        const config = configRes.data?.data;
-        const userProfile = profileRes.data?.data;
-        const defaultRadius = Number(config?.allowedRadiusMeters) || 50;
+        fetchedConfig = configRes.data?.data;
+        fetchedProfile = profileRes.data?.data;
+        setCompanyConfig(fetchedConfig);
+        setUserProfile(fetchedProfile);
+        const defaultRadius = Number(fetchedConfig?.allowedRadiusMeters) || 50;
 
         let locations: Array<{latitude: number; longitude: number; radius: number}> = [];
 
@@ -297,10 +369,10 @@ export default function UserDashboard() {
         }
 
         // 3. Fallback: global office location from company config
-        if (locations.length === 0 && config?.officeLatitude && config?.officeLongitude) {
+        if (locations.length === 0 && fetchedConfig?.officeLatitude && fetchedConfig?.officeLongitude) {
           locations = [{
-            latitude: Number(config.officeLatitude),
-            longitude: Number(config.officeLongitude),
+            latitude: Number(fetchedConfig.officeLatitude),
+            longitude: Number(fetchedConfig.officeLongitude),
             radius: defaultRadius,
           }];
         }
@@ -317,7 +389,9 @@ export default function UserDashboard() {
         todayAttendance: tempTodayAttendance,
         todayBreaks: tempTodayBreaks,
         monthlyStats: tempMonthlyStats,
-        workLocations: tempWorkLocations
+        workLocations: tempWorkLocations,
+        companyConfig: fetchedConfig || companyConfig,
+        userProfile: fetchedProfile || userProfile,
       }));
 
     } catch (error) {
@@ -365,6 +439,47 @@ export default function UserDashboard() {
       });
     } finally {
       setMissedClockOutLoading(false);
+    }
+  };
+ 
+  const handleLateReasonSubmit = async () => {
+    if (!lateReason.trim()) {
+      showModal({
+        title: "Validasi Gagal",
+        message: "Alasan terlambat wajib diisi",
+        isError: true,
+        buttonText: "Tutup",
+      });
+      return;
+    }
+
+    setLoading(true);
+    setShowLateReasonModal(false);
+
+    try {
+      const formData = pendingClockInFormData;
+      formData.append("lateReason", lateReason);
+
+      await clockIn(formData);
+      
+      showModal({
+        title: "Sukses",
+        message: `Clock-in terlambat berhasil dicatat!`,
+        buttonText: "Tutup",
+      });
+
+      setLateReason("");
+      setPendingClockInFormData(null);
+      await loadData();
+    } catch (error: any) {
+      showModal({
+        title: "Gagal",
+        message: error.response?.data?.message || "Gagal melakukan clock-in",
+        isError: true,
+        buttonText: "Tutup",
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -474,14 +589,23 @@ export default function UserDashboard() {
           });
           setFaceRegistered(true);
           break;
-        case "clockIn":
-          await clockIn(formData);
-          showModal({
-            title: "Sukses",
-            message: `Clock-in berhasil!`,
-            buttonText: "Tutup",
-          });
+        case "clockIn": {
+          const isLate = checkIfLate(userProfile || user, companyConfig);
+          if (isLate) {
+            setPendingClockInFormData(formData);
+            setShowLateReasonModal(true);
+            setLoading(false);
+          } else {
+            await clockIn(formData);
+            showModal({
+              title: "Sukses",
+              message: `Clock-in berhasil!`,
+              buttonText: "Tutup",
+            });
+            await loadData();
+          }
           break;
+        }
         case "clockOut":
           await clockOut(formData);
           showModal({
@@ -887,19 +1011,19 @@ export default function UserDashboard() {
             <Text style={styles.sectionTitle}>📊 Statistik Bulan Ini</Text>
             <View style={styles.statsRow}>
               <View style={styles.statItem}>
-                <Text style={styles.statValue}>{monthlyStats.present}</Text>
+                <Text style={styles.statNumber}>{monthlyStats.present}</Text>
                 <Text style={styles.statLabel}>Hadir</Text>
               </View>
               <View style={styles.statItem}>
-                <Text style={styles.statValue}>{monthlyStats.late}</Text>
+                <Text style={styles.statNumber}>{monthlyStats.late}</Text>
                 <Text style={styles.statLabel}>Telat</Text>
               </View>
               <View style={styles.statItem}>
-                <Text style={styles.statValue}>{monthlyStats.sick}</Text>
+                <Text style={styles.statNumber}>{monthlyStats.sick}</Text>
                 <Text style={styles.statLabel}>Sakit</Text>
               </View>
               <View style={styles.statItem}>
-                <Text style={styles.statValue}>{monthlyStats.leave}</Text>
+                <Text style={styles.statNumber}>{monthlyStats.leave}</Text>
                 <Text style={styles.statLabel}>Izin</Text>
               </View>
             </View>
@@ -961,6 +1085,42 @@ export default function UserDashboard() {
               title="Nanti"
               variant="ghost"
               onPress={() => setShowMissedClockOutModal(false)}
+            />
+          </View>
+        </View>
+      </Modal>
+
+      {/* Late Reason Modal */}
+      <Modal visible={showLateReasonModal} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.missedModal}>
+            <Text style={[styles.missedModalTitle, {color: theme.colors.primary}]}>⏰ Anda Terlambat</Text>
+            <Text style={styles.missedModalSubtitle}>
+              Sistem mendeteksi bahwa Anda melakukan clock-in melebihi jam masuk yang ditentukan. Mohon tuliskan alasan keterlambatan Anda untuk melanjutkan.
+            </Text>
+
+            <Input
+              label="Alasan Terlambat *"
+              value={lateReason}
+              onChangeText={setLateReason}
+              placeholder="Contoh: Ban bocor, macet di jalan, dll."
+              multiline
+            />
+
+            <Button
+              title="Kirim & Absen"
+              onPress={handleLateReasonSubmit}
+              loading={loading}
+              style={{marginBottom: 12}}
+            />
+            <Button
+              title="Batal"
+              variant="outline"
+              onPress={() => {
+                setShowLateReasonModal(false);
+                setLateReason("");
+                setPendingClockInFormData(null);
+              }}
             />
           </View>
         </View>
@@ -1320,4 +1480,5 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginBottom: 12,
   },
+
 });

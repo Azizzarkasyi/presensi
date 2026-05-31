@@ -55,7 +55,7 @@ export default function AdminSettings() {
       console.error("Error loading config:", error);
       const cachedConfig = await readCachedJson<any>(cacheKey);
       if (cachedConfig) {
-        setConfig(prev => ({...prev, ...cachedConfig}));
+        setConfig((prev: any) => ({...prev, ...cachedConfig}));
         setUsingCache(true);
         showModal({
           title: "Offline",

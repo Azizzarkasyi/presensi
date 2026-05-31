@@ -62,7 +62,7 @@ export const generatePayroll = async (req: Request, res: Response) => {
           (attendance.clockOut.getTime() - attendance.clockIn.getTime()) / 3600000;
         workingHours += hoursWorked;
         
-        if (attendance.status === 'LATE') {
+        if (attendance.status === 'LATE' && attendance.lateDeductionStatus !== 'APPROVED') {
           lateCount++;
         }
         

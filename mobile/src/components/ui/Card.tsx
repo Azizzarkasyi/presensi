@@ -1,8 +1,8 @@
 import React from 'react';
-import { View, StyleSheet, ViewStyle, TouchableOpacity, ViewProps } from 'react-native';
+import { View, StyleSheet, ViewStyle, TouchableOpacity, TouchableOpacityProps, ViewProps } from 'react-native';
 import { theme } from '../../constants/theme';
 
-interface CardProps extends ViewProps {
+interface CardProps extends TouchableOpacityProps {
   onPress?: () => void;
   variant?: 'elevated' | 'outlined' | 'flat';
   noPadding?: boolean;

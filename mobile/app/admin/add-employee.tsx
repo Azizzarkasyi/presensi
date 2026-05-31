@@ -625,7 +625,7 @@ const styles = StyleSheet.create({
     marginTop: -2,
   },
   removeLocationText: {
-    color: theme.colors.error,
+    color: theme.colors.status.error,
     fontSize: 12,
     fontWeight: "700",
   },

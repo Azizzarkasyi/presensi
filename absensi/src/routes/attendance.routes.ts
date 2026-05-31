@@ -15,6 +15,7 @@ import {
   requestAttendanceCorrection,
   getAttendanceCorrections,
   reviewAttendanceCorrection,
+  reviewLateDeduction,
 } from "../controllers/attendance.controller";
 import {authenticate, authorizeAdmin} from "../middleware/auth.middleware";
 
@@ -77,6 +78,12 @@ router.patch(
   authenticate,
   authorizeAdmin,
   reviewAttendanceCorrection,
+);
+router.patch(
+  "/admin/late-deductions/:id",
+  authenticate,
+  authorizeAdmin,
+  reviewLateDeduction,
 );
 
 export default router;

@@ -234,7 +234,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
   },
   containerWeb: {
-    minHeight: "100vh",
+    minHeight: "100vh" as any,
   },
   heroPanel: {
     backgroundColor: "#0f172a",

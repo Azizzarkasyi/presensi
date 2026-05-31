@@ -167,6 +167,11 @@ export const reviewAttendanceCorrection = (
   data: {action: "APPROVED" | "REJECTED"; note?: string},
 ) => api.patch(`/attendance/admin/corrections/${id}`, data);
 
+export const reviewLateDeduction = (
+  id: number,
+  data: {action: "APPROVED" | "REJECTED"},
+) => api.patch(`/attendance/admin/late-deductions/${id}`, data);
+
 // Break Management
 export const startBreak = (data: FormData) =>
   api.post("/break/start", data, {
