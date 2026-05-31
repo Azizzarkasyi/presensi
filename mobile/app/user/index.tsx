@@ -536,6 +536,24 @@ export default function UserDashboard() {
         currentLat = location.lat;
         currentLon = location.lon;
 
+        // Deteksi apakah perangkat adalah HP (Mobile) atau PC (Desktop)
+        let isMobileDevice = true;
+        if (Platform.OS === 'web' && typeof window !== 'undefined') {
+          isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(window.navigator.userAgent);
+        }
+
+        // Tolak absensi jika menggunakan PC/Laptop
+        if (!isMobileDevice && Platform.OS === 'web') {
+          showModal({
+            title: "Perangkat Tidak Diizinkan",
+            message: "Absensi HANYA DAPAT DILAKUKAN MELALUI HP/Smartphone. Silakan buka aplikasi ini di browser HP Anda.",
+            isError: true,
+            buttonText: "Tutup",
+          });
+          setLoading(false);
+          return;
+        }
+
         if (workLocations.length > 0) {
           const distances = workLocations.map(loc => ({
             dist: getDistanceFromLatLonInMeters(
@@ -547,20 +565,8 @@ export default function UserDashboard() {
             radius: loc.radius,
           }));
 
-          // Deteksi apakah perangkat adalah HP (Mobile) atau PC (Desktop)
-          let isMobileDevice = true;
-          if (Platform.OS === 'web' && typeof window !== 'undefined') {
-            isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(window.navigator.userAgent);
-          }
-
           // Allowed if user is within radius of ANY assigned location
-          const isInRange = distances.some(d => {
-            // Jika absen dari PC/Laptop web, beri toleransi radius 5km (5000m) karena batasan ISP GPS
-            const effectiveRadius = (!isMobileDevice && Platform.OS === 'web') 
-              ? Math.max(d.radius, 5000) 
-              : d.radius;
-            return d.dist <= effectiveRadius;
-          });
+          const isInRange = distances.some(d => d.dist <= d.radius);
 
           if (!isInRange) {
             // Find closest location for helpful error message
