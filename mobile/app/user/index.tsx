@@ -102,11 +102,11 @@ export default function UserDashboard() {
   const [pendingClockInFormData, setPendingClockInFormData] = useState<any>(null);
 
   const checkIfLate = (profile: any, config: any) => {
-    if (!profile || !config) return false;
+    if (!profile) return false;
     const workStartTime = profile.startWorkTime || "09:00";
     if (workStartTime.toUpperCase() === "FLEX") return false;
 
-    const lateThreshold = Number(config.lateThresholdMinutes) || 15;
+    const lateThreshold = config ? (Number(config.lateThresholdMinutes) || 15) : 15;
     const shiftTimes = workStartTime
       .split(",")
       .map((s: string) => s.trim())
