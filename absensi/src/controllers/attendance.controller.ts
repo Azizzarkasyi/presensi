@@ -25,7 +25,7 @@ function deg2rad(deg: number) {
 }
 
 function parseTimeOnDate(date: Date, timeText: string) {
-  const [hourText, minuteText] = timeText.split(":").map(value => value.trim());
+  const [hourText, minuteText] = timeText.replace(/\./g, ":").split(":").map(value => value.trim());
   const hour = Number(hourText);
   const minute = Number(minuteText);
 
