@@ -547,8 +547,20 @@ export default function UserDashboard() {
             radius: loc.radius,
           }));
 
+          // Deteksi apakah perangkat adalah HP (Mobile) atau PC (Desktop)
+          let isMobileDevice = true;
+          if (Platform.OS === 'web' && typeof window !== 'undefined') {
+            isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(window.navigator.userAgent);
+          }
+
           // Allowed if user is within radius of ANY assigned location
-          const isInRange = distances.some(d => d.dist <= d.radius);
+          const isInRange = distances.some(d => {
+            // Jika absen dari PC/Laptop web, beri toleransi radius 5km (5000m) karena batasan ISP GPS
+            const effectiveRadius = (!isMobileDevice && Platform.OS === 'web') 
+              ? Math.max(d.radius, 5000) 
+              : d.radius;
+            return d.dist <= effectiveRadius;
+          });
 
           if (!isInRange) {
             // Find closest location for helpful error message
@@ -556,12 +568,11 @@ export default function UserDashboard() {
               prev.dist < curr.dist ? prev : curr
             );
 
-            const isWeb = Platform.OS === 'web';
             showModal({
               title: "Di Luar Jangkauan",
-              message: `Anda ${Math.round(closest.dist)} meter dari lokasi kerja (batas: ${closest.radius}m).\n\n${isWeb ? "Info: Jika Anda absen lewat Laptop/PC, titik lokasi diambil dari tiang internet (ISP) yang bisa meleset hingga ber-kilometer. Harap absen menggunakan HP atau perbesar radius lokasi di menu Admin." : "Pastikan Anda benar-benar berada di area kerja dan sinyal GPS stabil."}`,
+              message: `Anda ${Math.round(closest.dist)} meter dari lokasi kerja (batas: ${closest.radius}m).\n\nPastikan Anda benar-benar berada di area kerja dan sinyal GPS stabil.`,
               isError: true,
-              buttonText: "Mengerti",
+              buttonText: "Tutup",
             });
             setLoading(false);
             return;
