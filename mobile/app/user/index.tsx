@@ -555,7 +555,7 @@ export default function UserDashboard() {
         }
 
         if (workLocations.length > 0) {
-          const distances = workLocations.map(loc => ({
+          const distances = workLocations.map((loc: any) => ({
             dist: getDistanceFromLatLonInMeters(
               currentLat!,
               currentLon!,
@@ -563,6 +563,7 @@ export default function UserDashboard() {
               loc.longitude
             ),
             radius: loc.radius,
+            name: loc.name || "Lokasi Kerja",
           }));
 
           // Allowed if user is within radius of ANY assigned location
@@ -576,7 +577,7 @@ export default function UserDashboard() {
 
             showModal({
               title: "Di Luar Jangkauan",
-              message: `Anda ${Math.round(closest.dist)} meter dari lokasi kerja (batas: ${closest.radius}m).\n\nPastikan Anda benar-benar berada di area kerja dan sinyal GPS stabil.`,
+              message: `Anda ${Math.round(closest.dist)} meter dari ${closest.name} (batas: ${closest.radius}m).\n\nPastikan Anda benar-benar berada di area kerja dan sinyal GPS stabil.`,
               isError: true,
               buttonText: "Tutup",
             });

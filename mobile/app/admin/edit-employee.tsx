@@ -33,6 +33,7 @@ type WorkLocationItem = {
   latitude: string;
   longitude: string;
   radius: string;
+  name: string;
 };
 
 const createLocationId = () =>
@@ -101,6 +102,7 @@ export default function EditEmployee() {
 
           return {
             id: createLocationId(),
+            name: location?.name || `Cabang ${savedLocations.indexOf(location) + 1}`,
             latitude: latitude.toString(),
             longitude: longitude.toString(),
             radius:
@@ -117,6 +119,7 @@ export default function EditEmployee() {
         setWorkLocations([
           {
             id: createLocationId(),
+            name: "Lokasi Pusat",
             latitude: user.workLatitude.toString(),
             longitude: user.workLongitude.toString(),
             radius: user.workRadius?.toString() || "50",
@@ -152,6 +155,9 @@ export default function EditEmployee() {
       newErrors.latePenalty = "Denda harus angka";
 
     workLocations.forEach((location, index) => {
+      if (!location.name || !location.name.trim()) {
+        newErrors[`location-name-${index}`] = "Nama lokasi wajib diisi";
+      }
       if (
         isNaN(Number(location.latitude)) ||
         isNaN(Number(location.longitude))
@@ -211,6 +217,7 @@ export default function EditEmployee() {
         workLocations:
           workLocations.length > 0
             ? workLocations.map(location => ({
+                name: location.name.trim() || `Cabang ${workLocations.indexOf(location) + 1}`,
                 latitude: Number(location.latitude),
                 longitude: Number(location.longitude),
                 radius: Number(location.radius) || 50,
@@ -492,8 +499,27 @@ export default function EditEmployee() {
                       </TouchableOpacity>
                     </View>
                     <Text style={styles.locationValue}>
-                      {location.latitude}, {location.longitude}
+                      Koordinat: {location.latitude}, {location.longitude}
                     </Text>
+                    <Input
+                      label="Nama Lokasi (Cabang/Proyek)"
+                      value={location.name}
+                      onChangeText={text => {
+                        setWorkLocations(prev =>
+                          prev.map(item =>
+                            item.id === location.id
+                              ? {...item, name: text}
+                              : item,
+                          ),
+                        );
+                        setErrors({
+                          ...errors,
+                          [`location-name-${index}`]: "",
+                        });
+                      }}
+                      placeholder="Contoh: Kantor Pusat, Cabang 1"
+                      error={errors[`location-name-${index}`]}
+                    />
                     <Input
                       label="Radius Titik Ini (meter)"
                       value={location.radius}
@@ -557,6 +583,7 @@ export default function EditEmployee() {
                   ...prev,
                   {
                     id: createLocationId(),
+                    name: `Cabang ${prev.length + 1}`,
                     latitude: lat.toString(),
                     longitude: lng.toString(),
                     radius: "50",
