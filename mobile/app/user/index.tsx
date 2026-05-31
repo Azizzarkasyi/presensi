@@ -556,11 +556,12 @@ export default function UserDashboard() {
               prev.dist < curr.dist ? prev : curr
             );
 
+            const isWeb = Platform.OS === 'web';
             showModal({
               title: "Di Luar Jangkauan",
-              message: `Anda ${Math.round(closest.dist)}m dari titik lokasi terdekat, batas maksimal ${closest.radius}m.\n\nPastikan Anda berada di salah satu lokasi kerja yang diizinkan.`,
+              message: `Anda ${Math.round(closest.dist)} meter dari lokasi kerja (batas: ${closest.radius}m).\n\n${isWeb ? "Info: Jika Anda absen lewat Laptop/PC, titik lokasi diambil dari tiang internet (ISP) yang bisa meleset hingga ber-kilometer. Harap absen menggunakan HP atau perbesar radius lokasi di menu Admin." : "Pastikan Anda benar-benar berada di area kerja dan sinyal GPS stabil."}`,
               isError: true,
-              buttonText: "Tutup",
+              buttonText: "Mengerti",
             });
             setLoading(false);
             return;
