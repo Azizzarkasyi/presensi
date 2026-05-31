@@ -120,7 +120,9 @@ export async function autoMigrateTenants() {
           ADD COLUMN IF NOT EXISTS "correctionReviewNote" TEXT,
           ADD COLUMN IF NOT EXISTS "correctionRequestedAt" TIMESTAMP(3),
           ADD COLUMN IF NOT EXISTS "correctionReviewedAt" TIMESTAMP(3),
-          ADD COLUMN IF NOT EXISTS "leaveDescription" TEXT`,
+          ADD COLUMN IF NOT EXISTS "leaveDescription" TEXT,
+          ADD COLUMN IF NOT EXISTS "lateReason" TEXT,
+          ADD COLUMN IF NOT EXISTS "lateDeductionStatus" TEXT DEFAULT 'PENDING'`,
         )
         .catch(() => {});
     }
