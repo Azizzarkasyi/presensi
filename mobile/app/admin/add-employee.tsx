@@ -361,11 +361,11 @@ export default function AddEmployee() {
           <View style={styles.rowInputs}>
             <View style={{flex: 1, marginRight: 8}}>
               <Input
-                label="Jam Masuk (Pisahkan dg koma)"
-                placeholder="Contoh: 08:00,14:00"
+                label="Jam Masuk *"
+                placeholder="Wajib isi, misal: 08:00"
                 value={startWorkTime}
                 onChangeText={text => {
-                  setStartWorkTime(text);
+                  setStartWorkTime(text.replace(/\./g, ":"));
                   setErrors({...errors, startWorkTime: ""});
                 }}
                 error={errors.startWorkTime}
@@ -373,11 +373,11 @@ export default function AddEmployee() {
             </View>
             <View style={{flex: 1, marginLeft: 8}}>
               <Input
-                label="Jam Pulang (Pisahkan dg koma)"
-                placeholder="Contoh: 17:00,21:00"
+                label="Jam Pulang *"
+                placeholder="Wajib isi, misal: 17:00"
                 value={endWorkTime}
                 onChangeText={text => {
-                  setEndWorkTime(text);
+                  setEndWorkTime(text.replace(/\./g, ":"));
                   setErrors({...errors, endWorkTime: ""});
                 }}
                 error={errors.endWorkTime}
