@@ -43,6 +43,7 @@ export default function AddEmployee() {
   const {showModal} = useGlobalModal();
   const [loading, setLoading] = useState(false);
   const [showMapPicker, setShowMapPicker] = useState(false);
+  const [editingLocationId, setEditingLocationId] = useState<string | null>(null);
 
   // Form State
   const [name, setName] = useState("");
@@ -430,9 +431,22 @@ export default function AddEmployee() {
                         <Text style={styles.removeLocationText}>Hapus</Text>
                       </TouchableOpacity>
                     </View>
-                    <Text style={styles.locationValue}>
-                      Koordinat: {location.latitude}, {location.longitude}
-                    </Text>
+                    <View style={{flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10, marginTop: -2}}>
+                      <Text style={{color: theme.colors.text.secondary}}>
+                        Koordinat: {location.latitude}, {location.longitude}
+                      </Text>
+                      <Button
+                        title="Ubah Koordinat"
+                        variant="outline"
+                        size="sm"
+                        onPress={() => {
+                          setEditingLocationId(location.id);
+                          setShowMapPicker(true);
+                        }}
+                        style={{paddingHorizontal: 8, height: 28, minHeight: 28}}
+                        textStyle={{fontSize: 12}}
+                      />
+                    </View>
                     <Input
                       label="Nama Lokasi (Cabang/Proyek)"
                       value={location.name}
@@ -507,21 +521,29 @@ export default function AddEmployee() {
             ]}
           >
             <MapPicker
-              initialLatitude={null}
-              initialLongitude={null}
-              onClose={() => setShowMapPicker(false)}
-              onSelect={(lat, lng) => {
-                setWorkLocations(prev => [
-                  ...prev,
-                  {
-                    id: createLocationId(),
-                    name: `Cabang ${prev.length + 1}`,
-                    latitude: lat.toString(),
-                    longitude: lng.toString(),
-                    radius: "50",
-                  },
-                ]);
+              initialLatitude={editingLocationId ? Number(workLocations.find(l => l.id === editingLocationId)?.latitude) : null}
+              initialLongitude={editingLocationId ? Number(workLocations.find(l => l.id === editingLocationId)?.longitude) : null}
+              onClose={() => {
                 setShowMapPicker(false);
+                setEditingLocationId(null);
+              }}
+              onSelect={(lat, lng) => {
+                if (editingLocationId) {
+                  setWorkLocations(prev => prev.map(loc => loc.id === editingLocationId ? { ...loc, latitude: lat.toString(), longitude: lng.toString() } : loc));
+                } else {
+                  setWorkLocations(prev => [
+                    ...prev,
+                    {
+                      id: createLocationId(),
+                      name: `Cabang ${prev.length + 1}`,
+                      latitude: lat.toString(),
+                      longitude: lng.toString(),
+                      radius: "50",
+                    },
+                  ]);
+                }
+                setShowMapPicker(false);
+                setEditingLocationId(null);
               }}
             />
           </View>
