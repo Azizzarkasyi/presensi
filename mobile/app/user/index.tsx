@@ -343,7 +343,7 @@ export default function UserDashboard() {
         setUserProfile(fetchedProfile);
         const defaultRadius = Number(fetchedConfig?.allowedRadiusMeters) || 50;
 
-        let locations: Array<{latitude: number; longitude: number; radius: number}> = [];
+        let locations: Array<{latitude: number; longitude: number; radius: number; name?: string}> = [];
 
         // 1. Priority: workLocations per-user (multi-location support)
         if (fetchedProfile?.workLocations) {
@@ -376,6 +376,7 @@ export default function UserDashboard() {
         // 3. Fallback: global office location from company config
         if (locations.length === 0 && fetchedConfig?.officeLatitude && fetchedConfig?.officeLongitude) {
           locations = [{
+            name: "Lokasi Perusahaan",
             latitude: Number(fetchedConfig.officeLatitude),
             longitude: Number(fetchedConfig.officeLongitude),
             radius: defaultRadius,
