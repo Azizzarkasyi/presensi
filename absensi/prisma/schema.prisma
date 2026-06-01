@@ -59,6 +59,9 @@ model User {
   endWorkTime   String     @default("17:00")
   latePenalty   Float      @default(0)
   
+  // Break Time Override
+  maxBreakMinutes Int?
+
   // Custom Location Config
   workLatitude  Float?
   workLongitude Float?
