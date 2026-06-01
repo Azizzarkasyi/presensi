@@ -999,20 +999,25 @@ export const getStatistics = async (req: Request, res: Response) => {
     const {month, year} = req.query;
 
     // Offset the server time by +7 hours to ensure it aligns with WIB (Indonesia Time)
-    // This prevents the server from returning the previous month if it's hosted in a western timezone
     const nowWIB = new Date(new Date().getTime() + 7 * 60 * 60 * 1000);
     const targetMonth = month ? Number(month) - 1 : nowWIB.getUTCMonth();
     const targetYear = year ? Number(year) : nowWIB.getUTCFullYear();
 
-    const startDate = new Date(targetYear, targetMonth, 1);
-    const endDate = new Date(targetYear, targetMonth + 1, 0, 23, 59, 59, 999);
+    // Create startDate and endDate in UTC to exactly match how clockIn saves the date
+    // (clockIn uses Date.UTC(..., month, date))
+    const startDate = new Date(Date.UTC(targetYear, targetMonth, 1, 0, 0, 0, 0));
+    
+    // For endDate, we go to the first day of the NEXT month at 00:00:00 UTC, and use 'lt' instead of 'lte'
+    const nextMonth = targetMonth === 11 ? 0 : targetMonth + 1;
+    const nextMonthYear = targetMonth === 11 ? targetYear + 1 : targetYear;
+    const endDate = new Date(Date.UTC(nextMonthYear, nextMonth, 1, 0, 0, 0, 0));
 
     const attendances = await prisma.attendance.findMany({
       where: {
         userId,
         date: {
           gte: startDate,
-          lte: endDate,
+          lt: endDate,
         },
       },
       include: {breaks: true},
