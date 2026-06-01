@@ -1002,7 +1002,7 @@ export const getStatistics = async (req: Request, res: Response) => {
     const targetYear = year ? Number(year) : new Date().getFullYear();
 
     const startDate = new Date(targetYear, targetMonth, 1);
-    const endDate = new Date(targetYear, targetMonth + 1, 0);
+    const endDate = new Date(targetYear, targetMonth + 1, 0, 23, 59, 59, 999);
 
     const attendances = await prisma.attendance.findMany({
       where: {
@@ -1095,9 +1095,13 @@ export const getAttendanceReport = async (req: Request, res: Response) => {
     const where: any = {};
 
     if (startDate && endDate) {
+      const start = new Date(startDate as string);
+      const end = new Date(endDate as string);
+      end.setHours(23, 59, 59, 999);
+      
       where.date = {
-        gte: new Date(startDate as string),
-        lte: new Date(endDate as string),
+        gte: start,
+        lte: end,
       };
     }
 
