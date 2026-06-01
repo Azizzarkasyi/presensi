@@ -291,6 +291,7 @@ export class TenantService {
         "startWorkTime" VARCHAR(255) NOT NULL DEFAULT '09:00',
         "endWorkTime" VARCHAR(255) NOT NULL DEFAULT '17:00',
         "latePenalty" DOUBLE PRECISION NOT NULL DEFAULT 0,
+        "maxBreakMinutes" INTEGER,
         "workLatitude" DOUBLE PRECISION,
         "workLongitude" DOUBLE PRECISION,
         "workRadius" INTEGER,
