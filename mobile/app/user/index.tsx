@@ -839,12 +839,18 @@ export default function UserDashboard() {
         {/* Face Registration Alert */}
         {!faceRegistered && (
           <TouchableOpacity
-            style={styles.faceRegisterAlert}
+            style={styles.actionBanner}
             onPress={() => handleFaceAction("register")}
+            activeOpacity={0.8}
           >
-            <Text style={styles.faceRegisterText}>
-              👤 Wajah belum terdaftar. Tap untuk mendaftarkan wajah Anda
-            </Text>
+            <View style={styles.actionBannerIconPrimary}>
+              <Ionicons name="scan-outline" size={24} color="#fff" />
+            </View>
+            <View style={styles.actionBannerContent}>
+              <Text style={styles.actionBannerTitle}>Wajah Belum Terdaftar</Text>
+              <Text style={styles.actionBannerDesc}>Tap di sini untuk merekam data wajah absensi Anda sekarang.</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#3b82f6" />
           </TouchableOpacity>
         )}
 
@@ -917,17 +923,23 @@ export default function UserDashboard() {
             {/* Missed Clock Out Alert */}
             {missedClockOut && (
               <TouchableOpacity
-                style={styles.missedAlert}
+                style={styles.actionBannerWarning}
                 onPress={() => setShowMissedClockOutModal(true)}
+                activeOpacity={0.8}
               >
-                <Text style={styles.missedAlertText}>
-                  ⚠️ Anda belum absen keluar kemarin (
-                  {new Date(missedClockOut.date).toLocaleDateString("id-ID", {
-                    day: "numeric",
-                    month: "long",
-                  })}
-                  ). Tap untuk mengisi jam keluar.
-                </Text>
+                <View style={styles.actionBannerIconWarning}>
+                  <Ionicons name="warning-outline" size={24} color="#fff" />
+                </View>
+                <View style={styles.actionBannerContent}>
+                  <Text style={styles.actionBannerTitleWarning}>Lupa Absen Keluar?</Text>
+                  <Text style={styles.actionBannerDescWarning}>
+                    Anda belum absen keluar pada {new Date(missedClockOut.date).toLocaleDateString("id-ID", {
+                      day: "numeric",
+                      month: "short",
+                    })}. Tap untuk melengkapi.
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#f59e0b" />
               </TouchableOpacity>
             )}
 
@@ -1461,19 +1473,78 @@ const styles = StyleSheet.create({
     color: theme.colors.text.primary,
     textAlign: "center",
   },
-  missedAlert: {
-    backgroundColor: "#fefce8",
+  actionBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#eff6ff",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#bfdbfe",
+    shadowColor: "#3b82f6",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  actionBannerWarning: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fffbeb",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: "#fde68a",
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 16,
+    shadowColor: "#f59e0b",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  missedAlertText: {
+  actionBannerIconPrimary: {
+    backgroundColor: "#3b82f6",
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 16,
+  },
+  actionBannerIconWarning: {
+    backgroundColor: "#f59e0b",
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 16,
+  },
+  actionBannerContent: {
+    flex: 1,
+  },
+  actionBannerTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#1e3a8a",
+    marginBottom: 4,
+  },
+  actionBannerTitleWarning: {
+    fontSize: 16,
+    fontWeight: "700",
     color: "#92400e",
+    marginBottom: 4,
+  },
+  actionBannerDesc: {
     fontSize: 13,
-    fontWeight: "600",
-    lineHeight: 20,
+    color: "#3b82f6",
+    lineHeight: 18,
+  },
+  actionBannerDescWarning: {
+    fontSize: 13,
+    color: "#b45309",
+    lineHeight: 18,
   },
   modalOverlay: {
     flex: 1,
