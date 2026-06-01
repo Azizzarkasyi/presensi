@@ -56,6 +56,7 @@ export default function AddEmployee() {
   const [startWorkTime, setStartWorkTime] = useState("09:00");
   const [endWorkTime, setEndWorkTime] = useState("17:00");
   const [latePenalty, setLatePenalty] = useState("0");
+  const [maxBreakMinutes, setMaxBreakMinutes] = useState("");
 
   // Location Override State
   const [workLocations, setWorkLocations] = useState<WorkLocationItem[]>([]);
@@ -151,6 +152,7 @@ export default function AddEmployee() {
                 radius: Number(location.radius) || 50,
               }))
             : undefined,
+        maxBreakMinutes,
       });
       showModal({
         title: "Sukses",
@@ -394,6 +396,14 @@ export default function AddEmployee() {
             Isi koma jika ada 2 Shift. Contoh: 06:00,12:00 (masuk) dan
             17:00,21:00 (pulang)
           </Text>
+          
+          <Input
+            label="Waktu Istirahat (Menit, Opsional)"
+            placeholder="Biarkan kosong untuk mengikuti pusat"
+            value={maxBreakMinutes}
+            onChangeText={setMaxBreakMinutes}
+            keyboardType="numeric"
+          />
         </Card>
 
         {/* Location Section */}

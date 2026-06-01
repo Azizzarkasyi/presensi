@@ -199,6 +199,7 @@ export const getProfile = async (req: Request, res: Response) => {
         workLongitude: true,
         workRadius: true,
         workLocations: true,
+        maxBreakMinutes: true,
         isActive: true,
         createdAt: true,
       },
@@ -294,6 +295,7 @@ export const getAllUsers = async (req: Request, res: Response) => {
         workLongitude: true,
         workRadius: true,
         workLocations: true,
+        maxBreakMinutes: true,
         latePenalty: true,
         createdAt: true,
       },
@@ -383,6 +385,7 @@ export const createUser = async (req: Request, res: Response) => {
       workLongitude,
       workRadius,
       workLocations,
+      maxBreakMinutes,
     } = req.body;
 
     if (!email || !password || !name) {
@@ -443,6 +446,7 @@ export const createUser = async (req: Request, res: Response) => {
           : null,
         ...(parsedWorkLocations ? {workLocations: parsedWorkLocations} : {}),
         latePenalty: latePenalty ? parseFloat(latePenalty) : 0,
+        maxBreakMinutes: maxBreakMinutes !== undefined && maxBreakMinutes !== "" ? parseInt(maxBreakMinutes, 10) : null,
       },
       select: {
         id: true,
@@ -457,6 +461,7 @@ export const createUser = async (req: Request, res: Response) => {
         workLongitude: true,
         workRadius: true,
         workLocations: true,
+        maxBreakMinutes: true,
         latePenalty: true,
         createdAt: true,
       },
@@ -564,6 +569,9 @@ export const updateUser = async (req: Request, res: Response) => {
         ...(workLocations !== undefined && {
           workLocations: parsedWorkLocations ?? Prisma.DbNull,
         }),
+        ...(maxBreakMinutes !== undefined && {
+          maxBreakMinutes: maxBreakMinutes === null || maxBreakMinutes === "" ? null : parseInt(maxBreakMinutes, 10)
+        }),
       },
       select: {
         id: true,
@@ -579,6 +587,7 @@ export const updateUser = async (req: Request, res: Response) => {
         workLongitude: true,
         workRadius: true,
         workLocations: true,
+        maxBreakMinutes: true,
         latePenalty: true,
       },
     });

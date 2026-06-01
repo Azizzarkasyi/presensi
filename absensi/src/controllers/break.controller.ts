@@ -66,7 +66,7 @@ export const startBreak = async (req: Request, res: Response) => {
 
     // Check max break minutes
     const config = await prisma.companyConfig.findFirst();
-    const maxBreakMinutes = config?.maxBreakMinutesPerDay || 60;
+    const maxBreakMinutes = user.maxBreakMinutes ?? config?.maxBreakMinutesPerDay ?? 60;
 
     if (attendance.totalBreakMinutes >= maxBreakMinutes) {
       return res.status(400).json({
