@@ -23,12 +23,19 @@ export default function AdminDashboard() {
 
   const cacheKey = "admin-dashboard-stats-cache";
 
-  const getTodayDateString = () => {
+  const getStartOfMonthString = () => {
     const today = new Date();
     const year = today.getFullYear();
     const month = String(today.getMonth() + 1).padStart(2, "0");
-    const day = String(today.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
+    return `${year}-${month}-01`;
+  };
+
+  const getEndOfMonthString = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, "0");
+    const lastDay = new Date(year, today.getMonth() + 1, 0).getDate();
+    return `${year}-${month}-${String(lastDay).padStart(2, "0")}`;
   };
 
   useEffect(() => {
@@ -41,8 +48,8 @@ export default function AdminDashboard() {
       const [empRes, attRes, taskRes] = await Promise.all([
         api.get("/users"),
         getAttendanceReport({
-          startDate: getTodayDateString(),
-          endDate: getTodayDateString(),
+          startDate: getStartOfMonthString(),
+          endDate: getEndOfMonthString(),
         }),
         api.get("/tasks"),
       ]);
@@ -259,7 +266,7 @@ export default function AdminDashboard() {
             </Card>
             <Card style={styles.statCard}>
               <Text style={styles.statValue}>{presentCount}</Text>
-              <Text style={styles.statLabel}>Hadir Hari Ini</Text>
+              <Text style={styles.statLabel}>Hadir Bulan Ini</Text>
             </Card>
             <Card style={styles.statCard}>
               <Text style={styles.statValue}>{lateCount}</Text>
