@@ -1,3 +1,4 @@
+process.env.TZ = "Asia/Jakarta";
 import app from "./app";
 import dotenv from "dotenv";
 import { startCleanupCron } from "./utils/cleanup";

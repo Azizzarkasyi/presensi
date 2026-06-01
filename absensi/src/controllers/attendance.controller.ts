@@ -998,8 +998,11 @@ export const getStatistics = async (req: Request, res: Response) => {
     const userId = req.user!.id;
     const {month, year} = req.query;
 
-    const targetMonth = month ? Number(month) - 1 : new Date().getMonth();
-    const targetYear = year ? Number(year) : new Date().getFullYear();
+    // Offset the server time by +7 hours to ensure it aligns with WIB (Indonesia Time)
+    // This prevents the server from returning the previous month if it's hosted in a western timezone
+    const nowWIB = new Date(new Date().getTime() + 7 * 60 * 60 * 1000);
+    const targetMonth = month ? Number(month) - 1 : nowWIB.getUTCMonth();
+    const targetYear = year ? Number(year) : nowWIB.getUTCFullYear();
 
     const startDate = new Date(targetYear, targetMonth, 1);
     const endDate = new Date(targetYear, targetMonth + 1, 0, 23, 59, 59, 999);
