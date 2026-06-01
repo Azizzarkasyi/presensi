@@ -254,6 +254,7 @@ export const updateProfile = async (req: Request, res: Response) => {
         workLatitude: true,
         workLongitude: true,
         workRadius: true,
+        maxBreakMinutes: true,
       },
     });
 
@@ -340,6 +341,7 @@ export const getUserById = async (req: Request, res: Response) => {
         workLongitude: true,
         workRadius: true,
         workLocations: true,
+        maxBreakMinutes: true,
         latePenalty: true,
         createdAt: true,
       },
@@ -502,6 +504,7 @@ export const updateUser = async (req: Request, res: Response) => {
       workLongitude,
       workRadius,
       workLocations,
+      maxBreakMinutes,
     } = req.body;
     const parsedWorkLocations = parseWorkLocations(workLocations, 50);
     const primaryLocation = resolvePrimaryWorkLocation(parsedWorkLocations);
