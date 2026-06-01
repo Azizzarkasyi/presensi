@@ -1,4 +1,4 @@
-import { getPublicPrisma, getTenantPrisma } from './src/prisma/tenant-prisma';
+import { getPublicPrisma, getTenantPrisma } from '../prisma/tenant-prisma';
 
 async function checkData() {
   const publicPrisma = getPublicPrisma();

@@ -1,4 +1,4 @@
-import { getTenantPrisma } from './src/prisma/tenant-prisma';
+import { getTenantPrisma } from '../prisma/tenant-prisma';
 import bcrypt from 'bcryptjs';
 
 async function addTestUser() {
