@@ -607,9 +607,11 @@ export default function UserDashboard() {
       if (Platform.OS === "web") {
         try {
           blob = await new Promise((resolve) => {
-            const img = new window.Image();
+            const globalWindow = window as any;
+            const globalDocument = document as any;
+            const img = new globalWindow.Image();
             img.onload = () => {
-              const canvas = document.createElement("canvas");
+              const canvas = globalDocument.createElement("canvas");
               const MAX_WIDTH = 800;
               let width = img.width;
               let height = img.height;
