@@ -6,6 +6,8 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
+  Platform,
+  ActivityIndicator,
 } from "react-native";
 import {useRouter} from "expo-router";
 import * as ImagePicker from "expo-image-picker";
@@ -41,6 +43,8 @@ export default function LeaveRequest() {
         const result = await ImagePicker.launchCameraAsync({
           mediaTypes: ImagePicker.MediaTypeOptions.Images,
           quality: 0.2,
+          allowsEditing: true,
+          aspect: [3, 4],
         });
         if (!result.canceled && result.assets && result.assets.length > 0) {
           setPhotoUri(result.assets[0].uri);
@@ -49,6 +53,8 @@ export default function LeaveRequest() {
         const result = await ImagePicker.launchImageLibraryAsync({
           mediaTypes: ImagePicker.MediaTypeOptions.Images,
           quality: 0.2,
+          allowsEditing: true,
+          aspect: [3, 4],
         });
         if (!result.canceled && result.assets && result.assets.length > 0) {
           setPhotoUri(result.assets[0].uri);
@@ -264,6 +270,17 @@ export default function LeaveRequest() {
           </Card>
         </View>
       </ScrollView>
+
+      {/* Uploading Animation Overlay */}
+      {loading && (
+        <View style={styles.loadingOverlay}>
+          <View style={styles.loadingCard}>
+            <ActivityIndicator size="large" color="#3b82f6" />
+            <Text style={styles.loadingText}>Mengunggah Data...</Text>
+            <Text style={styles.loadingSubText}>Mohon tunggu sebentar, sedang mengirim gambar...</Text>
+          </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -363,5 +380,38 @@ const styles = StyleSheet.create({
   },
   submitBtn: {
     marginTop: 24,
+  },
+  loadingOverlay: {
+    position: "absolute",
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 999,
+  },
+  loadingCard: {
+    backgroundColor: "#fff",
+    padding: 24,
+    borderRadius: 16,
+    alignItems: "center",
+    width: "80%",
+    maxWidth: 320,
+    elevation: 5,
+    shadowColor: "#000",
+    shadowOffset: {width: 0, height: 4},
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#1e293b",
+  },
+  loadingSubText: {
+    marginTop: 8,
+    fontSize: 13,
+    color: "#64748b",
+    textAlign: "center",
   },
 });
