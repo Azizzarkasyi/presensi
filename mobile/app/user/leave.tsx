@@ -125,7 +125,7 @@ export default function LeaveRequest() {
               const ctx = canvas.getContext("2d");
               if (ctx) {
                 ctx.drawImage(img, 0, 0, width, height);
-                canvas.toBlob((b) => resolve(b || blob), "image/jpeg", 0.6);
+                canvas.toBlob((b: Blob | null) => resolve(b || blob), "image/jpeg", 0.6);
               } else {
                 resolve(blob);
               }
@@ -314,7 +314,7 @@ export default function LeaveRequest() {
               disabled={loading}
               style={styles.submitBtn}
             />
-          </View>
+          </Card>
         </View>
       </ScrollView>
 
