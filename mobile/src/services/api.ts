@@ -1,6 +1,7 @@
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {Platform} from "react-native";
+import {router} from "expo-router";
 
 // Detect platform for correct API URL
 const getApiUrl = () => {
@@ -53,9 +54,18 @@ api.interceptors.response.use(
   async (error) => {
     if (error.response && error.response.status === 401) {
       // Hapus sesi lokal agar user dipaksa login ulang
-      await AsyncStorage.removeItem("token");
-      await AsyncStorage.removeItem("user");
-      // Note: Redirect ke halaman login akan ditangani oleh AuthContext yang mendeteksi token hilang
+      await AsyncStorage.multiRemove([
+        "user",
+        "token",
+        "tenant",
+        "tenantId",
+        "isSuperAdmin",
+      ]);
+      
+      // Paksa kembali ke layar login
+      if (router && typeof router.replace === 'function') {
+        router.replace("/login");
+      }
     }
     return Promise.reject(error);
   }

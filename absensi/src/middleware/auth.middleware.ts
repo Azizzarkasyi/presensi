@@ -66,11 +66,15 @@ export async function authenticate(
 
     req.user = decoded;
     next();
-  } catch (error) {
-    console.error("Auth error:", error);
+  } catch (error: any) {
+    if (error.name === "TokenExpiredError") {
+      console.log(`Auth warning: Token expired for a user at ${error.expiredAt}`);
+    } else {
+      console.error("Auth error:", error.message || error);
+    }
     res.status(401).json({
       success: false,
-      message: "Invalid token",
+      message: "Sesi Anda telah berakhir, silakan login kembali.",
     });
   }
 }
