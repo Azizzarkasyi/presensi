@@ -155,6 +155,7 @@ export default function LeaveRequest() {
         title: "Sukses",
         message: "Pengajuan berhasil dicatat dan menunggu persetujuan admin.",
         buttonText: "Ke Dashboard",
+        onPrimaryPress: () => router.replace("/"),
       });
     } catch (error: any) {
       console.error("Request leave error:", error);
