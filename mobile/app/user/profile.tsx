@@ -64,7 +64,7 @@ export default function UserProfile() {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        quality: 0.7,
+        quality: 0.3,
         allowsEditing: true,
         aspect: [1, 1],
       });

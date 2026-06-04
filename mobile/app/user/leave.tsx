@@ -44,7 +44,7 @@ export default function LeaveRequest() {
 
         const result = await ImagePicker.launchCameraAsync({
           mediaTypes: ImagePicker.MediaTypeOptions.Images,
-          quality: 0.7,
+          quality: 0.2,
         });
 
         if (!result.canceled && result.assets && result.assets.length > 0) {
@@ -53,7 +53,7 @@ export default function LeaveRequest() {
       } else {
         const result = await ImagePicker.launchImageLibraryAsync({
           mediaTypes: ImagePicker.MediaTypeOptions.Images,
-          quality: 0.7,
+          quality: 0.2,
         });
 
         if (!result.canceled && result.assets && result.assets.length > 0) {

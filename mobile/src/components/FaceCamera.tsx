@@ -47,7 +47,7 @@ export default function FaceCamera({ onFaceDetected, onCancel, mode }: FaceCamer
     setCapturing(true);
     try {
       const photo = await cameraRef.current.takePictureAsync({
-        quality: 0.7,
+        quality: 0.3,
         base64: true,
       });
 
