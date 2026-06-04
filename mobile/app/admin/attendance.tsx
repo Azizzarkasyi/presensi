@@ -21,6 +21,9 @@ interface AttendanceRecord {
   status: string;
   lateReason: string | null;
   lateDeductionStatus: string | null;
+  leaveDescription?: string | null;
+  leaveApprovalStatus?: string | null;
+  clockInPhoto?: string | null;
   user: {name: string; email: string};
 }
 
@@ -234,6 +237,42 @@ export default function AdminAttendance() {
                 variant="outline"
                 onPress={() => handleReviewLateDeduction(item.id, "REJECTED")}
                 style={styles.actionBtnLate}
+              />
+            </View>
+          )}
+        </View>
+      )}
+
+      {(item.status === "SICK" || item.status === "LEAVE") && (
+        <View style={styles.lateReasonContainer}>
+          <Text style={styles.lateReasonTitle}>💬 Keterangan:</Text>
+          <Text style={styles.lateReasonText}>{item.leaveDescription || "Tidak ada keterangan"}</Text>
+          
+          <View style={styles.lateStatusRow}>
+            <Text style={styles.lateStatusLabel}>Status Persetujuan:</Text>
+            {item.leaveApprovalStatus === "PENDING" && (
+              <Badge label="Menunggu" variant="warning" size="sm" />
+            )}
+            {item.leaveApprovalStatus === "APPROVED" && (
+              <Badge label="Disetujui" variant="success" size="sm" />
+            )}
+            {item.leaveApprovalStatus === "REJECTED" && (
+              <Badge label="Ditolak" variant="error" size="sm" />
+            )}
+          </View>
+
+          {item.clockInPhoto && (
+            <View style={{marginTop: 12}}>
+              <Text style={[styles.lateStatusLabel, {marginBottom: 8}]}>📸 Bukti Lampiran:</Text>
+              <Button
+                title="Lihat Bukti Foto"
+                size="sm"
+                variant="outline"
+                onPress={() => showModal({
+                  title: "Bukti Surat/Foto",
+                  message: `URL Foto: https://yexsx.my.id/api/uploads/${item.clockInPhoto}`,
+                  buttonText: "Tutup"
+                })}
               />
             </View>
           )}

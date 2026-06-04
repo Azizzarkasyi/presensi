@@ -710,7 +710,8 @@ export default function UserDashboard() {
   };
 
   const hasActiveBreak = todayBreaks?.activeBreak != null;
-  const canClockIn = !todayAttendance?.clockIn && !missedClockOut;
+  const isLeaveOrSick = todayAttendance?.status === "SICK" || todayAttendance?.status === "LEAVE";
+  const canClockIn = !todayAttendance?.clockIn && !missedClockOut && !isLeaveOrSick;
   const canClockOut = todayAttendance?.clockIn && !todayAttendance?.clockOut;
   const canStartBreak =
     todayAttendance?.clockIn && !todayAttendance?.clockOut && !hasActiveBreak;
