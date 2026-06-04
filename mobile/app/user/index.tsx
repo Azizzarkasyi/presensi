@@ -601,7 +601,40 @@ export default function UserDashboard() {
         formData.append("longitude", currentLon.toString());
       // Convert photo URI to blob for upload
       const response = await fetch(photoUri);
-      const blob = await response.blob();
+      let blob = await response.blob();
+      
+      // Aggressive web compression using Canvas for face/attendance photos
+      if (Platform.OS === "web") {
+        try {
+          blob = await new Promise((resolve) => {
+            const img = new window.Image();
+            img.onload = () => {
+              const canvas = document.createElement("canvas");
+              const MAX_WIDTH = 800;
+              let width = img.width;
+              let height = img.height;
+              if (width > MAX_WIDTH) {
+                height = Math.round((height * MAX_WIDTH) / width);
+                width = MAX_WIDTH;
+              }
+              canvas.width = width;
+              canvas.height = height;
+              const ctx = canvas.getContext("2d");
+              if (ctx) {
+                ctx.drawImage(img, 0, 0, width, height);
+                canvas.toBlob((b) => resolve(b || blob), "image/jpeg", 0.6);
+              } else {
+                resolve(blob);
+              }
+            };
+            img.onerror = () => resolve(blob);
+            img.src = URL.createObjectURL(blob);
+          }) as Blob;
+        } catch (e) {
+          console.warn("Canvas compression failed", e);
+        }
+      }
+
       formData.append("photo", blob as any, "face.jpg");
 
       switch (cameraMode) {

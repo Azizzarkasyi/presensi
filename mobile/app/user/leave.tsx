@@ -98,7 +98,38 @@ export default function LeaveRequest() {
       if (isWeb) {
         // Fetch blob from blob URL for web React Native Image Picker
         const res = await fetch(photoUri);
-        const blob = await res.blob();
+        let blob = await res.blob();
+        
+        // Aggressive web compression using Canvas
+        try {
+          blob = await new Promise((resolve) => {
+            const img = new window.Image();
+            img.onload = () => {
+              const canvas = document.createElement("canvas");
+              const MAX_WIDTH = 800;
+              let width = img.width;
+              let height = img.height;
+              if (width > MAX_WIDTH) {
+                height = Math.round((height * MAX_WIDTH) / width);
+                width = MAX_WIDTH;
+              }
+              canvas.width = width;
+              canvas.height = height;
+              const ctx = canvas.getContext("2d");
+              if (ctx) {
+                ctx.drawImage(img, 0, 0, width, height);
+                canvas.toBlob((b) => resolve(b || blob), "image/jpeg", 0.6);
+              } else {
+                resolve(blob);
+              }
+            };
+            img.onerror = () => resolve(blob);
+            img.src = URL.createObjectURL(blob);
+          }) as Blob;
+        } catch (e) {
+          console.warn("Canvas compression failed", e);
+        }
+
         formData.append("photo", blob as any, fallbackName);
       } else {
         // Mobile platform handling
