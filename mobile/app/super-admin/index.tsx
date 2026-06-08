@@ -238,9 +238,9 @@ export default function SuperAdminDashboard() {
           "";
         setTemporaryPassword(password);
         showModal({
-          title: "Berhasil",
-          message: "Password admin berhasil direset",
-          buttonText: "Lihat Password",
+          title: "Password Berhasil Direset!",
+          message: `Password admin untuk ${detailTenant.name} sekarang adalah:\n\n${password}\n\nMohon catat atau salin password ini, karena hanya ditampilkan sekali.`,
+          buttonText: "Tutup",
         });
       } catch (error: any) {
         const msg =
