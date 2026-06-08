@@ -6,6 +6,8 @@ import {
   FlatList,
   TouchableOpacity,
   Image,
+  Modal,
+  ScrollView,
 } from "react-native";
 import {Ionicons} from "@expo/vector-icons";
 import {useRouter} from "expo-router";
@@ -47,13 +49,14 @@ const getImageUri = (path?: string | null) => {
   }
 
   const baseUrl = api.defaults.baseURL?.replace(/\/api\/?$/, "");
+  // Encode URI to handle spaces or special characters in filename
   const normalizedPath = path.startsWith("/") ? path : `/uploads/${path}`;
 
   if (!baseUrl) {
-    return normalizedPath;
+    return encodeURI(normalizedPath);
   }
 
-  return `${baseUrl}${normalizedPath}`;
+  return encodeURI(`${baseUrl}${normalizedPath}`);
 };
 
 export default function AdminLeaveRequests() {
@@ -69,6 +72,7 @@ export default function AdminLeaveRequests() {
   const [searchText, setSearchText] = useState("");
   const [noteMap, setNoteMap] = useState<Record<number, string>>({});
   const [usingCache, setUsingCache] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<LeaveItem | null>(null);
 
   const cacheKey = `admin-leave-requests-${statusFilter}`;
 
@@ -141,6 +145,7 @@ export default function AdminLeaveRequests() {
       });
       setNoteMap(prev => ({...prev, [id]: ""}));
       await loadRequests();
+      setSelectedItem(null); // Close modal on success
       showModal({
         title: "Sukses",
         message: `Pengajuan berhasil di-${action === "APPROVED" ? "setujui" : "tolak"}`,
@@ -246,73 +251,26 @@ export default function AdminLeaveRequests() {
           </View>
         }
         renderItem={({item}) => (
-          <Card style={styles.card}>
-            <View style={styles.cardHeader}>
-              <View style={{flex: 1}}>
-                <Text style={styles.name}>{item.user.name}</Text>
-                <Text style={styles.email}>{item.user.email}</Text>
-              </View>
-              <Badge
-                label={item.leaveApprovalStatus}
-                variant={getStatusVariant(item.leaveApprovalStatus)}
-                size="sm"
-              />
-            </View>
-
-            <Text style={styles.date}>{formatDate(item.date)}</Text>
-            <Text style={styles.type}>
-              {item.status === "SICK" ? "Sakit" : "Izin / Cuti"}
-            </Text>
-
-            {item.clockInPhoto ? (
-              <View style={styles.proofSection}>
-                <Text style={styles.proofTitle}>Bukti Foto</Text>
-                <View style={styles.proofBlock}>
-                  <Text style={styles.proofLabel}>Lampiran</Text>
-                  <Image
-                    source={{uri: getImageUri(item.clockInPhoto) || undefined}}
-                    style={styles.proofImage}
+          <TouchableOpacity onPress={() => setSelectedItem(item)} activeOpacity={0.7}>
+            <Card style={styles.card}>
+              <View style={styles.cardHeader}>
+                <View style={{flex: 1}}>
+                  <Text style={styles.name}>{item.user.name}</Text>
+                  <Text style={styles.date}>{formatDate(item.date)}</Text>
+                </View>
+                <View style={{alignItems: 'flex-end', gap: 4}}>
+                  <Badge
+                    label={item.leaveApprovalStatus}
+                    variant={getStatusVariant(item.leaveApprovalStatus)}
+                    size="sm"
                   />
+                  <Text style={styles.typeSmall}>
+                    {item.status === "SICK" ? "Sakit" : "Izin/Cuti"}
+                  </Text>
                 </View>
               </View>
-            ) : null}
-            {item.leaveDescription ? (
-              <Text style={styles.meta}>Keterangan: {item.leaveDescription}</Text>
-            ) : null}
-            {item.leaveReviewNote ? (
-              <Text style={styles.meta}>
-                Catatan admin: {item.leaveReviewNote}
-              </Text>
-            ) : null}
-
-            {item.leaveApprovalStatus === "PENDING" && (
-              <View>
-                <Input
-                  label="Catatan admin (opsional)"
-                  placeholder="Misal: disetujui, silakan update jadwal"
-                  value={noteMap[item.id] || ""}
-                  onChangeText={value =>
-                    setNoteMap(prev => ({...prev, [item.id]: value}))
-                  }
-                />
-                <View style={styles.actionRow}>
-                  <Button
-                    title="Tolak"
-                    variant="outline"
-                    onPress={() => handleReview(item.id, "REJECTED")}
-                    loading={updatingId === item.id}
-                    style={styles.actionBtn}
-                  />
-                  <Button
-                    title="Setujui"
-                    onPress={() => handleReview(item.id, "APPROVED")}
-                    loading={updatingId === item.id}
-                    style={styles.actionBtn}
-                  />
-                </View>
-              </View>
-            )}
-          </Card>
+            </Card>
+          </TouchableOpacity>
         )}
         ListEmptyComponent={
           !loading ? (
@@ -324,6 +282,106 @@ export default function AdminLeaveRequests() {
           ) : null
         }
       />
+
+      {/* Detail Modal */}
+      <Modal
+        visible={!!selectedItem}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setSelectedItem(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, isDesktop && styles.modalContentDesktop]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Detail Izin</Text>
+              <TouchableOpacity onPress={() => setSelectedItem(null)}>
+                <Ionicons name="close" size={24} color="#64748b" />
+              </TouchableOpacity>
+            </View>
+
+            {selectedItem && (
+              <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Karyawan</Text>
+                  <Text style={styles.detailValue}>{selectedItem.user.name}</Text>
+                </View>
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Tanggal</Text>
+                  <Text style={styles.detailValue}>{formatDate(selectedItem.date)}</Text>
+                </View>
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Kategori</Text>
+                  <Text style={styles.detailValue}>
+                    {selectedItem.status === "SICK" ? "Sakit" : "Izin / Cuti"}
+                  </Text>
+                </View>
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Status</Text>
+                  <Badge
+                    label={selectedItem.leaveApprovalStatus}
+                    variant={getStatusVariant(selectedItem.leaveApprovalStatus)}
+                    size="sm"
+                  />
+                </View>
+
+                {selectedItem.leaveDescription ? (
+                  <View style={styles.detailSection}>
+                    <Text style={styles.detailLabel}>Keterangan</Text>
+                    <Text style={styles.detailDesc}>{selectedItem.leaveDescription}</Text>
+                  </View>
+                ) : null}
+
+                {selectedItem.clockInPhoto ? (
+                  <View style={styles.detailSection}>
+                    <Text style={styles.detailLabel}>Bukti Foto (Klik/Zoom untuk perbesar)</Text>
+                    <Image
+                      source={{uri: getImageUri(selectedItem.clockInPhoto) || undefined}}
+                      style={styles.detailImage}
+                      resizeMode="contain"
+                    />
+                  </View>
+                ) : null}
+
+                {selectedItem.leaveReviewNote ? (
+                  <View style={styles.detailSection}>
+                    <Text style={styles.detailLabel}>Catatan Admin Sebelumnya</Text>
+                    <Text style={styles.detailDesc}>{selectedItem.leaveReviewNote}</Text>
+                  </View>
+                ) : null}
+
+                {selectedItem.leaveApprovalStatus === "PENDING" && (
+                  <View style={styles.actionContainer}>
+                    <Input
+                      label="Catatan baru (opsional)"
+                      placeholder="Misal: disetujui, silakan istirahat"
+                      value={noteMap[selectedItem.id] || ""}
+                      onChangeText={value =>
+                        setNoteMap(prev => ({...prev, [selectedItem.id]: value}))
+                      }
+                    />
+                    <View style={styles.actionRow}>
+                      <Button
+                        title="Tolak"
+                        variant="danger"
+                        onPress={() => handleReview(selectedItem.id, "REJECTED")}
+                        loading={updatingId === selectedItem.id}
+                        style={styles.actionBtn}
+                      />
+                      <Button
+                        title="Setujui"
+                        variant="primary"
+                        onPress={() => handleReview(selectedItem.id, "APPROVED")}
+                        loading={updatingId === selectedItem.id}
+                        style={styles.actionBtn}
+                      />
+                    </View>
+                  </View>
+                )}
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -406,53 +464,105 @@ const styles = StyleSheet.create({
   },
   filterBtn: {minWidth: 92},
   listContent: {padding: theme.spacing.lg, paddingBottom: theme.spacing.xl},
-  card: {marginBottom: theme.spacing.md},
+  card: {
+    marginBottom: theme.spacing.sm,
+    padding: theme.spacing.md,
+  },
   cardHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 8,
+    alignItems: "center",
   },
-  name: {...theme.typography.h3, color: theme.colors.text.primary},
-  email: {fontSize: 12, color: theme.colors.text.secondary},
-  date: {fontSize: 14, color: theme.colors.text.primary, marginBottom: 4},
-  type: {
-    fontSize: 13,
-    color: theme.colors.primary,
-    fontWeight: "600",
-    marginBottom: 8,
-  },
-  proofSection: {
-    marginTop: theme.spacing.sm,
-    marginBottom: theme.spacing.sm,
-  },
-  proofTitle: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: theme.colors.text.primary,
-    marginBottom: 8,
-  },
-  proofBlock: {
-    marginBottom: 12,
-  },
-  proofLabel: {
+  name: {...theme.typography.h3, color: theme.colors.text.primary, fontSize: 16},
+  date: {fontSize: 13, color: theme.colors.text.secondary, marginTop: 4},
+  typeSmall: {
     fontSize: 12,
     color: theme.colors.text.secondary,
-    marginBottom: 6,
+    fontWeight: "500",
   },
-  proofImage: {
-    width: "100%",
-    height: 180,
-    borderRadius: theme.radius.md,
+  emptyState: {padding: theme.spacing.xl, alignItems: "center"},
+  emptyText: {color: theme.colors.text.secondary},
+  
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end",
+  },
+  modalContent: {
     backgroundColor: theme.colors.background,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: theme.spacing.lg,
+    maxHeight: "90%",
   },
-  meta: {fontSize: 12, color: theme.colors.text.secondary, marginBottom: 4},
+  modalContentDesktop: {
+    width: 600,
+    alignSelf: "center",
+    borderRadius: 20,
+    marginBottom: 40,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: theme.spacing.lg,
+    paddingBottom: theme.spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+  },
+  modalTitle: {
+    ...theme.typography.h2,
+    color: theme.colors.text.primary,
+  },
+  modalScroll: {
+    marginBottom: theme.spacing.md,
+  },
+  detailRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: theme.spacing.md,
+  },
+  detailLabel: {
+    fontSize: 14,
+    color: theme.colors.text.secondary,
+    fontWeight: "500",
+  },
+  detailValue: {
+    fontSize: 15,
+    color: theme.colors.text.primary,
+    fontWeight: "600",
+  },
+  detailSection: {
+    marginTop: theme.spacing.md,
+    paddingTop: theme.spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
+  },
+  detailDesc: {
+    fontSize: 15,
+    color: theme.colors.text.primary,
+    marginTop: 8,
+    lineHeight: 22,
+  },
+  detailImage: {
+    width: "100%",
+    height: 300,
+    borderRadius: theme.radius.md,
+    backgroundColor: "#e2e8f0",
+    marginTop: 12,
+  },
+  actionContainer: {
+    marginTop: theme.spacing.xl,
+    paddingTop: theme.spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
+  },
   actionRow: {
     flexDirection: "row",
     gap: 12 as any,
-    marginTop: theme.spacing.sm,
+    marginTop: theme.spacing.md,
   },
   actionBtn: {flex: 1},
-  emptyState: {padding: theme.spacing.xl, alignItems: "center"},
-  emptyText: {color: theme.colors.text.secondary},
 });
