@@ -8,6 +8,7 @@ import {
   Image,
   Modal,
   ScrollView,
+  Linking,
 } from "react-native";
 import {Ionicons} from "@expo/vector-icons";
 import {useRouter} from "expo-router";
@@ -53,10 +54,10 @@ const getImageUri = (path?: string | null) => {
   const normalizedPath = path.startsWith("/") ? path : `/uploads/${path}`;
 
   if (!baseUrl) {
-    return encodeURI(normalizedPath);
+    return normalizedPath;
   }
 
-  return encodeURI(`${baseUrl}${normalizedPath}`);
+  return `${baseUrl}${normalizedPath}`;
 };
 
 export default function AdminLeaveRequests() {
@@ -339,6 +340,21 @@ export default function AdminLeaveRequests() {
                       style={styles.detailImage}
                       resizeMode="contain"
                     />
+                    {__DEV__ && (
+                      <Text style={{fontSize: 10, color: 'gray', marginTop: 4}}>
+                        DEBUG URL: {getImageUri(selectedItem.clockInPhoto)}
+                      </Text>
+                    )}
+                    <Button 
+                      title="Buka Gambar di Tab Baru" 
+                      variant="outline" 
+                      size="sm"
+                      style={{marginTop: 8}}
+                      onPress={() => {
+                        const uri = getImageUri(selectedItem.clockInPhoto);
+                        if (uri) Linking.openURL(uri);
+                      }} 
+                    />
                   </View>
                 ) : null}
 
@@ -548,7 +564,8 @@ const styles = StyleSheet.create({
   },
   detailImage: {
     width: "100%",
-    height: 300,
+    minHeight: 300,
+    aspectRatio: 1,
     borderRadius: theme.radius.md,
     backgroundColor: "#e2e8f0",
     marginTop: 12,
