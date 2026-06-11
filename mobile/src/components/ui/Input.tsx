@@ -26,6 +26,8 @@ export const Input: React.FC<InputProps> = ({
   style,
   onFocus,
   onBlur,
+  onChangeText,
+  keyboardType,
   ...props
 }) => {
   const [isFocused, setIsFocused] = useState(false);
@@ -38,6 +40,20 @@ export const Input: React.FC<InputProps> = ({
   const handleBlur = (e: any) => {
     setIsFocused(false);
     onBlur?.(e);
+  };
+
+  const handleChangeText = (text: string) => {
+    let newText = text;
+    if (keyboardType === 'numeric' || keyboardType === 'number-pad') {
+      newText = newText.replace(/[^0-9]/g, '');
+    } else if (keyboardType === 'decimal-pad') {
+      newText = newText.replace(/[^0-9.]/g, '');
+      const parts = newText.split('.');
+      if (parts.length > 2) {
+        newText = parts[0] + '.' + parts.slice(1).join('');
+      }
+    }
+    onChangeText?.(newText);
   };
 
   return (
@@ -56,6 +72,8 @@ export const Input: React.FC<InputProps> = ({
           placeholderTextColor={theme.colors.text.light}
           onFocus={handleFocus}
           onBlur={handleBlur}
+          onChangeText={handleChangeText}
+          keyboardType={keyboardType}
           {...props}
         />
         {rightIcon && <View style={styles.iconContainer}>{rightIcon}</View>}

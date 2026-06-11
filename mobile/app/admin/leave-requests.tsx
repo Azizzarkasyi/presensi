@@ -9,6 +9,7 @@ import {
   Modal,
   ScrollView,
   Linking,
+  Platform,
 } from "react-native";
 import {Ionicons} from "@expo/vector-icons";
 import {useRouter} from "expo-router";
@@ -41,23 +42,22 @@ interface LeaveItem {
 }
 
 const getImageUri = (path?: string | null) => {
-  if (!path) {
-    return null;
+  if (!path) return null;
+  if (path.startsWith("http://") || path.startsWith("https://")) return encodeURI(path);
+
+  const rawBaseUrl = api.defaults.baseURL || "http://localhost:3000/api";
+  let baseUrl = rawBaseUrl.replace(/\/api\/?$/, "");
+  
+  if (!baseUrl.startsWith("http")) {
+    if (typeof window !== 'undefined') {
+      baseUrl = window.location.origin + (baseUrl.startsWith("/") ? baseUrl : `/${baseUrl}`);
+    } else {
+      baseUrl = "http://localhost:3000";
+    }
   }
 
-  if (path.startsWith("http://") || path.startsWith("https://")) {
-    return path;
-  }
-
-  const baseUrl = api.defaults.baseURL?.replace(/\/api\/?$/, "");
-  // Encode URI to handle spaces or special characters in filename
   const normalizedPath = path.startsWith("/") ? path : `/uploads/${path}`;
-
-  if (!baseUrl) {
-    return normalizedPath;
-  }
-
-  return `${baseUrl}${normalizedPath}`;
+  return encodeURI(`${baseUrl}${normalizedPath}`);
 };
 
 export default function AdminLeaveRequests() {
@@ -172,12 +172,7 @@ export default function AdminLeaveRequests() {
       year: "numeric",
     });
 
-  const getImageUri = (path?: string | null) => {
-    if (!path) return null;
-    if (/^https?:\/\//i.test(path)) return path;
-    const baseUrl = api.defaults.baseURL?.replace(/\/api\/?$/, "");
-    return baseUrl ? `${baseUrl}${path}` : path;
-  };
+
 
   return (
     <View style={styles.container}>
@@ -334,25 +329,41 @@ export default function AdminLeaveRequests() {
 
                 {selectedItem.clockInPhoto ? (
                   <View style={styles.detailSection}>
-                    <Text style={styles.detailLabel}>Bukti Foto (Klik/Zoom untuk perbesar)</Text>
-                    <Image
-                      source={{uri: getImageUri(selectedItem.clockInPhoto) || undefined}}
-                      style={styles.detailImage}
-                      resizeMode="contain"
-                    />
-                    {__DEV__ && (
-                      <Text style={{fontSize: 10, color: 'gray', marginTop: 4}}>
-                        DEBUG URL: {getImageUri(selectedItem.clockInPhoto)}
-                      </Text>
+                    <Text style={styles.detailLabel}>Bukti Foto</Text>
+                    {Platform.OS === 'web' ? (
+                      <img 
+                        src={getImageUri(selectedItem.clockInPhoto) || ''} 
+                        style={{
+                          width: '100%', 
+                          height: 300, 
+                          objectFit: 'contain', 
+                          borderRadius: 12,
+                          backgroundColor: '#e2e8f0',
+                          marginTop: 12
+                        }} 
+                        alt="Bukti Foto"
+                      />
+                    ) : (
+                      <Image
+                        source={{uri: getImageUri(selectedItem.clockInPhoto) || undefined}}
+                        style={styles.detailImage}
+                        resizeMode="contain"
+                      />
                     )}
                     <Button 
                       title="Buka Gambar di Tab Baru" 
                       variant="outline" 
                       size="sm"
-                      style={{marginTop: 8}}
+                      style={{marginTop: 12}}
                       onPress={() => {
                         const uri = getImageUri(selectedItem.clockInPhoto);
-                        if (uri) Linking.openURL(uri);
+                        if (uri) {
+                          if (Platform.OS === 'web') {
+                            window.open(uri, "_blank");
+                          } else {
+                            Linking.openURL(uri);
+                          }
+                        }
                       }} 
                     />
                   </View>
