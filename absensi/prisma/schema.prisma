@@ -87,7 +87,7 @@ model CompanyConfig {
 model Attendance {
   id                Int              @id @default(autoincrement())
   userId            Int
-  user              User             @relation(fields: [userId], references: [id])
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   date              DateTime         @default(now()) @db.Date
   clockIn           DateTime?
   clockOut          DateTime?
@@ -120,9 +120,9 @@ model Attendance {
 model Break {
   id           Int         @id @default(autoincrement())
   userId       Int
-  user         User        @relation(fields: [userId], references: [id])
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   attendanceId Int?
-  attendance   Attendance? @relation(fields: [attendanceId], references: [id])
+  attendance   Attendance? @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
   startTime    DateTime
   endTime      DateTime?
   duration     Int?
@@ -136,9 +136,9 @@ model Task {
   title       String
   description String
   assigneeId  Int
-  assignee    User       @relation("AssignedTo", fields: [assigneeId], references: [id])
+  assignee    User       @relation("AssignedTo", fields: [assigneeId], references: [id], onDelete: Cascade)
   creatorId   Int
-  creator     User       @relation("CreatedBy", fields: [creatorId], references: [id])
+  creator     User       @relation("CreatedBy", fields: [creatorId], references: [id], onDelete: Cascade)
   status      TaskStatus @default(PENDING)
   dueDate     DateTime?
   createdAt   DateTime   @default(now())
@@ -148,7 +148,7 @@ model Task {
 model Payroll {
   id              Int      @id @default(autoincrement())
   userId          Int
-  user            User     @relation(fields: [userId], references: [id])
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   periodStart     DateTime
   periodEnd       DateTime
   baseSalary      Float
