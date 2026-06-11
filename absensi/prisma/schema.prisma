@@ -18,6 +18,24 @@ model Tenant {
   isActive   Boolean  @default(true)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+  billings   SubscriptionBilling[]
+}
+
+model SubscriptionBilling {
+  id              Int      @id @default(autoincrement())
+  tenantId        Int
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  month           Int      // 1 - 12
+  year            Int      // e.g. 2026
+  activeUserCount Int      // Snapshot of active users at generation
+  amount          Float    // activeUserCount * 10000
+  status          PaymentStatus @default(PENDING)
+  paymentProof    String?
+  paidAt          DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([tenantId, month, year])
 }
 
 model SuperAdmin {

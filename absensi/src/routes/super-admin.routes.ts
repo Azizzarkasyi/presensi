@@ -11,6 +11,8 @@ import {
   resetTenantAdminPassword,
   createSuperAdmin,
   getSuperAdminProfile,
+  generateBillings,
+  getAllBillings,
 } from "../controllers/super-admin.controller";
 import {superAdminAuth} from "../middleware/auth.middleware";
 
@@ -34,5 +36,8 @@ router.put("/tenants/:id", superAdminAuth, updateTenant);
 router.delete("/tenants/:id", superAdminAuth, deleteTenant);
 router.patch("/tenants/:id/deactivate", superAdminAuth, deactivateTenant);
 router.patch("/tenants/:id/activate", superAdminAuth, activateTenant);
+
+router.get("/billings", superAdminAuth, getAllBillings);
+router.post("/billings/generate", superAdminAuth, generateBillings);
 
 export default router;

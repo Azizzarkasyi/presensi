@@ -354,6 +354,12 @@ export default function SuperAdminDashboard() {
           >
             <Text style={styles.addButtonText}>+ Tambah Perusahaan</Text>
           </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.addButton, { backgroundColor: "#10b981", marginTop: 8 }]}
+            onPress={() => router.push("/super-admin/billings")}
+          >
+            <Text style={styles.addButtonText}>🧾 Manajemen Tagihan</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.heroPanel}>

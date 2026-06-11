@@ -473,3 +473,103 @@ export async function getSuperAdminProfile(req: Request, res: Response) {
     });
   }
 }
+
+/**
+ * Generate monthly billings (API Endpoint)
+ */
+export async function generateBillings(req: Request, res: Response) {
+  try {
+    const publicPrisma = getPublicPrisma();
+    const COST_PER_USER = 10000;
+    
+    const date = new Date();
+    const currentMonth = date.getMonth() + 1;
+    const currentYear = date.getFullYear();
+
+    const tenants = await publicPrisma.tenant.findMany({
+      where: { isActive: true },
+    });
+
+    let successCount = 0;
+    let skippedCount = 0;
+    const details = [];
+
+    for (const tenant of tenants) {
+      const existingBill = await publicPrisma.subscriptionBilling.findUnique({
+        where: {
+          tenantId_month_year: {
+            tenantId: tenant.id,
+            month: currentMonth,
+            year: currentYear,
+          },
+        },
+      });
+
+      if (existingBill) {
+        skippedCount++;
+        continue;
+      }
+
+      try {
+        const tenantPrisma = require("../prisma/tenant-prisma").getTenantPrisma(tenant.schemaName);
+        const activeUserCount = await tenantPrisma.user.count({
+          where: { isActive: true },
+        });
+
+        const totalAmount = activeUserCount * COST_PER_USER;
+
+        await publicPrisma.subscriptionBilling.create({
+          data: {
+            tenantId: tenant.id,
+            month: currentMonth,
+            year: currentYear,
+            activeUserCount: activeUserCount,
+            amount: totalAmount,
+            status: "PENDING",
+          },
+        });
+
+        successCount++;
+        details.push({ tenant: tenant.name, amount: totalAmount, users: activeUserCount });
+      } catch (error: any) {
+        console.error(`Failed to process bill for ${tenant.name}:`, error.message);
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Berhasil mencetak ${successCount} tagihan baru. Dilewati: ${skippedCount}.`,
+      data: details
+    });
+  } catch (error: any) {
+    console.error("Generate billings error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Internal server error",
+    });
+  }
+}
+
+/**
+ * Get all billings
+ */
+export async function getAllBillings(req: Request, res: Response) {
+  try {
+    const prisma = getPublicPrisma();
+    const billings = await prisma.subscriptionBilling.findMany({
+      include: { tenant: true },
+      orderBy: [{ year: 'desc' }, { month: 'desc' }, { createdAt: 'desc' }]
+    });
+
+    res.json({
+      success: true,
+      data: billings,
+    });
+  } catch (error: any) {
+    console.error("Get billings error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Internal server error",
+    });
+  }
+}

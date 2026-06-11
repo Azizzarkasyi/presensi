@@ -95,6 +95,10 @@ export const getTenants = () => api.get("/tenants");
 export const superAdminLogin = (email: string, password: string) =>
   api.post("/super-admin/login", {email, password});
 
+// Super Admin Billings
+export const getBillings = () => api.get("/super-admin/billings");
+export const generateBillings = () => api.post("/super-admin/billings/generate");
+
 // ============================================
 // Tenant-specific Endpoints
 // ============================================
