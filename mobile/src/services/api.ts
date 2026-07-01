@@ -9,9 +9,9 @@ const getApiUrl = () => {
   // if(Platform.OS === 'android'){
   //   return 'https://yexsx.my.id/api';
   // }else{
-    return 'http://localhost:3000/api';
+    // return 'http://localhost:3000/api';
   // }
-  // return "https://yexsx.my.id/api";
+  return "https://yexsx.my.id/api";
 
   // Development URL (uncomment untuk development lokal)
   // return 'http://localhost:3000/api';
