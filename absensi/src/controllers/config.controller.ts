@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { getPublicPrisma } from '../prisma/tenant-prisma';
 
 /**
  * Get company config
@@ -81,6 +82,41 @@ export const updateConfig = async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Update config error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+};
+
+/**
+ * Get tenant active billing status (Admin only)
+ */
+export const getBillingStatus = async (req: Request, res: Response) => {
+  try {
+    const tenantId = req.tenantId!;
+    const publicPrisma = getPublicPrisma();
+    
+    const unpaidBilling = await publicPrisma.subscriptionBilling.findFirst({
+      where: {
+        tenantId,
+        status: 'PENDING',
+      },
+      orderBy: [
+        { year: 'asc' },
+        { month: 'asc' }
+      ]
+    });
+
+    res.json({
+      success: true,
+      data: {
+        hasUnpaidBilling: !!unpaidBilling,
+        billing: unpaidBilling
+      },
+    });
+  } catch (error) {
+    console.error('Get billing status error:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error',

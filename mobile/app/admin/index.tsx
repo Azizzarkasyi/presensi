@@ -1,10 +1,10 @@
 import {useEffect, useState} from "react";
-import {View, Text, TouchableOpacity, StyleSheet, Platform, Alert, ScrollView} from "react-native";
+import {View, Text, TouchableOpacity, StyleSheet, Platform, Alert, ScrollView, Modal} from "react-native";
 import {Ionicons} from "@expo/vector-icons";
 import {useRouter} from "expo-router";
 import {useAuth} from "../../src/contexts/AuthContext";
 import {useResponsive} from "../../src/hooks/useResponsive";
-import api, {getAttendanceReport} from "../../src/services/api";
+import api, {getAttendanceReport, getBillingStatus} from "../../src/services/api";
 import {theme} from "../../src/constants/theme";
 import {Card} from "../../src/components/ui/Card";
 import {readCachedJson, writeCachedJson} from "../../src/utils/webCache";
@@ -38,9 +38,23 @@ export default function AdminDashboard() {
     return `${year}-${month}-${String(lastDay).padStart(2, "0")}`;
   };
 
+  const [billingAlert, setBillingAlert] = useState<any>(null);
+
   useEffect(() => {
     loadStats();
+    checkBilling();
   }, []);
+
+  const checkBilling = async () => {
+    try {
+      const res = await getBillingStatus();
+      if (res.data?.data?.hasUnpaidBilling) {
+        setBillingAlert(res.data.data.billing);
+      }
+    } catch (e) {
+      console.log('Error checking billing:', e);
+    }
+  };
 
   const loadStats = async () => {
     setUsingCache(false);
@@ -232,6 +246,26 @@ export default function AdminDashboard() {
               </Text>
             </View>
           </View>
+        )}
+
+        {billingAlert && (
+          <Modal visible={true} transparent animationType="fade">
+            <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+              <View style={{ backgroundColor: '#fff', borderRadius: 16, padding: 24, width: '100%', maxWidth: 400, alignItems: 'center' }}>
+                <Ionicons name="warning-outline" size={48} color="#EF4444" />
+                <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#0F172A', marginTop: 16, textAlign: 'center' }}>Pemberitahuan Tagihan</Text>
+                <Text style={{ fontSize: 14, color: '#475569', marginTop: 8, textAlign: 'center', lineHeight: 20 }}>
+                  Perusahaan Anda memiliki tagihan langganan (Periode: {billingAlert.month}/{billingAlert.year}) yang belum dibayar sejumlah <Text style={{fontWeight: 'bold', color: '#EF4444'}}>Rp {billingAlert.amount.toLocaleString('id-ID')}</Text>. Mohon segera lakukan pembayaran agar layanan tidak terganggu.
+                </Text>
+                <TouchableOpacity
+                  onPress={() => setBillingAlert(null)}
+                  style={{ backgroundColor: '#1E3A8A', paddingVertical: 12, paddingHorizontal: 24, borderRadius: 8, marginTop: 24, width: '100%', alignItems: 'center' }}
+                >
+                  <Text style={{ color: '#fff', fontWeight: 'bold' }}>Saya Mengerti</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Modal>
         )}
 
         {usingCache ? (

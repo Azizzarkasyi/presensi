@@ -9,9 +9,9 @@ const getApiUrl = () => {
   // if(Platform.OS === 'android'){
   //   return 'https://yexsx.my.id/api';
   // }else{
-  //   return 'http://localhost:3000/api';
+    return 'http://localhost:3000/api';
   // }
-  return "https://yexsx.my.id/api";
+  // return "https://yexsx.my.id/api";
 
   // Development URL (uncomment untuk development lokal)
   // return 'http://localhost:3000/api';
@@ -223,10 +223,10 @@ export const getFaceStatus = () => api.get("/face/status");
 
 export const deleteFace = () => api.delete("/face");
 
-// Company Config
+// Settings / Config
 export const getCompanyConfig = () => api.get("/config");
-
 export const updateCompanyConfig = (data: any) => api.put("/config", data);
+export const getBillingStatus = () => api.get("/config/billing");
 
 // Tasks
 export const getMyTasks = (params?: {status?: string}) =>
