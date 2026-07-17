@@ -3,19 +3,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import {Platform} from "react-native";
 import {router} from "expo-router";
 
-// Detect platform for correct API URL
-export const getApiUrl = () => {
-  // __DEV__ bernilai true saat Anda menjalankan 'npx expo start' (mode development)
-  // dan bernilai false saat aplikasi di-build menjadi APK/AAB (mode production).
-  if (__DEV__) {
-    // Development URL
-    // Catatan: Jika test di device fisik Android/iOS, ganti 'localhost' dengan IP WiFi laptop (misal: 192.168.x.x).
-    // Jika test di Emulator Android bawaan Android Studio, Anda bisa pakai '10.0.2.2'.
-    return 'http://localhost:3000/api';
-  } else {
-    // Production URL
-    return 'https://yexsx.my.id/api';
-  }
+const getApiUrl = () => {
+  return "https://yexsx.my.id/api";
 };
 
 const api = axios.create({
