@@ -3,7 +3,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import {Platform} from "react-native";
 import {router} from "expo-router";
 
-const getApiUrl = () => {
+export const getApiUrl = () => {
   return "https://yexsx.my.id/api";
 };
 
