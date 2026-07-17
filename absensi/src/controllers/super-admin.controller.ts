@@ -447,7 +447,11 @@ export async function getSuperAdminProfile(req: Request, res: Response) {
         id: true,
         email: true,
         name: true,
+        bankName: true,
+        bankAccount: true,
+        bankAccountName: true,
         createdAt: true,
+        updatedAt: true,
       },
     });
 
@@ -570,6 +574,77 @@ export async function getAllBillings(req: Request, res: Response) {
     res.status(500).json({
       success: false,
       message: error.message || "Internal server error",
+    });
+  }
+}
+
+/**
+ * Approve billing (Change status to PAID)
+ */
+export async function approveBilling(req: Request, res: Response) {
+  try {
+    const billingId = parseInt(req.params.id as string);
+    const publicPrisma = getPublicPrisma();
+
+    const billing = await publicPrisma.subscriptionBilling.update({
+      where: { id: billingId },
+      data: {
+        status: "PAID",
+        paidAt: new Date(),
+      },
+    });
+
+    res.json({
+      success: true,
+      message: "Billing approved successfully",
+      data: billing,
+    });
+  } catch (error) {
+    console.error("Approve billing error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+}
+
+/**
+ * Update Super Admin Profile (Bank details etc)
+ */
+export async function updateSuperAdminProfile(req: Request, res: Response) {
+  try {
+    const publicPrisma = getPublicPrisma();
+    const adminId = req.user!.id;
+    const { name, bankName, bankAccount, bankAccountName } = req.body;
+
+    const updatedAdmin = await publicPrisma.superAdmin.update({
+      where: { id: adminId },
+      data: {
+        ...(name && { name }),
+        ...(bankName !== undefined && { bankName }),
+        ...(bankAccount !== undefined && { bankAccount }),
+        ...(bankAccountName !== undefined && { bankAccountName }),
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        bankName: true,
+        bankAccount: true,
+        bankAccountName: true,
+      },
+    });
+
+    res.json({
+      success: true,
+      message: "Profile updated successfully",
+      data: updatedAdmin,
+    });
+  } catch (error) {
+    console.error("Update super admin profile error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
     });
   }
 }

@@ -13,6 +13,8 @@ import {
   getSuperAdminProfile,
   generateBillings,
   getAllBillings,
+  updateSuperAdminProfile,
+  approveBilling,
 } from "../controllers/super-admin.controller";
 import {superAdminAuth} from "../middleware/auth.middleware";
 
@@ -39,5 +41,7 @@ router.patch("/tenants/:id/activate", superAdminAuth, activateTenant);
 
 router.get("/billings", superAdminAuth, getAllBillings);
 router.post("/billings/generate", superAdminAuth, generateBillings);
+router.post("/billings/:id/approve", superAdminAuth, approveBilling);
+router.put("/profile", superAdminAuth, updateSuperAdminProfile);
 
 export default router;

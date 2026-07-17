@@ -107,16 +107,66 @@ export const getBillingStatus = async (req: Request, res: Response) => {
         { month: 'asc' }
       ]
     });
+    
+    // Get superadmin bank details
+    const superAdmin = await publicPrisma.superAdmin.findFirst();
 
     res.json({
       success: true,
       data: {
         hasUnpaidBilling: !!unpaidBilling,
-        billing: unpaidBilling
+        billing: unpaidBilling,
+        bankDetails: superAdmin ? {
+          bankName: superAdmin.bankName,
+          bankAccount: superAdmin.bankAccount,
+          bankAccountName: superAdmin.bankAccountName,
+        } : null
       },
     });
   } catch (error) {
     console.error('Get billing status error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+};
+
+/**
+ * Upload payment proof for tenant billing
+ */
+export const uploadPaymentProof = async (req: Request, res: Response) => {
+  try {
+    const tenantId = req.tenantId!;
+    const billingId = parseInt(req.params.id as string);
+    const publicPrisma = getPublicPrisma();
+    
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'Payment proof image is required' });
+    }
+
+    const billing = await publicPrisma.subscriptionBilling.findFirst({
+      where: { id: billingId, tenantId },
+    });
+
+    if (!billing) {
+      return res.status(404).json({ success: false, message: 'Billing not found' });
+    }
+
+    const updatedBilling = await publicPrisma.subscriptionBilling.update({
+      where: { id: billingId },
+      data: {
+        paymentProof: `/api/uploads/${req.file.filename}`,
+      }
+    });
+
+    res.json({
+      success: true,
+      message: 'Payment proof uploaded successfully',
+      data: updatedBilling,
+    });
+  } catch (error) {
+    console.error('Upload proof error:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error',

@@ -1,10 +1,11 @@
 import {useEffect, useState} from "react";
-import {View, Text, TouchableOpacity, StyleSheet, Platform, Alert, ScrollView, Modal} from "react-native";
+import {View, Text, TouchableOpacity, StyleSheet, Platform, Alert, ScrollView, Modal, ActivityIndicator, Image} from "react-native";
 import {Ionicons} from "@expo/vector-icons";
 import {useRouter} from "expo-router";
 import {useAuth} from "../../src/contexts/AuthContext";
 import {useResponsive} from "../../src/hooks/useResponsive";
-import api, {getAttendanceReport, getBillingStatus} from "../../src/services/api";
+import api, {getAttendanceReport, getBillingStatus, uploadBillingProof} from "../../src/services/api";
+import * as ImagePicker from "expo-image-picker";
 import {theme} from "../../src/constants/theme";
 import {Card} from "../../src/components/ui/Card";
 import {readCachedJson, writeCachedJson} from "../../src/utils/webCache";
@@ -39,6 +40,9 @@ export default function AdminDashboard() {
   };
 
   const [billingAlert, setBillingAlert] = useState<any>(null);
+  const [billingBankDetails, setBillingBankDetails] = useState<any>(null);
+  const [uploadingProof, setUploadingProof] = useState(false);
+  const [proofImage, setProofImage] = useState<any>(null);
 
   useEffect(() => {
     loadStats();
@@ -50,9 +54,52 @@ export default function AdminDashboard() {
       const res = await getBillingStatus();
       if (res.data?.data?.hasUnpaidBilling) {
         setBillingAlert(res.data.data.billing);
+        setBillingBankDetails(res.data.data.bankDetails);
+      } else {
+        setBillingAlert(null);
       }
     } catch (e) {
       console.log('Error checking billing:', e);
+    }
+  };
+
+  const handlePickProof = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: false,
+      quality: 0.8,
+    });
+
+    if (!result.canceled) {
+      setProofImage(result.assets[0]);
+    }
+  };
+
+  const handleUploadProof = async () => {
+    if (!proofImage || !billingAlert) return;
+    setUploadingProof(true);
+    try {
+      const formData = new FormData();
+      if (Platform.OS === 'web') {
+        const response = await fetch(proofImage.uri);
+        const blob = await response.blob();
+        formData.append("paymentProof", blob, "proof.jpg");
+      } else {
+        formData.append("paymentProof", {
+          uri: proofImage.uri,
+          name: "proof.jpg",
+          type: "image/jpeg",
+        } as any);
+      }
+      
+      await uploadBillingProof(billingAlert.id, formData);
+      Alert.alert("Sukses", "Bukti pembayaran berhasil diunggah.");
+      setProofImage(null);
+      checkBilling();
+    } catch (e: any) {
+      Alert.alert("Gagal", e.message || "Gagal mengunggah bukti");
+    } finally {
+      setUploadingProof(false);
     }
   };
 
@@ -255,14 +302,51 @@ export default function AdminDashboard() {
                 <Ionicons name="warning-outline" size={48} color="#EF4444" />
                 <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#0F172A', marginTop: 16, textAlign: 'center' }}>Pemberitahuan Tagihan</Text>
                 <Text style={{ fontSize: 14, color: '#475569', marginTop: 8, textAlign: 'center', lineHeight: 20 }}>
-                  Perusahaan Anda memiliki tagihan langganan (Periode: {billingAlert.month}/{billingAlert.year}) yang belum dibayar sejumlah <Text style={{fontWeight: 'bold', color: '#EF4444'}}>Rp {billingAlert.amount.toLocaleString('id-ID')}</Text>. Mohon segera lakukan pembayaran agar layanan tidak terganggu.
+                  Perusahaan Anda memiliki tagihan langganan (Periode: {billingAlert.month}/{billingAlert.year}) yang belum dibayar sejumlah <Text style={{fontWeight: 'bold', color: '#EF4444'}}>Rp {billingAlert.amount.toLocaleString('id-ID')}</Text>.
                 </Text>
-                <TouchableOpacity
-                  onPress={() => setBillingAlert(null)}
-                  style={{ backgroundColor: '#1E3A8A', paddingVertical: 12, paddingHorizontal: 24, borderRadius: 8, marginTop: 24, width: '100%', alignItems: 'center' }}
-                >
-                  <Text style={{ color: '#fff', fontWeight: 'bold' }}>Saya Mengerti</Text>
-                </TouchableOpacity>
+
+                {billingBankDetails && (
+                  <View style={{ backgroundColor: '#F1F5F9', padding: 12, borderRadius: 8, marginTop: 12, width: '100%' }}>
+                    <Text style={{ fontSize: 12, color: '#64748B', marginBottom: 4 }}>Transfer ke Rekening:</Text>
+                    <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#0F172A' }}>{billingBankDetails.bankName}</Text>
+                    <Text style={{ fontSize: 18, fontWeight: '800', color: '#1E3A8A', letterSpacing: 1, marginVertical: 4 }}>{billingBankDetails.bankAccount}</Text>
+                    <Text style={{ fontSize: 14, color: '#475569' }}>a/n {billingBankDetails.bankAccountName}</Text>
+                  </View>
+                )}
+
+                {billingAlert.paymentProof ? (
+                  <View style={{ marginTop: 24, padding: 12, backgroundColor: '#DCFCE7', borderRadius: 8, width: '100%', alignItems: 'center' }}>
+                    <Ionicons name="time-outline" size={24} color="#166534" />
+                    <Text style={{ color: '#166534', fontWeight: 'bold', marginTop: 8, textAlign: 'center' }}>
+                      Bukti pembayaran sedang diperiksa oleh Super Admin. Harap tunggu konfirmasi.
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={{ width: '100%', marginTop: 20 }}>
+                    <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#0F172A', marginBottom: 8 }}>Upload Bukti Pembayaran:</Text>
+                    
+                    <TouchableOpacity onPress={handlePickProof} style={{ borderWidth: 1, borderColor: '#CBD5E1', borderStyle: 'dashed', borderRadius: 8, padding: 20, alignItems: 'center', backgroundColor: '#F8FAFC' }}>
+                      {proofImage ? (
+                        <Image source={{ uri: proofImage.uri }} style={{ width: 100, height: 100, borderRadius: 8 }} />
+                      ) : (
+                        <>
+                          <Ionicons name="cloud-upload-outline" size={32} color="#64748B" />
+                          <Text style={{ color: '#64748B', marginTop: 8 }}>Pilih Gambar/Foto Bukti</Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+
+                    {proofImage && (
+                      <TouchableOpacity
+                        onPress={handleUploadProof}
+                        disabled={uploadingProof}
+                        style={{ backgroundColor: '#1E3A8A', paddingVertical: 12, borderRadius: 8, marginTop: 16, alignItems: 'center', flexDirection: 'row', justifyContent: 'center' }}
+                      >
+                        {uploadingProof ? <ActivityIndicator color="#fff" /> : <Text style={{ color: '#fff', fontWeight: 'bold' }}>Kirim Bukti Pembayaran</Text>}
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                )}
               </View>
             </View>
           </Modal>

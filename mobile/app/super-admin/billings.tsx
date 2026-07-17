@@ -5,16 +5,20 @@ import {
   StyleSheet,
   ScrollView,
   RefreshControl,
+  Modal,
+  Image,
+  TouchableOpacity
 } from "react-native";
 import {useRouter} from "expo-router";
 import {Ionicons} from "@expo/vector-icons";
 import {useResponsive} from "../../src/hooks/useResponsive";
 import {useGlobalModal} from "../../src/contexts/GlobalModalContext";
-import {getBillings, generateBillings} from "../../src/services/api";
+import {getSuperAdminBillings, generateBillings, approveBilling, getSuperAdminProfile, updateSuperAdminProfile, getApiUrl} from "../../src/services/api";
 import {theme} from "../../src/constants/theme";
 import {ScreenHeader} from "../../src/components/ui/ScreenHeader";
 import {Card} from "../../src/components/ui/Card";
 import {Button} from "../../src/components/ui/Button";
+import {Input} from "../../src/components/ui/Input";
 
 interface Billing {
   id: number;
@@ -28,6 +32,7 @@ interface Billing {
   activeUserCount: number;
   amount: number;
   status: string;
+  paymentProof?: string;
   createdAt: string;
 }
 
@@ -40,14 +45,76 @@ export default function SuperAdminBillings() {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
 
+  // Bank Setup States
+  const [showBankSetup, setShowBankSetup] = useState(false);
+  const [bankName, setBankName] = useState("");
+  const [bankAccount, setBankAccount] = useState("");
+  const [bankAccountName, setBankAccountName] = useState("");
+  const [savingBank, setSavingBank] = useState(false);
+
+  // Proof Modal
+  const [proofModalVisible, setProofModalVisible] = useState(false);
+  const [selectedProof, setSelectedProof] = useState<string | null>(null);
+
   useEffect(() => {
     loadBillings();
+    loadProfile();
   }, []);
+
+  const loadProfile = async () => {
+    try {
+      const res = await getSuperAdminProfile();
+      if (res.data?.data) {
+        setBankName(res.data.data.bankName || "");
+        setBankAccount(res.data.data.bankAccount || "");
+        setBankAccountName(res.data.data.bankAccountName || "");
+      }
+    } catch (e) {
+      console.log('Error loading super admin profile', e);
+    }
+  };
+
+  const handleSaveBank = async () => {
+    setSavingBank(true);
+    try {
+      await updateSuperAdminProfile({ bankName, bankAccount, bankAccountName });
+      setShowBankSetup(false);
+      showModal({ title: "Sukses", message: "Rekening pembayaran berhasil disimpan", buttonText: "OK" });
+    } catch (error: any) {
+      showModal({ title: "Gagal", message: "Gagal menyimpan rekening", isError: true, buttonText: "Tutup" });
+    } finally {
+      setSavingBank(false);
+    }
+  };
+
+  const handleApprove = async (billId: number) => {
+    showModal({
+      title: "Approve Pembayaran",
+      message: "Apakah Anda yakin ingin menyetujui pembayaran tagihan ini?",
+      buttonText: "Ya, Setujui",
+      secondaryButtonText: "Batal",
+      onPrimaryPress: async () => {
+        try {
+          await approveBilling(billId);
+          loadBillings();
+        } catch (error) {
+          showModal({ title: "Gagal", message: "Gagal approve", isError: true, buttonText: "Tutup" });
+        }
+      }
+    });
+  };
+
+  const getImageUrl = (path: string) => {
+    if (!path) return '';
+    const baseUrl = getApiUrl().replace('/api', '');
+    const cleanPath = path.startsWith('/api') ? path.replace('/api', '') : path;
+    return `${baseUrl}${cleanPath}`;
+  };
 
   const loadBillings = async () => {
     try {
       setLoading(true);
-      const res = await getBillings();
+      const res = await getSuperAdminBillings();
       if (res.data?.success) {
         setBillings(res.data.data);
       }
@@ -133,6 +200,11 @@ export default function SuperAdminBillings() {
               loading={generating}
               style={{ backgroundColor: "#10b981", borderColor: "#10b981" }}
             />
+            <Button
+              title="Pengaturan Rekening"
+              onPress={() => setShowBankSetup(true)}
+              style={{ backgroundColor: "#3b82f6", borderColor: "#3b82f6", marginTop: 8 }}
+            />
           </View>
         </View>
       )}
@@ -152,7 +224,13 @@ export default function SuperAdminBillings() {
                 onPress={handleGenerate}
                 loading={generating}
                 size="lg"
-                style={{ backgroundColor: "#10b981", borderColor: "#10b981" }}
+                style={{ backgroundColor: "#10b981", borderColor: "#10b981", marginBottom: 8 }}
+              />
+              <Button
+                title="Pengaturan Rekening"
+                onPress={() => setShowBankSetup(true)}
+                size="lg"
+                style={{ backgroundColor: "#3b82f6", borderColor: "#3b82f6" }}
               />
             </Card>
           )}
@@ -205,6 +283,20 @@ export default function SuperAdminBillings() {
                         {formatCurrency(bill.amount)}
                       </Text>
                     </View>
+
+                    {bill.status === "PENDING" && bill.paymentProof && (
+                      <View style={{ marginTop: 16 }}>
+                        <TouchableOpacity
+                          onPress={() => {
+                            setSelectedProof(getImageUrl(bill.paymentProof!));
+                            setProofModalVisible(true);
+                          }}
+                        >
+                          <Text style={{ color: "#3b82f6", fontWeight: "bold", textAlign: "center", marginBottom: 8 }}>Lihat Bukti Transfer</Text>
+                        </TouchableOpacity>
+                        <Button title="Setujui Pembayaran" onPress={() => handleApprove(bill.id)} style={{ backgroundColor: "#10b981", borderColor: "#10b981" }} />
+                      </View>
+                    )}
                   </Card>
                 </View>
               ))}
@@ -212,6 +304,46 @@ export default function SuperAdminBillings() {
           )}
         </View>
       </ScrollView>
+
+      {/* Proof Modal */}
+      {proofModalVisible && (
+        <Modal visible={true} transparent animationType="fade">
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', alignItems: 'center' }}>
+            <TouchableOpacity style={{ position: 'absolute', top: 40, right: 20, zIndex: 10 }} onPress={() => setProofModalVisible(false)}>
+              <Ionicons name="close-circle" size={40} color="#fff" />
+            </TouchableOpacity>
+            {selectedProof && (
+              <Image source={{ uri: selectedProof }} style={{ width: '90%', height: '80%', resizeMode: 'contain' }} />
+            )}
+          </View>
+        </Modal>
+      )}
+
+      {/* Bank Setup Modal */}
+      {showBankSetup && (
+        <Modal visible={true} transparent animationType="fade">
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+            <View style={{ backgroundColor: '#fff', borderRadius: 16, padding: 24, width: '100%', maxWidth: 400 }}>
+              <Text style={{ fontSize: 20, fontWeight: 'bold', marginBottom: 16 }}>Pengaturan Rekening Pembayaran</Text>
+              
+              <Text style={{ marginBottom: 4, fontWeight: 'bold' }}>Nama Bank</Text>
+              <Input placeholder="Contoh: BCA / Mandiri" value={bankName} onChangeText={setBankName} />
+              
+              <Text style={{ marginTop: 8, marginBottom: 4, fontWeight: 'bold' }}>Nomor Rekening</Text>
+              <Input placeholder="Contoh: 1234567890" value={bankAccount} onChangeText={setBankAccount} keyboardType="numeric" />
+              
+              <Text style={{ marginTop: 8, marginBottom: 4, fontWeight: 'bold' }}>Atas Nama</Text>
+              <Input placeholder="Contoh: PT Solusi Cerdas" value={bankAccountName} onChangeText={setBankAccountName} />
+
+              <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 16, gap: 8 }}>
+                <Button title="Batal" onPress={() => setShowBankSetup(false)} style={{ backgroundColor: '#94a3b8', borderColor: '#94a3b8' }} />
+                <Button title="Simpan" onPress={handleSaveBank} loading={savingBank} />
+              </View>
+            </View>
+          </View>
+        </Modal>
+      )}
+
     </View>
   );
 }

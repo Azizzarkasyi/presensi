@@ -4,17 +4,18 @@ import {Platform} from "react-native";
 import {router} from "expo-router";
 
 // Detect platform for correct API URL
-const getApiUrl = () => {
-  // Production URL (Cloudflare Tunnel)
-  // if(Platform.OS === 'android'){
-  //   return 'https://yexsx.my.id/api';
-  // }else{
-    // return 'http://localhost:3000/api';
-  // }
-  return "https://yexsx.my.id/api";
-
-  // Development URL (uncomment untuk development lokal)
-  // return 'http://localhost:3000/api';
+export const getApiUrl = () => {
+  // __DEV__ bernilai true saat Anda menjalankan 'npx expo start' (mode development)
+  // dan bernilai false saat aplikasi di-build menjadi APK/AAB (mode production).
+  if (__DEV__) {
+    // Development URL
+    // Catatan: Jika test di device fisik Android/iOS, ganti 'localhost' dengan IP WiFi laptop (misal: 192.168.x.x).
+    // Jika test di Emulator Android bawaan Android Studio, Anda bisa pakai '10.0.2.2'.
+    return 'http://localhost:3000/api';
+  } else {
+    // Production URL
+    return 'https://yexsx.my.id/api';
+  }
 };
 
 const api = axios.create({
@@ -96,8 +97,11 @@ export const superAdminLogin = (email: string, password: string) =>
   api.post("/super-admin/login", {email, password});
 
 // Super Admin Billings
-export const getBillings = () => api.get("/super-admin/billings");
 export const generateBillings = () => api.post("/super-admin/billings/generate");
+export const getSuperAdminBillings = () => api.get("/super-admin/billings");
+export const approveBilling = (id: number) => api.post(`/super-admin/billings/${id}/approve`);
+export const updateSuperAdminProfile = (data: any) => api.put("/super-admin/profile", data);
+export const getSuperAdminProfile = () => api.get("/super-admin/profile");
 
 // ============================================
 // Tenant-specific Endpoints
@@ -227,6 +231,10 @@ export const deleteFace = () => api.delete("/face");
 export const getCompanyConfig = () => api.get("/config");
 export const updateCompanyConfig = (data: any) => api.put("/config", data);
 export const getBillingStatus = () => api.get("/config/billing");
+export const uploadBillingProof = (billingId: number, data: FormData) =>
+  api.post(`/config/billing/${billingId}/proof`, data, {
+    headers: {"Content-Type": "multipart/form-data"},
+  });
 
 // Tasks
 export const getMyTasks = (params?: {status?: string}) =>
