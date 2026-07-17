@@ -106,8 +106,8 @@ export default function SuperAdminBillings() {
 
   const getImageUrl = (path: string) => {
     if (!path) return '';
-    const baseUrl = getApiUrl().replace('/api', '');
-    const cleanPath = path.startsWith('/api') ? path.replace('/api', '') : path;
+    const baseUrl = getApiUrl().replace(/\/api\/?$/, '');
+    const cleanPath = path.startsWith('/') ? path : `/${path}`;
     return `${baseUrl}${cleanPath}`;
   };
 

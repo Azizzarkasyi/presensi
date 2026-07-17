@@ -237,11 +237,6 @@ export default function SuperAdminDashboard() {
           res.data?.temporaryPassword ||
           "";
         setTemporaryPassword(password);
-        showModal({
-          title: "Password Berhasil Direset!",
-          message: `Password admin untuk ${detailTenant.name} sekarang adalah:\n\n${password}\n\nMohon catat atau salin password ini, karena hanya ditampilkan sekali.`,
-          buttonText: "Tutup",
-        });
       } catch (error: any) {
         const msg =
           error.response?.data?.message || "Gagal reset password admin";
