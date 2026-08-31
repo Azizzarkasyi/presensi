@@ -4,7 +4,7 @@ import {Platform} from "react-native";
 import {router} from "expo-router";
 
 export const getApiUrl = () => {
-  return "https://yexsx.my.id/api";
+  return "https://presensi.yexsx.my.id/api";
 };
 
 const api = axios.create({
@@ -28,7 +28,7 @@ api.interceptors.request.use(async config => {
   }
 
   // Prevent GET caching
-  if (config.method?.toLowerCase() === 'get') {
+  if (config.method?.toLowerCase() === "get") {
     config.params = {
       ...config.params,
       _t: new Date().getTime(),
@@ -40,8 +40,8 @@ api.interceptors.request.use(async config => {
 
 // Auto-Logout Interceptor (Handle Token Expired)
 api.interceptors.response.use(
-  (response) => response,
-  async (error) => {
+  response => response,
+  async error => {
     if (error.response && error.response.status === 401) {
       // Hapus sesi lokal agar user dipaksa login ulang
       await AsyncStorage.multiRemove([
@@ -51,14 +51,14 @@ api.interceptors.response.use(
         "tenantId",
         "isSuperAdmin",
       ]);
-      
+
       // Paksa kembali ke layar login
-      if (router && typeof router.replace === 'function') {
+      if (router && typeof router.replace === "function") {
         router.replace("/login");
       }
     }
     return Promise.reject(error);
-  }
+  },
 );
 
 export default api;
@@ -86,10 +86,13 @@ export const superAdminLogin = (email: string, password: string) =>
   api.post("/super-admin/login", {email, password});
 
 // Super Admin Billings
-export const generateBillings = () => api.post("/super-admin/billings/generate");
+export const generateBillings = () =>
+  api.post("/super-admin/billings/generate");
 export const getSuperAdminBillings = () => api.get("/super-admin/billings");
-export const approveBilling = (id: number) => api.post(`/super-admin/billings/${id}/approve`);
-export const updateSuperAdminProfile = (data: any) => api.put("/super-admin/profile", data);
+export const approveBilling = (id: number) =>
+  api.post(`/super-admin/billings/${id}/approve`);
+export const updateSuperAdminProfile = (data: any) =>
+  api.put("/super-admin/profile", data);
 export const getSuperAdminProfile = () => api.get("/super-admin/profile");
 
 // ============================================
