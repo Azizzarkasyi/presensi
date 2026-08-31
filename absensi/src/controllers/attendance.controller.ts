@@ -923,7 +923,7 @@ export const getHistory = async (req: Request, res: Response) => {
   try {
     const prisma = req.prisma!;
     const userId = req.user!.id;
-    const {page = 1, limit = 20} = req.query;
+    const {page = 1, limit = 100} = req.query;
 
     const skip = (Number(page) - 1) * Number(limit);
 
