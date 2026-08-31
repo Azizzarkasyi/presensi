@@ -141,10 +141,8 @@ export const requestLeave = (data: FormData) =>
 
 export const getTodayAttendance = () => api.get("/attendance/today");
 
-export const getAttendanceHistory = (params?: {
-  page?: number;
-  limit?: number;
-}) => api.get("/attendance/history", {params});
+export const getAttendanceHistory = (page = 1, limit = 100) =>
+  api.get(`/attendance/history?page=${page}&limit=${limit}`);
 
 export const getAttendanceStatistics = (params?: {
   month?: number;
